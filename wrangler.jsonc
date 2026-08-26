@@ -1,0 +1,63 @@
+/**
+ * Cloudflare Workers configuration.
+ *
+ * The top-level config is the LOCAL DEVELOPMENT environment: `vite dev`, `wrangler dev`
+ * and `wrangler d1 migrations apply DB --local` all read it, and its D1 data lives in
+ * `.wrangler/state` on your machine, so the placeholder `database_id` is never used.
+ *
+ * `env.staging` and `env.production` are the deployed environments. Bindings are NOT
+ * inherited by named environments, so `d1_databases` is repeated in each one; `main`,
+ * `assets` and `compatibility_*` are inherited from the top level.
+ *
+ * Before your first deploy, create the two databases and paste their IDs below:
+ *   pnpm exec wrangler d1 create quiz-game-staging
+ *   pnpm exec wrangler d1 create quiz-game-prod
+ */
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "quiz-game-dev",
+	"compatibility_date": "2026-08-26",
+	"compatibility_flags": ["nodejs_als"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"workers_dev": true,
+	"preview_urls": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "quiz-game-local",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "migrations"
+		}
+	],
+	"env": {
+		"staging": {
+			"name": "quiz-game-staging",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "quiz-game-staging",
+					"database_id": "REPLACE_WITH_STAGING_D1_DATABASE_ID",
+					"migrations_dir": "migrations"
+				}
+			]
+		},
+		"production": {
+			"name": "quiz-game",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "quiz-game-prod",
+					"database_id": "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID",
+					"migrations_dir": "migrations"
+				}
+			]
+		}
+	}
+}
