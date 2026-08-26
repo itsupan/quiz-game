@@ -1,0 +1,20 @@
+{
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"rewriteRelativeImportExtensions": true,
+		"allowJs": true,
+		// Off deliberately: `wrangler types` makes the generated worker-configuration.d.ts
+		// reference the built .svelte-kit/cloudflare/_worker.js, which would otherwise be
+		// type-checked and report hundreds of errors in generated code after every build.
+		// This project is TypeScript-first, so nothing of ours needs JS checking.
+		"checkJs": false,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"moduleResolution": "bundler",
+		"types": ["./worker-configuration.d.ts"]
+	}
+}
