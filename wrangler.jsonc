@@ -43,7 +43,7 @@
 				{
 					"binding": "DB",
 					"database_name": "quiz-game-staging",
-					"database_id": "REPLACE_WITH_STAGING_D1_DATABASE_ID",
+					"database_id": "4087497b-df64-4061-9348-b2203c0b8a87",
 					"migrations_dir": "migrations"
 				}
 			]
@@ -54,7 +54,7 @@
 				{
 					"binding": "DB",
 					"database_name": "quiz-game-prod",
-					"database_id": "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID",
+					"database_id": "8003782b-2e17-4d16-b682-0584e3765ce6",
 					"migrations_dir": "migrations"
 				}
 			]
