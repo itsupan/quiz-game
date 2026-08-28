@@ -24,7 +24,8 @@ chain — schema → migration → binding → query → render — is already w
 
 ```sh
 pnpm install
-pnpm db:setup:local   # applies migrations + seed to the local D1 in .wrangler/state
+cp .dev.vars.example .dev.vars   # local app secrets (none required yet)
+pnpm db:setup:local              # migrations + seed into the local D1 in .wrangler/state
 pnpm dev
 ```
 
@@ -39,6 +40,8 @@ seeds/dev.sql          Idempotent local seed data
 src/
   app.d.ts             App.Platform (Cloudflare Env) and App.Locals types
   hooks.server.ts      Puts a per-request Drizzle client on locals.db
+  lib/components/      Presentational components shared by 2+ features
+  lib/features/        One folder per feature slice: its UI, logic and tests together
   lib/server/db/
     schema.ts          Drizzle table definitions — the source of truth
     index.ts           getDb(platform) → typed Drizzle client
@@ -51,8 +54,50 @@ src/
     api/health/+server.ts  Smoke endpoint: reports D1 reachability
 wrangler.jsonc         Worker + D1 config for local / staging / production
 drizzle.config.ts      Drizzle Kit — generates SQL only, never talks to D1
+.env.example           CLI credentials for deploys/remote migrations (not app config)
+.dev.vars.example      Local application secrets, readable server-side only
 .github/workflows/cicd.yml
 ```
+
+Tests sit next to the code they cover rather than in a top-level `tests/` folder. The
+filename picks the runner: `*.svelte.spec.ts` → Vitest browser project, `*.spec.ts` →
+Vitest node project, `*.e2e.ts` → Playwright.
+
+## Secrets and environment variables
+
+Two files, two different jobs. Neither is committed; both have a checked-in `.example`.
+
+| File        | Holds                                           | Read by                                         |
+| ----------- | ----------------------------------------------- | ----------------------------------------------- |
+| `.env`      | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | the `wrangler` CLI — deploys, remote migrations |
+| `.dev.vars` | application secrets for local dev               | your Worker, as `platform.env.NAME`             |
+
+Keep the split. Wrangler merges `.env` into the Worker's env during local development, so
+a CLI token sitting in `.env` would become app-visible — **unless** a `.dev.vars` file
+exists, which makes Wrangler exclude `.env` from the Worker env. That is why
+`cp .dev.vars.example .dev.vars` is in Getting started even though the project has no
+application secrets yet.
+
+Secrets stay server-only, enforced rather than merely agreed:
+
+- Read them in `src/lib/server/**`, `+page.server.ts`, `+layout.server.ts`, `+server.ts`
+  or `hooks.server.ts`. SvelteKit **fails the build** if `$lib/server/**` or
+  `$env/*/private` is reachable from client code.
+- Never prefix a secret with `PUBLIC_`. That prefix means "ship this to the browser".
+- Prefer `platform.env` or `$env/dynamic/private` over `$env/static/private`. Static
+  values are inlined at build time and CI builds without production secrets present, so a
+  static read compiles to `undefined` in the deployed Worker.
+
+For staging and production, never use a file — push the value to Cloudflare:
+
+```sh
+pnpm exec wrangler secret put NAME --env staging
+pnpm exec wrangler secret put NAME --env production
+```
+
+CI needs only `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, supplied as GitHub
+repository secrets (see below). The unit and end-to-end suites run entirely against local
+D1 and need no credentials at all.
 
 ## Generated files
 
@@ -91,10 +136,13 @@ in D1's `d1_migrations` table rather than by Drizzle.
 
 ## One-time Cloudflare setup
 
-Deployment is not configured until you do these three things.
+Already done for this repo's Cloudflare account — production is live on
+`quizgame.ecoapsara.com`. Kept as a record of what deployment depends on, and as the
+checklist for standing the project up somewhere new.
 
-**1. Create the two D1 databases** and paste the returned IDs into `wrangler.jsonc`,
-replacing `REPLACE_WITH_STAGING_D1_DATABASE_ID` and `REPLACE_WITH_PRODUCTION_D1_DATABASE_ID`:
+**1. D1 databases — already done.** `quiz-game-staging` and `quiz-game-prod` exist and
+their real `database_id`s are committed in `wrangler.jsonc`. You only need this if you are
+standing the project up in a different Cloudflare account:
 
 ```sh
 pnpm exec wrangler login
@@ -102,8 +150,13 @@ pnpm exec wrangler d1 create quiz-game-staging
 pnpm exec wrangler d1 create quiz-game-prod
 ```
 
-The top-level `database_id` in `wrangler.jsonc` is a placeholder on purpose — local D1
-lives in `.wrangler/state` and never uses it.
+Paste the returned IDs into the `env.staging` and `env.production` blocks of
+`wrangler.jsonc`. The top-level `database_id` is a placeholder on purpose — local D1 lives
+in `.wrangler/state` and never uses it.
+
+Bindings are **not** inherited by named environments, so a new D1/KV/R2 binding must be
+added to the top level _and_ `env.staging` _and_ `env.production`, or it is silently
+missing once deployed.
 
 **2. Add GitHub repository secrets** (Settings → Secrets and variables → Actions):
 
