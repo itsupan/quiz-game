@@ -2,4 +2,4 @@
 	import AuthPage from '$lib/components/AuthPage.svelte';
 </script>
 
-<AuthPage mode="login" />
+<AuthPage mode="signup" />

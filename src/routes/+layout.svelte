@@ -1,10 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { resolve } from '$app/paths';
-	import favicon from '$lib/assets/favicon.svg';
-	import '../app.css';
-
-	let { data, children } = $props();
+	import './layout.css';
 
 	// So signing in from a page returns to it rather than dumping you on the homepage.
 	const signInHref = $derived(
@@ -13,7 +8,15 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<title>QuizGame</title>
+	<meta
+		name="description"
+		content="QuizGame — learn Japanese through engaging, progress-driven quizzes."
+	/>
+	<meta name="application-name" content="QuizGame" />
+	<meta name="theme-color" content="#b6251f" />
+	<meta property="og:site_name" content="QuizGame" />
+	<link rel="icon" href="/brand/logo_icon.png" type="image/png" />
 </svelte:head>
 
 <header class="site">
