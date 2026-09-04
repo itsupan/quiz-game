@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-test('home page renders the seeded quizzes from D1', async ({ page }) => {
+test('home page renders the login experience', async ({ page }) => {
 	await page.goto('/');
 
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hello world');
-	await expect(page.getByRole('listitem').first()).toContainText('Capital cities');
+	await expect(page.getByRole('heading', { level: 1 })).toContainText('Login');
+	await expect(page.getByLabel('Email address')).toBeVisible();
+	await expect(page.getByRole('button', { name: /authenticate/i })).toBeVisible();
 });
 
 test('health endpoint reports a reachable database', async ({ request }) => {
