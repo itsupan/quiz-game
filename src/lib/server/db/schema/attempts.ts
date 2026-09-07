@@ -1,5 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+	check,
+	foreignKey,
+	index,
+	integer,
+	sqliteTable,
+	text,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
 
 import { users } from './auth';
 import { checkIn, createdAt, publicId, updatedAt } from './columns';
@@ -90,16 +98,21 @@ export const attemptQuestions = sqliteTable(
 	(table) => [
 		check('attempt_questions_section_check', checkIn(table.section, SECTIONS)),
 		uniqueIndex('attempt_questions_attempt_question_idx').on(table.attemptId, table.questionId),
-		uniqueIndex('attempt_questions_attempt_position_idx').on(table.attemptId, table.position)
+		uniqueIndex('attempt_questions_attempt_position_idx').on(table.attemptId, table.position),
+		// Both unique indexes lead with attempt_id, so nothing indexes question_id and the
+		// RESTRICT check on deleting a question would scan every served question ever.
+		index('attempt_questions_question_idx').on(table.questionId),
+		/** Parent key for attempt_answers' composite FK. */
+		uniqueIndex('attempt_questions_id_question_idx').on(table.id, table.questionId)
 	]
 );
 
 /**
  * A learner's answer to one served question, written the moment it is chosen.
  *
- * The unique constraint on `(attemptId, attemptQuestionId)` is what makes that an
- * idempotent upsert: changing your mind updates the row instead of appending a second
- * one, so there is never an ordering question about which answer counted.
+ * The unique constraint on `attemptQuestionId` is what makes that an idempotent
+ * upsert: changing your mind updates the row instead of appending a second one, so
+ * there is never an ordering question about which answer counted.
  *
  * `isCorrect` and `pointsEarned` stay null until scoring, so exactly one place in the
  * codebase decides whether an answer was right.
@@ -108,16 +121,15 @@ export const attemptAnswers = sqliteTable(
 	'attempt_answers',
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
-		attemptId: integer('attempt_id')
-			.notNull()
-			.references(() => attempts.id, { onDelete: 'cascade' }),
-		attemptQuestionId: integer('attempt_question_id')
-			.notNull()
-			.references(() => attemptQuestions.id, { onDelete: 'cascade' }),
+		attemptId: integer('attempt_id').notNull(),
+		attemptQuestionId: integer('attempt_question_id').notNull(),
+		/**
+		 * Denormalised from the served question so the composite foreign keys below can
+		 * tie the chosen option to the question it actually belongs to.
+		 */
+		questionId: integer('question_id').notNull(),
 		/** Null means the learner explicitly skipped, or ran out of time. */
-		selectedOptionId: integer('selected_option_id').references(() => questionOptions.id, {
-			onDelete: 'restrict'
-		}),
+		selectedOptionId: integer('selected_option_id'),
 		isCorrect: integer('is_correct', { mode: 'boolean' }),
 		pointsEarned: integer('points_earned'),
 		answeredAt: integer('answered_at', { mode: 'timestamp' }).notNull(),
@@ -125,11 +137,37 @@ export const attemptAnswers = sqliteTable(
 		updatedAt: updatedAt()
 	},
 	(table) => [
-		uniqueIndex('attempt_answers_attempt_question_idx').on(
-			table.attemptId,
-			table.attemptQuestionId
-		),
-		index('attempt_answers_attempt_idx').on(table.attemptId)
+		/**
+		 * On attempt_question_id ALONE. Pairing it with attempt_id widens the constraint
+		 * instead of narrowing it — a served question already belongs to exactly one
+		 * attempt, so `(1, 900)` and `(2, 900)` are distinct pairs and both insert,
+		 * leaving two answers for one question and double-counting it at scoring.
+		 */
+		uniqueIndex('attempt_answers_question_idx').on(table.attemptQuestionId),
+		/** Now the only index leading with attempt_id, so it earns its keep. */
+		index('attempt_answers_attempt_idx').on(table.attemptId),
+		index('attempt_answers_option_idx').on(table.selectedOptionId),
+		foreignKey({
+			name: 'attempt_answers_attempt_fk',
+			columns: [table.attemptId],
+			foreignColumns: [attempts.id]
+		}).onDelete('cascade'),
+		/** Pins question_id to whatever this attempt was actually served. */
+		foreignKey({
+			name: 'attempt_answers_served_fk',
+			columns: [table.attemptQuestionId, table.questionId],
+			foreignColumns: [attemptQuestions.id, attemptQuestions.questionId]
+		}).onDelete('cascade'),
+		/**
+		 * And pins the chosen option to that same question. Without it a client could post
+		 * any option id and be scored against an unrelated question's answer key. A null
+		 * selection skips the check, which is what a skipped question needs.
+		 */
+		foreignKey({
+			name: 'attempt_answers_option_fk',
+			columns: [table.selectedOptionId, table.questionId],
+			foreignColumns: [questionOptions.id, questionOptions.questionId]
+		}).onDelete('restrict')
 	]
 );
 

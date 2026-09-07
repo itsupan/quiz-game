@@ -26,10 +26,10 @@ import type {
 } from './attempts';
 import type { auditLogs } from './audit';
 import type { oauthAccounts, sessions, users } from './auth';
+import { questionOptions } from './content';
 import type {
 	mediaAssets,
 	questionGroups,
-	questionOptions,
 	questions,
 	quizQuestions,
 	quizScoringBands,
@@ -93,6 +93,16 @@ export type NewAuditLog = typeof auditLogs.$inferInsert;
  *
  * `questionOptions.isCorrect` must never appear in a payload that leaves the server —
  * the acceptance criterion is that answer keys cannot be obtained from the initial
- * quiz-page data. Loading a quiz selects these three columns and nothing more.
+ * quiz-page data.
+ *
+ * This is a value, not just a type, so a load function passes it straight to
+ * `.select()` rather than hand-listing columns and hoping nobody adds the answer key.
+ * One chokepoint, and a test can assert what is in it.
  */
+export const publicQuestionOptionColumns = {
+	id: questionOptions.id,
+	body: questionOptions.body,
+	position: questionOptions.position
+} as const;
+
 export type PublicQuestionOption = Pick<QuestionOption, 'id' | 'body' | 'position'>;

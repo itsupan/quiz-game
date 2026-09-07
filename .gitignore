@@ -32,6 +32,6 @@ vite.config.ts.timestamp-*
 test-results
 playwright-report
 
-docs
+docs/superpowers
 
 CLAUDE.md

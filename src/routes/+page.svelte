@@ -16,7 +16,7 @@
 	<h2>Quizzes</h2>
 	{#if data.quizzes.length > 0}
 		<ul>
-			{#each data.quizzes as quiz (quiz.id)}
+			{#each data.quizzes as quiz (quiz.publicId)}
 				<li>
 					<strong>{quiz.title}</strong>
 					<span>added {quiz.createdAt.toLocaleDateString('en-CA')}</span>

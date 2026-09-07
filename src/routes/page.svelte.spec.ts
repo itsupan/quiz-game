@@ -6,8 +6,7 @@ import type { PageData, PageProps } from './$types';
 type QuizCard = PageData['quizzes'][number];
 
 const quiz = (id: number, title: string): QuizCard => ({
-	id,
-	publicId: `01JSEEDQUIZ${String(id).padStart(15, '0')}`,
+	publicId: `01JSEEDQZ${String(id).padStart(17, '0')}`,
 	title,
 	level: 'N4',
 	mode: 'JLPT_PRACTICE',
