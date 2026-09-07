@@ -4,7 +4,7 @@ test('home page renders the seeded quizzes from D1', async ({ page }) => {
 	await page.goto('/');
 
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hello world');
-	await expect(page.getByRole('listitem').first()).toContainText('Capital cities');
+	await expect(page.getByRole('listitem').filter({ hasText: 'JLPT N4 模擬本試験' })).toBeVisible();
 });
 
 test('health endpoint reports a reachable database', async ({ request }) => {

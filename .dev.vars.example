@@ -1,0 +1,30 @@
+# Application secrets for LOCAL development, in dotenv syntax.
+#
+#   cp .dev.vars.example .dev.vars
+#
+# Wrangler loads this file into the Worker's env for `pnpm dev` and `pnpm preview`,
+# so every key here is readable server-side as `platform.env.NAME` or through
+# `$env/dynamic/private`. Nothing here reaches the browser.
+#
+# Keeping this file present also isolates .env: when .dev.vars exists, Wrangler
+# excludes .env from the Worker env, so your CLOUDFLARE_API_TOKEN stays a CLI
+# credential instead of becoming an app-visible variable.
+#
+# The project has no application secrets yet — this file documents the convention
+# and gives the first one somewhere to go. Delete the sample line when you add a real key.
+
+# EXAMPLE_API_KEY="local-development-value"
+
+# Rules for anything you add here:
+#   - Read it only from src/lib/server/** , +page.server.ts, +layout.server.ts,
+#     +server.ts or hooks.server.ts. SvelteKit fails the build if a $lib/server
+#     module or $env/*/private is imported into client code.
+#   - Never prefix a secret with PUBLIC_. That prefix marks a value as
+#     browser-exposed and SvelteKit will happily ship it in the client bundle.
+#   - Prefer `platform.env` or `$env/dynamic/private` over `$env/static/private`.
+#     Static values are inlined at build time, and CI builds without production
+#     secrets present, so a static read compiles to undefined in the deployed Worker.
+#
+# For staging and production, do NOT put values in a file. Push them to Cloudflare:
+#   pnpm exec wrangler secret put NAME --env staging
+#   pnpm exec wrangler secret put NAME --env production
