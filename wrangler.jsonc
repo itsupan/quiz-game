@@ -28,7 +28,6 @@
 	},
 	"workers_dev": true,
 	"preview_urls": true,
-
 	/**
 	 * LOCAL ONLY. Enables the temporary identity stub in src/lib/server/auth/user.ts,
 	 * which signs every request in as the seeded administrator so the admin dashboard
@@ -51,6 +50,15 @@
 			"migrations_dir": "migrations"
 		}
 	],
+	/**
+	 * LOCAL ONLY, and simulated in .wrangler/state. The deployed buckets are bound in
+	 * env.staging and env.production below, each to its own.
+	 *
+	 * Do NOT add a `remote: true` binding to a deployed bucket here. The top level is the
+	 * local development environment, so that would hand `pnpm dev` on a laptop a live,
+	 * writable handle to real staging or production storage. To inspect a deployed bucket,
+	 * use `wrangler r2 object get --remote` rather than a standing binding.
+	 */
 	"r2_buckets": [
 		{
 			"binding": "MEDIA",
@@ -81,7 +89,12 @@
 			"name": "quiz-game",
 			"workers_dev": false,
 			"preview_urls": false,
-			"routes": [{ "pattern": "quizgame.ecoapsara.com", "custom_domain": true }],
+			"routes": [
+				{
+					"pattern": "quizgame.ecoapsara.com",
+					"custom_domain": true
+				}
+			],
 			"d1_databases": [
 				{
 					"binding": "DB",

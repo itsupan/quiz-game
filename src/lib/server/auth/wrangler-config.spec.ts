@@ -64,7 +64,7 @@ function stripJsonComments(source: string): string {
 
 type WranglerEnv = {
 	vars?: Record<string, unknown>;
-	r2_buckets?: { binding: string; bucket_name: string }[];
+	r2_buckets?: { binding: string; bucket_name: string; remote?: boolean }[];
 	d1_databases?: { binding: string }[];
 };
 
@@ -107,5 +107,23 @@ describe('wrangler.jsonc', () => {
 		);
 
 		expect(new Set(names).size).toBe(names.length);
+	});
+
+	it('binds nothing but the local bucket at the top level', () => {
+		// The top level is the LOCAL development environment. A binding to a deployed
+		// bucket here — especially with `remote: true` — gives `pnpm dev` on a laptop a
+		// live, writable handle to real staging or production storage.
+		const local = config.r2_buckets ?? [];
+
+		expect(local.map((bucket) => bucket.bucket_name)).toEqual(['quiz-game-media-local']);
+		expect(local.every((bucket) => bucket.remote !== true)).toBe(true);
+	});
+
+	it.each(DEPLOYED)('binds exactly one bucket in %s, its own', (name) => {
+		const buckets = config.env[name].r2_buckets ?? [];
+
+		expect(buckets).toHaveLength(1);
+		expect(buckets[0].binding).toBe('MEDIA');
+		expect(buckets[0].bucket_name).not.toBe('quiz-game-media-local');
 	});
 });
