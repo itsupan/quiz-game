@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { ADMIN_SESSION, signIn } from '../../e2e/sessions';
+
 test('home page renders the seeded quizzes from D1', async ({ page }) => {
 	await page.goto('/');
 
@@ -15,6 +17,8 @@ test('health endpoint reports a reachable database', async ({ request }) => {
 });
 
 test('the homepage guideline reaches the admin dashboard', async ({ page }) => {
+	await signIn(page.context(), ADMIN_SESSION);
+
 	await page.goto('/');
 
 	await page.getByRole('link', { name: 'Open the admin dashboard' }).click();

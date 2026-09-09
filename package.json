@@ -24,6 +24,7 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate:local": "wrangler d1 migrations apply DB --local",
 		"db:seed:local": "wrangler d1 execute DB --local --file=./seeds/dev.sql",
+		"db:seed:e2e": "wrangler d1 execute DB --local --file=./seeds/e2e-sessions.sql",
 		"db:setup:local": "pnpm run db:migrate:local && pnpm run db:seed:local",
 		"db:migrate:staging": "wrangler d1 migrations apply DB --env staging --remote",
 		"db:migrate:production": "wrangler d1 migrations apply DB --env production --remote",

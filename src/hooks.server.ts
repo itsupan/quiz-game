@@ -1,5 +1,5 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 
 import { getDb } from '$lib/server/db';
 import { assertAdmin } from '$lib/server/auth/guards';
@@ -38,7 +38,27 @@ const authentication: Handle = async ({ event, resolve }) => {
  * image or audio a question uses.
  */
 const adminOnly: Handle = async ({ event, resolve }) => {
-	if (event.url.pathname === '/admin' || event.url.pathname.startsWith('/admin/')) {
+	const isAdminPath = event.url.pathname === '/admin' || event.url.pathname.startsWith('/admin/');
+
+	if (isAdminPath) {
+		const isNavigation = event.request.method === 'GET' || event.request.method === 'HEAD';
+
+		if (!event.locals.user && isNavigation) {
+			// Someone who has simply not signed in yet gets sent to do that, and comes back
+			// to where they were going. Throwing 401 here instead renders SvelteKit's
+			// fallback error page — which, because an error from a hook has no layout, has
+			// no header and so no way to sign in at all.
+			//
+			// Navigations only. Redirecting a POST to Google would lose the form body and
+			// silently discard whatever the person was submitting, so those still get 401.
+			redirect(
+				302,
+				`/auth/google?redirectTo=${encodeURIComponent(event.url.pathname + event.url.search)}`
+			);
+		}
+
+		// Signed in but not an administrator is a genuine 403: signing in again changes
+		// nothing, so there is nowhere useful to send them.
 		assertAdmin(event.locals.user);
 	}
 

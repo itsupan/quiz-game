@@ -29,18 +29,18 @@
 	"workers_dev": true,
 	"preview_urls": true,
 	/**
-	 * LOCAL ONLY. Enables the temporary identity stub in src/lib/server/auth/user.ts,
-	 * which signs every request in as the seeded administrator so the admin dashboard
-	 * can be built and tested before Google sign-in (issue #9) exists.
+	 * LOCAL ONLY placeholders, so `pnpm dev` and the Playwright suite can build the Google
+	 * redirect without credentials. They authenticate nobody: a real sign-in fails at
+	 * Google's token endpoint, which is the correct outcome for a fake client.
 	 *
-	 * NEVER add this to env.staging or env.production. Vars are not inherited by named
-	 * environments, so leaving it here and only here is what keeps /admin shut in both
-	 * deployed environments — `locals.user` is null there and every admin route answers
-	 * 403. src/lib/server/auth/wrangler-config.spec.ts fails the build if it appears in
-	 * either environment block below.
+	 * Put real values in .dev.vars, which takes precedence over these, to sign in locally.
+	 * Vars are NOT inherited by named environments, so staging and production must have the
+	 * real ones pushed with `wrangler secret put`; without them `googleConfig` fails with a
+	 * message saying exactly that. Never copy these into an environment block.
 	 */
 	"vars": {
-		"ALLOW_DEV_AUTH": "true"
+		"GOOGLE_CLIENT_ID": "e2e-placeholder.apps.googleusercontent.com",
+		"GOOGLE_CLIENT_SECRET": "e2e-placeholder-not-a-real-secret"
 	},
 	"d1_databases": [
 		{
