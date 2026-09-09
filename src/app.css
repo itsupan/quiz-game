@@ -1,0 +1,160 @@
+/**
+ * Base styles and design tokens.
+ *
+ * Everything visual is a custom property so a theme change is one block, not a sweep
+ * through every component. Individual components keep their own scoped `<style>`.
+ */
+
+:root {
+	/* A font stack that reaches a Japanese face before falling back to a Latin one.
+	   Without the CJK entries, kana and kanji render in a substituted font at a
+	   different weight and baseline from the surrounding Latin text. */
+	--font-body:
+		system-ui, -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', Meiryo,
+		sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+	--ink: #16181d;
+	--ink-muted: #5b6472;
+	--ink-faint: #8b94a3;
+	--surface: #ffffff;
+	--surface-sunken: #f4f6f9;
+	--surface-raised: #ffffff;
+	--line: #dfe4ec;
+	--line-strong: #c3cbd8;
+
+	--accent: #2f5bd7;
+	--accent-ink: #ffffff;
+	--accent-soft: #eaf0ff;
+
+	--danger: #b42318;
+	--danger-soft: #fef3f2;
+	--success: #067647;
+	--success-soft: #ecfdf3;
+	--warning: #b54708;
+	--warning-soft: #fffaeb;
+
+	--radius: 0.5rem;
+	--radius-sm: 0.3125rem;
+	--space: 1rem;
+	--shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 10%);
+
+	color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--surface-sunken);
+	color: var(--ink);
+	font-family: var(--font-body);
+	line-height: 1.6;
+	-webkit-text-size-adjust: 100%;
+}
+
+h1,
+h2,
+h3 {
+	line-height: 1.25;
+	margin: 0 0 0.5rem;
+	font-weight: 650;
+	letter-spacing: -0.01em;
+}
+
+h1 {
+	font-size: 1.5rem;
+}
+h2 {
+	font-size: 1.1875rem;
+}
+h3 {
+	font-size: 1rem;
+}
+
+a {
+	color: var(--accent);
+}
+
+code {
+	font-family: var(--font-mono);
+	font-size: 0.875em;
+}
+
+/* A visible focus ring everywhere, since the whole dashboard is keyboard-operable. */
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+input,
+select,
+textarea,
+button {
+	font: inherit;
+	color: inherit;
+}
+
+input[type='text'],
+input[type='number'],
+input[type='file'],
+select,
+textarea {
+	width: 100%;
+	padding: 0.5rem 0.625rem;
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+}
+
+textarea {
+	min-height: 6rem;
+	resize: vertical;
+}
+
+/* Set by every field that failed validation, so the styling and the accessible name
+   for assistive technology can never drift apart. */
+[aria-invalid='true'] {
+	border-color: var(--danger);
+}
+
+button {
+	cursor: pointer;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+th {
+	text-align: left;
+	font-size: 0.8125rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--ink-muted);
+	font-weight: 600;
+}
+
+th,
+td {
+	padding: 0.625rem 0.75rem;
+	border-bottom: 1px solid var(--line);
+	vertical-align: top;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

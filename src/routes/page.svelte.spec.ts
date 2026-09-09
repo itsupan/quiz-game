@@ -40,4 +40,38 @@ describe('home page', () => {
 
 		await expect.element(screen.getByTestId('empty')).toHaveTextContent('pnpm db:migrate:local');
 	});
+
+	it('points a visitor at the admin dashboard', async () => {
+		// There is no navigation anywhere else yet, so this list is the only route into
+		// the dashboard. Losing it makes /admin unreachable without typing the URL.
+		const screen = render(Page, props([]));
+
+		await expect
+			.element(screen.getByRole('link', { name: 'Open the admin dashboard' }))
+			.toHaveAttribute('href', '/admin');
+	});
+
+	it('links each area of the dashboard', async () => {
+		const screen = render(Page, props([]));
+
+		for (const [name, href] of [
+			['Questions', '/admin/questions'],
+			['Quizzes', '/admin/quizzes'],
+			['Media', '/admin/media']
+		]) {
+			await expect.element(screen.getByRole('link', { name })).toHaveAttribute('href', href);
+		}
+	});
+
+	it('says plainly that sign-in is not built yet', async () => {
+		// Anyone reading this page should not conclude the dashboard is protected by a
+		// login. It is protected by configuration, and only until issue #9 lands.
+		const screen = render(Page, props([]));
+
+		// Matched on the element, not on a text node: the sentence wraps across lines in
+		// the source, and toHaveTextContent normalises the whitespace.
+		await expect
+			.element(screen.getByTestId('auth-note'))
+			.toHaveTextContent(/sign-in is not built yet/i);
+	});
 });
