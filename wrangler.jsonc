@@ -28,12 +28,41 @@
 	},
 	"workers_dev": true,
 	"preview_urls": true,
+	/**
+	 * LOCAL ONLY. Enables the temporary identity stub in src/lib/server/auth/user.ts,
+	 * which signs every request in as the seeded administrator so the admin dashboard
+	 * can be built and tested before Google sign-in (issue #9) exists.
+	 *
+	 * NEVER add this to env.staging or env.production. Vars are not inherited by named
+	 * environments, so leaving it here and only here is what keeps /admin shut in both
+	 * deployed environments — `locals.user` is null there and every admin route answers
+	 * 403. src/lib/server/auth/wrangler-config.spec.ts fails the build if it appears in
+	 * either environment block below.
+	 */
+	"vars": {
+		"ALLOW_DEV_AUTH": "true"
+	},
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "quiz-game-local",
 			"database_id": "00000000-0000-0000-0000-000000000000",
 			"migrations_dir": "migrations"
+		}
+	],
+	/**
+	 * LOCAL ONLY, and simulated in .wrangler/state. The deployed buckets are bound in
+	 * env.staging and env.production below, each to its own.
+	 *
+	 * Do NOT add a `remote: true` binding to a deployed bucket here. The top level is the
+	 * local development environment, so that would hand `pnpm dev` on a laptop a live,
+	 * writable handle to real staging or production storage. To inspect a deployed bucket,
+	 * use `wrangler r2 object get --remote` rather than a standing binding.
+	 */
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "quiz-game-media-local"
 		}
 	],
 	"env": {
@@ -48,19 +77,36 @@
 					"database_id": "4087497b-df64-4061-9348-b2203c0b8a87",
 					"migrations_dir": "migrations"
 				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "MEDIA",
+					"bucket_name": "quiz-game-media-staging"
+				}
 			]
 		},
 		"production": {
 			"name": "quiz-game",
 			"workers_dev": false,
 			"preview_urls": false,
-			"routes": [{ "pattern": "quizgame.ecoapsara.com", "custom_domain": true }],
+			"routes": [
+				{
+					"pattern": "quizgame.ecoapsara.com",
+					"custom_domain": true
+				}
+			],
 			"d1_databases": [
 				{
 					"binding": "DB",
 					"database_name": "quiz-game-prod",
 					"database_id": "8003782b-2e17-4d16-b682-0584e3765ce6",
 					"migrations_dir": "migrations"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "MEDIA",
+					"bucket_name": "quiz-game-media"
 				}
 			]
 		}

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e34b6a49-468a-4318-9d74-fadfedc15c23",
+  "id": "11608029-baaf-453e-bba6-ea77654a7006",
   "prevId": "bb9768ca-2379-4023-af35-4bc6fbaad592",
   "tables": {
     "oauth_accounts": {
@@ -266,13 +266,6 @@
             "status"
           ],
           "isUnique": false
-        },
-        "users_display_name_idx": {
-          "name": "users_display_name_idx",
-          "columns": [
-            "display_name"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -411,6 +404,13 @@
           "name": "media_assets_kind_idx",
           "columns": [
             "kind"
+          ],
+          "isUnique": false
+        },
+        "media_assets_uploaded_by_idx": {
+          "name": "media_assets_uploaded_by_idx",
+          "columns": [
+            "uploaded_by"
           ],
           "isUnique": false
         }
@@ -553,6 +553,27 @@
             "status"
           ],
           "isUnique": false
+        },
+        "question_groups_audio_media_idx": {
+          "name": "question_groups_audio_media_idx",
+          "columns": [
+            "audio_media_id"
+          ],
+          "isUnique": false
+        },
+        "question_groups_image_media_idx": {
+          "name": "question_groups_image_media_idx",
+          "columns": [
+            "image_media_id"
+          ],
+          "isUnique": false
+        },
+        "question_groups_created_by_idx": {
+          "name": "question_groups_created_by_idx",
+          "columns": [
+            "created_by"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -685,6 +706,14 @@
           ],
           "isUnique": true,
           "where": "\"question_options\".\"is_correct\" = 1"
+        },
+        "question_options_id_question_idx": {
+          "name": "question_options_id_question_idx",
+          "columns": [
+            "id",
+            "question_id"
+          ],
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -843,6 +872,27 @@
             "group_position"
           ],
           "isUnique": false
+        },
+        "questions_audio_media_idx": {
+          "name": "questions_audio_media_idx",
+          "columns": [
+            "audio_media_id"
+          ],
+          "isUnique": false
+        },
+        "questions_image_media_idx": {
+          "name": "questions_image_media_idx",
+          "columns": [
+            "image_media_id"
+          ],
+          "isUnique": false
+        },
+        "questions_created_by_idx": {
+          "name": "questions_created_by_idx",
+          "columns": [
+            "created_by"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -986,6 +1036,13 @@
             "position"
           ],
           "isUnique": true
+        },
+        "quiz_questions_question_idx": {
+          "name": "quiz_questions_question_idx",
+          "columns": [
+            "question_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -995,19 +1052,6 @@
           "tableTo": "quizzes",
           "columnsFrom": [
             "quiz_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "quiz_questions_quiz_section_id_quiz_sections_id_fk": {
-          "name": "quiz_questions_quiz_section_id_quiz_sections_id_fk",
-          "tableFrom": "quiz_questions",
-          "tableTo": "quiz_sections",
-          "columnsFrom": [
-            "quiz_section_id"
           ],
           "columnsTo": [
             "id"
@@ -1026,6 +1070,21 @@
             "id"
           ],
           "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "quiz_questions_section_fk": {
+          "name": "quiz_questions_section_fk",
+          "tableFrom": "quiz_questions",
+          "tableTo": "quiz_sections",
+          "columnsFrom": [
+            "quiz_id",
+            "quiz_section_id"
+          ],
+          "columnsTo": [
+            "quiz_id",
+            "id"
+          ],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1116,6 +1175,14 @@
           "columns": [
             "quiz_id",
             "position"
+          ],
+          "isUnique": true
+        },
+        "quiz_scoring_bands_quiz_id_idx": {
+          "name": "quiz_scoring_bands_quiz_id_idx",
+          "columns": [
+            "quiz_id",
+            "id"
           ],
           "isUnique": true
         }
@@ -1236,6 +1303,21 @@
             "section"
           ],
           "isUnique": false
+        },
+        "quiz_sections_scoring_band_idx": {
+          "name": "quiz_sections_scoring_band_idx",
+          "columns": [
+            "scoring_band_id"
+          ],
+          "isUnique": false
+        },
+        "quiz_sections_quiz_id_idx": {
+          "name": "quiz_sections_quiz_id_idx",
+          "columns": [
+            "quiz_id",
+            "id"
+          ],
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -1252,14 +1334,16 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "quiz_sections_scoring_band_id_quiz_scoring_bands_id_fk": {
-          "name": "quiz_sections_scoring_band_id_quiz_scoring_bands_id_fk",
+        "quiz_sections_band_fk": {
+          "name": "quiz_sections_band_fk",
           "tableFrom": "quiz_sections",
           "tableTo": "quiz_scoring_bands",
           "columnsFrom": [
+            "quiz_id",
             "scoring_band_id"
           ],
           "columnsTo": [
+            "quiz_id",
             "id"
           ],
           "onDelete": "restrict",
@@ -1404,6 +1488,13 @@
             "mode"
           ],
           "isUnique": false
+        },
+        "quizzes_created_by_idx": {
+          "name": "quizzes_created_by_idx",
+          "columns": [
+            "created_by"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1466,6 +1557,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "question_id": {
+          "name": "question_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "selected_option_id": {
           "name": "selected_option_id",
           "type": "integer",
@@ -1512,10 +1610,9 @@
         }
       },
       "indexes": {
-        "attempt_answers_attempt_question_idx": {
-          "name": "attempt_answers_attempt_question_idx",
+        "attempt_answers_question_idx": {
+          "name": "attempt_answers_question_idx",
           "columns": [
-            "attempt_id",
             "attempt_question_id"
           ],
           "isUnique": true
@@ -1526,11 +1623,18 @@
             "attempt_id"
           ],
           "isUnique": false
+        },
+        "attempt_answers_option_idx": {
+          "name": "attempt_answers_option_idx",
+          "columns": [
+            "selected_option_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
-        "attempt_answers_attempt_id_attempts_id_fk": {
-          "name": "attempt_answers_attempt_id_attempts_id_fk",
+        "attempt_answers_attempt_fk": {
+          "name": "attempt_answers_attempt_fk",
           "tableFrom": "attempt_answers",
           "tableTo": "attempts",
           "columnsFrom": [
@@ -1542,28 +1646,32 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "attempt_answers_attempt_question_id_attempt_questions_id_fk": {
-          "name": "attempt_answers_attempt_question_id_attempt_questions_id_fk",
+        "attempt_answers_served_fk": {
+          "name": "attempt_answers_served_fk",
           "tableFrom": "attempt_answers",
           "tableTo": "attempt_questions",
           "columnsFrom": [
-            "attempt_question_id"
+            "attempt_question_id",
+            "question_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "question_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "attempt_answers_selected_option_id_question_options_id_fk": {
-          "name": "attempt_answers_selected_option_id_question_options_id_fk",
+        "attempt_answers_option_fk": {
+          "name": "attempt_answers_option_fk",
           "tableFrom": "attempt_answers",
           "tableTo": "question_options",
           "columnsFrom": [
-            "selected_option_id"
+            "selected_option_id",
+            "question_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "question_id"
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
@@ -1750,6 +1858,21 @@
           "columns": [
             "attempt_id",
             "position"
+          ],
+          "isUnique": true
+        },
+        "attempt_questions_question_idx": {
+          "name": "attempt_questions_question_idx",
+          "columns": [
+            "question_id"
+          ],
+          "isUnique": false
+        },
+        "attempt_questions_id_question_idx": {
+          "name": "attempt_questions_id_question_idx",
+          "columns": [
+            "id",
+            "question_id"
           ],
           "isUnique": true
         }

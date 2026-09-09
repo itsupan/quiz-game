@@ -29,9 +29,11 @@ export const users = sqliteTable(
 		// The admin user list pages by creation date and filters by role and status.
 		index('users_created_at_idx').on(table.createdAt),
 		index('users_role_idx').on(table.role),
-		index('users_status_idx').on(table.status),
-		// Admin search is a prefix match on the display name.
-		index('users_display_name_idx').on(table.displayName)
+		index('users_status_idx').on(table.status)
+		// No index on display_name: SQLite's LIKE is case-insensitive by default, so it
+		// will not use a plain index for a prefix match (EXPLAIN reports SCAN, not
+		// SEARCH). Admin name search scans, which is fine at user-table scale; an index
+		// here would be write cost for nothing unless the column is COLLATE NOCASE.
 	]
 );
 

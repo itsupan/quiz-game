@@ -40,7 +40,6 @@ CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);--> statement-brea
 CREATE INDEX `users_created_at_idx` ON `users` (`created_at`);--> statement-breakpoint
 CREATE INDEX `users_role_idx` ON `users` (`role`);--> statement-breakpoint
 CREATE INDEX `users_status_idx` ON `users` (`status`);--> statement-breakpoint
-CREATE INDEX `users_display_name_idx` ON `users` (`display_name`);--> statement-breakpoint
 CREATE TABLE `media_assets` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`public_id` text NOT NULL,
@@ -63,6 +62,7 @@ CREATE TABLE `media_assets` (
 CREATE UNIQUE INDEX `media_assets_public_id_unique` ON `media_assets` (`public_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `media_assets_r2_key_unique` ON `media_assets` (`r2_key`);--> statement-breakpoint
 CREATE INDEX `media_assets_kind_idx` ON `media_assets` (`kind`);--> statement-breakpoint
+CREATE INDEX `media_assets_uploaded_by_idx` ON `media_assets` (`uploaded_by`);--> statement-breakpoint
 CREATE TABLE `question_groups` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`public_id` text NOT NULL,
@@ -87,6 +87,9 @@ CREATE TABLE `question_groups` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `question_groups_public_id_unique` ON `question_groups` (`public_id`);--> statement-breakpoint
 CREATE INDEX `question_groups_level_section_status_idx` ON `question_groups` (`level`,`section`,`status`);--> statement-breakpoint
+CREATE INDEX `question_groups_audio_media_idx` ON `question_groups` (`audio_media_id`);--> statement-breakpoint
+CREATE INDEX `question_groups_image_media_idx` ON `question_groups` (`image_media_id`);--> statement-breakpoint
+CREATE INDEX `question_groups_created_by_idx` ON `question_groups` (`created_by`);--> statement-breakpoint
 CREATE TABLE `question_options` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`question_id` integer NOT NULL,
@@ -100,6 +103,7 @@ CREATE TABLE `question_options` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `question_options_position_idx` ON `question_options` (`question_id`,`position`);--> statement-breakpoint
 CREATE UNIQUE INDEX `question_options_one_correct_idx` ON `question_options` (`question_id`) WHERE "question_options"."is_correct" = 1;--> statement-breakpoint
+CREATE UNIQUE INDEX `question_options_id_question_idx` ON `question_options` (`id`,`question_id`);--> statement-breakpoint
 CREATE TABLE `questions` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`public_id` text NOT NULL,
@@ -128,6 +132,9 @@ CREATE TABLE `questions` (
 CREATE UNIQUE INDEX `questions_public_id_unique` ON `questions` (`public_id`);--> statement-breakpoint
 CREATE INDEX `questions_level_section_status_idx` ON `questions` (`level`,`section`,`status`);--> statement-breakpoint
 CREATE INDEX `questions_group_idx` ON `questions` (`group_id`,`group_position`);--> statement-breakpoint
+CREATE INDEX `questions_audio_media_idx` ON `questions` (`audio_media_id`);--> statement-breakpoint
+CREATE INDEX `questions_image_media_idx` ON `questions` (`image_media_id`);--> statement-breakpoint
+CREATE INDEX `questions_created_by_idx` ON `questions` (`created_by`);--> statement-breakpoint
 CREATE TABLE `quiz_questions` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`quiz_id` integer NOT NULL,
@@ -137,12 +144,13 @@ CREATE TABLE `quiz_questions` (
 	`points_override` integer,
 	`created_at` integer DEFAULT (unixepoch()) NOT NULL,
 	FOREIGN KEY (`quiz_id`) REFERENCES `quizzes`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`quiz_section_id`) REFERENCES `quiz_sections`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`question_id`) REFERENCES `questions`(`id`) ON UPDATE no action ON DELETE restrict
+	FOREIGN KEY (`question_id`) REFERENCES `questions`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`quiz_id`,`quiz_section_id`) REFERENCES `quiz_sections`(`quiz_id`,`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `quiz_questions_quiz_question_idx` ON `quiz_questions` (`quiz_id`,`question_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `quiz_questions_section_position_idx` ON `quiz_questions` (`quiz_section_id`,`position`);--> statement-breakpoint
+CREATE INDEX `quiz_questions_question_idx` ON `quiz_questions` (`question_id`);--> statement-breakpoint
 CREATE TABLE `quiz_scoring_bands` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`quiz_id` integer NOT NULL,
@@ -159,6 +167,7 @@ CREATE TABLE `quiz_scoring_bands` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `quiz_scoring_bands_quiz_code_idx` ON `quiz_scoring_bands` (`quiz_id`,`code`);--> statement-breakpoint
 CREATE UNIQUE INDEX `quiz_scoring_bands_quiz_position_idx` ON `quiz_scoring_bands` (`quiz_id`,`position`);--> statement-breakpoint
+CREATE UNIQUE INDEX `quiz_scoring_bands_quiz_id_idx` ON `quiz_scoring_bands` (`quiz_id`,`id`);--> statement-breakpoint
 CREATE TABLE `quiz_sections` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`quiz_id` integer NOT NULL,
@@ -170,17 +179,20 @@ CREATE TABLE `quiz_sections` (
 	`created_at` integer DEFAULT (unixepoch()) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch()) NOT NULL,
 	FOREIGN KEY (`quiz_id`) REFERENCES `quizzes`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`scoring_band_id`) REFERENCES `quiz_scoring_bands`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`quiz_id`,`scoring_band_id`) REFERENCES `quiz_scoring_bands`(`quiz_id`,`id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "quiz_sections_section_check" CHECK("quiz_sections"."section" in ('VOCAB_KANJI', 'GRAMMAR_READING', 'LISTENING'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `quiz_sections_quiz_section_idx` ON `quiz_sections` (`quiz_id`,`section`);--> statement-breakpoint
 CREATE UNIQUE INDEX `quiz_sections_quiz_position_idx` ON `quiz_sections` (`quiz_id`,`position`);--> statement-breakpoint
 CREATE INDEX `quiz_sections_section_idx` ON `quiz_sections` (`section`);--> statement-breakpoint
+CREATE INDEX `quiz_sections_scoring_band_idx` ON `quiz_sections` (`scoring_band_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `quiz_sections_quiz_id_idx` ON `quiz_sections` (`quiz_id`,`id`);--> statement-breakpoint
 CREATE TABLE `attempt_answers` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`attempt_id` integer NOT NULL,
 	`attempt_question_id` integer NOT NULL,
+	`question_id` integer NOT NULL,
 	`selected_option_id` integer,
 	`is_correct` integer,
 	`points_earned` integer,
@@ -188,12 +200,13 @@ CREATE TABLE `attempt_answers` (
 	`created_at` integer DEFAULT (unixepoch()) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch()) NOT NULL,
 	FOREIGN KEY (`attempt_id`) REFERENCES `attempts`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`attempt_question_id`) REFERENCES `attempt_questions`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`selected_option_id`) REFERENCES `question_options`(`id`) ON UPDATE no action ON DELETE restrict
+	FOREIGN KEY (`attempt_question_id`,`question_id`) REFERENCES `attempt_questions`(`id`,`question_id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`selected_option_id`,`question_id`) REFERENCES `question_options`(`id`,`question_id`) ON UPDATE no action ON DELETE restrict
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `attempt_answers_attempt_question_idx` ON `attempt_answers` (`attempt_id`,`attempt_question_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `attempt_answers_question_idx` ON `attempt_answers` (`attempt_question_id`);--> statement-breakpoint
 CREATE INDEX `attempt_answers_attempt_idx` ON `attempt_answers` (`attempt_id`);--> statement-breakpoint
+CREATE INDEX `attempt_answers_option_idx` ON `attempt_answers` (`selected_option_id`);--> statement-breakpoint
 CREATE TABLE `attempt_band_scores` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`attempt_id` integer NOT NULL,
@@ -225,6 +238,8 @@ CREATE TABLE `attempt_questions` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `attempt_questions_attempt_question_idx` ON `attempt_questions` (`attempt_id`,`question_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `attempt_questions_attempt_position_idx` ON `attempt_questions` (`attempt_id`,`position`);--> statement-breakpoint
+CREATE INDEX `attempt_questions_question_idx` ON `attempt_questions` (`question_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `attempt_questions_id_question_idx` ON `attempt_questions` (`id`,`question_id`);--> statement-breakpoint
 CREATE TABLE `attempt_section_scores` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`attempt_id` integer NOT NULL,
@@ -281,10 +296,15 @@ CREATE TABLE `audit_logs` (
 --> statement-breakpoint
 CREATE INDEX `audit_logs_entity_idx` ON `audit_logs` (`entity_type`,`entity_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `audit_logs_actor_idx` ON `audit_logs` (`actor_user_id`,`created_at`);--> statement-breakpoint
---> The 0000_init placeholder `quizzes` table (id, title, created_at) is replaced
---> outright rather than copied forward: drizzle-kit generated an INSERT ... SELECT
---> naming columns that table never had, and it holds nothing but dev seed rows.
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
+--> DESTRUCTIVE. Replaces the 0000_init placeholder `quizzes` table (id, title,
+--> created_at). Its rows CANNOT be carried forward: the new table requires mode and
+--> level, which the placeholder never had, so there is no data-preserving path.
+--> Confirm the target database has no real quizzes before running db:migrate:staging
+--> or db:migrate:production -- a D1 migration applies once and cannot be rolled back.
+-->
+--> defer_foreign_keys, not foreign_keys=OFF: wrangler applies a migration file as one
+--> D1 batch, and SQLite ignores PRAGMA foreign_keys while a transaction is pending.
+PRAGMA defer_foreign_keys = true;--> statement-breakpoint
 DROP TABLE `quizzes`;--> statement-breakpoint
 CREATE TABLE `quizzes` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -309,6 +329,6 @@ CREATE TABLE `quizzes` (
 	CONSTRAINT "quizzes_status_check" CHECK("quizzes"."status" in ('DRAFT', 'PUBLISHED', 'ARCHIVED'))
 );
 --> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
 CREATE UNIQUE INDEX `quizzes_public_id_unique` ON `quizzes` (`public_id`);--> statement-breakpoint
-CREATE INDEX `quizzes_status_level_mode_idx` ON `quizzes` (`status`,`level`,`mode`);
+CREATE INDEX `quizzes_status_level_mode_idx` ON `quizzes` (`status`,`level`,`mode`);--> statement-breakpoint
+CREATE INDEX `quizzes_created_by_idx` ON `quizzes` (`created_by`);

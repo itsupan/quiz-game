@@ -1,6 +1,9 @@
 -- Local/development seed data. Idempotent, so it is safe to re-run.
 -- Apply with: pnpm db:seed:local
 --
+-- Every public_id here is valid Crockford base32 (no I, L, O or U), matching the
+-- alphabet src/lib/server/db/ids.ts generates and ids.spec.ts asserts.
+--
 -- Covers every structural shape the schema supports, so a fresh clone can exercise
 -- all of it without an admin UI:
 --   quiz 1  N4 FULL_EXAM      FIXED   2 scoring bands (120 + 60), 3 sections
@@ -12,14 +15,14 @@
 -- before showing any of it to a learner as an exam-readiness figure.
 
 INSERT INTO users (id, public_id, email, display_name, role, status) VALUES
-	(1, '01JSEEDUSERADMIN0000000000', 'admin@example.com', '管理者テスト', 'ADMIN', 'ACTIVE'),
-	(2, '01JSEEDUSERLEARNER00000000', 'learner@example.com', '学習者テスト', 'USER', 'ACTIVE')
+	(1, '01JSEEDACCTADMN00000000000', 'admin@example.com', '管理者テスト', 'ADMIN', 'ACTIVE'),
+	(2, '01JSEEDACCTSTDNT0000000000', 'learner@example.com', '学習者テスト', 'USER', 'ACTIVE')
 ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO quizzes (id, public_id, title, description, mode, level, selection_mode, time_limit_seconds, scaled_total_max, pass_mark_total, status, created_by, published_at) VALUES
-	(1, '01JSEEDQUIZN4EXAM000000000', 'JLPT N4 模擬本試験', '本試験と同じ構成の N4 フルテストです。', 'FULL_EXAM', 'N4', 'FIXED', 6900, 180, 90, 'PUBLISHED', 1, unixepoch()),
-	(2, '01JSEEDQUIZN3MOCK000000000', 'JLPT N3 模擬試験', 'N3 の三区分で採点される模擬試験です。', 'MOCK_TEST', 'N3', 'FIXED', 8400, 180, 95, 'PUBLISHED', 1, unixepoch()),
-	(3, '01JSEEDQUIZN3DRILL00000000', 'N3 語彙ドリル', '語彙・漢字からランダムに 5 問出題します。', 'JLPT_PRACTICE', 'N3', 'RANDOM', 600, NULL, NULL, 'PUBLISHED', 1, unixepoch())
+	(1, '01JSEEDQZN4EXAM00000000000', 'JLPT N4 模擬本試験', '本試験と同じ構成の N4 フルテストです。', 'FULL_EXAM', 'N4', 'FIXED', 6900, 180, 90, 'PUBLISHED', 1, unixepoch()),
+	(2, '01JSEEDQZN3MCK000000000000', 'JLPT N3 模擬試験', 'N3 の三区分で採点される模擬試験です。', 'MOCK_TEST', 'N3', 'FIXED', 8400, 180, 95, 'PUBLISHED', 1, unixepoch()),
+	(3, '01JSEEDQZN3PRAC00000000000', 'N3 語彙ドリル', '語彙・漢字からランダムに 5 問出題します。', 'JLPT_PRACTICE', 'N3', 'RANDOM', 600, NULL, NULL, 'PUBLISHED', 1, unixepoch())
 ON CONFLICT(id) DO NOTHING;
 
 -- N4 combines language knowledge and reading into one 0-120 band; N3 reports three.
@@ -44,7 +47,7 @@ INSERT INTO quiz_sections (id, quiz_id, section, position, time_limit_seconds, d
 ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO question_groups (id, public_id, level, section, title, passage_text, instruction, status, created_by) VALUES
-	(1, '01JSEEDGROUPREADING0000000', 'N3', 'GRAMMAR_READING', '図書館のお知らせ', '当図書館は、来月から開館時間を変更いたします。平日は午前九時から午後八時まで、土曜日と日曜日は午前十時から午後六時までとなります。なお、毎月第一月曜日は館内整理のため休館いたしますので、ご注意ください。', '次の文章を読んで、質問に答えなさい。', 'PUBLISHED', 1)
+	(1, '01JSEEDGRPRDNG000000000000', 'N3', 'GRAMMAR_READING', '図書館のお知らせ', '当図書館は、来月から開館時間を変更いたします。平日は午前九時から午後八時まで、土曜日と日曜日は午前十時から午後六時までとなります。なお、毎月第一月曜日は館内整理のため休館いたしますので、ご注意ください。', '次の文章を読んで、質問に答えなさい。', 'PUBLISHED', 1)
 ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO questions (id, public_id, group_id, group_position, level, section, stem, explanation, points, status, created_by) VALUES

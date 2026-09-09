@@ -17,6 +17,7 @@ import {
 	quizScoringBands,
 	quizSections,
 	quizzes,
+	publicQuestionOptionColumns,
 	sessions,
 	users
 } from './index';
@@ -95,8 +96,24 @@ describe('answer keys', () => {
 		expect(oneCorrect?.config.where).toBeDefined();
 	});
 
-	it('keeps is_correct on the server-side table only', () => {
-		expect(columnNames(questionOptions)).toContain('is_correct');
+	it('leaves the answer key out of the projection routes send to the browser', () => {
+		// The acceptance criterion is that answer keys cannot be read out of the initial
+		// quiz-page data, so the allowed columns are a value a load function reuses.
+		expect(Object.keys(publicQuestionOptionColumns)).toEqual(['id', 'body', 'position']);
+		expect(Object.keys(publicQuestionOptionColumns)).not.toContain('isCorrect');
+	});
+
+	it('ties a chosen option to the question it belongs to', () => {
+		// Without this composite key a client could post any option id and be scored
+		// against an unrelated question's answer key.
+		const optionFk = getTableConfig(attemptAnswers).foreignKeys.find(
+			(fk) => fk.reference().foreignTable === questionOptions
+		);
+
+		expect(optionFk?.reference().columns.map((column) => column.name)).toEqual([
+			'selected_option_id',
+			'question_id'
+		]);
 	});
 });
 
@@ -121,12 +138,36 @@ describe('leaderboard index', () => {
 
 describe('attempt integrity', () => {
 	it('lets an answer be re-saved idempotently rather than appended', () => {
-		const unique = indexNamed(attemptAnswers, 'attempt_answers_attempt_question_idx');
+		const unique = indexNamed(attemptAnswers, 'attempt_answers_question_idx');
 
 		expect(unique?.config.unique).toBe(true);
+		// On attempt_question_id ALONE. Adding attempt_id widens the constraint rather
+		// than narrowing it, because a served question already belongs to one attempt —
+		// so (1, 900) and (2, 900) would both insert and the question scores twice.
 		expect(unique?.config.columns.map((column) => (column as { name: string }).name)).toEqual([
-			'attempt_id',
 			'attempt_question_id'
+		]);
+	});
+
+	it('scopes a quiz question to a section of its own quiz', () => {
+		const sectionFk = getTableConfig(quizQuestions).foreignKeys.find(
+			(fk) => fk.reference().foreignTable === quizSections
+		);
+
+		expect(sectionFk?.reference().columns.map((column) => column.name)).toEqual([
+			'quiz_id',
+			'quiz_section_id'
+		]);
+	});
+
+	it('scopes a section to a scoring band of its own quiz', () => {
+		const bandFk = getTableConfig(quizSections).foreignKeys.find(
+			(fk) => fk.reference().foreignTable === quizScoringBands
+		);
+
+		expect(bandFk?.reference().columns.map((column) => column.name)).toEqual([
+			'quiz_id',
+			'scoring_band_id'
 		]);
 	});
 

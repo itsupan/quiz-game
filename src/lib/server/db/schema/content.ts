@@ -1,5 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+	check,
+	foreignKey,
+	index,
+	integer,
+	sqliteTable,
+	text,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
 
 import { users } from './auth';
 import { checkIn, createdAt, publicId, updatedAt } from './columns';
@@ -44,7 +52,10 @@ export const mediaAssets = sqliteTable(
 	},
 	(table) => [
 		check('media_assets_kind_check', checkIn(table.kind, MEDIA_KINDS)),
-		index('media_assets_kind_idx').on(table.kind)
+		index('media_assets_kind_idx').on(table.kind),
+		// SQLite indexes no foreign-key child column on its own, so every RESTRICT check
+		// on a parent delete is a full scan without these.
+		index('media_assets_uploaded_by_idx').on(table.uploadedBy)
 	]
 );
 
@@ -80,7 +91,10 @@ export const questionGroups = sqliteTable(
 		check('question_groups_level_check', checkIn(table.level, JLPT_LEVELS)),
 		check('question_groups_section_check', checkIn(table.section, SECTIONS)),
 		check('question_groups_status_check', checkIn(table.status, CONTENT_STATUS)),
-		index('question_groups_level_section_status_idx').on(table.level, table.section, table.status)
+		index('question_groups_level_section_status_idx').on(table.level, table.section, table.status),
+		index('question_groups_audio_media_idx').on(table.audioMediaId),
+		index('question_groups_image_media_idx').on(table.imageMediaId),
+		index('question_groups_created_by_idx').on(table.createdBy)
 	]
 );
 
@@ -121,7 +135,10 @@ export const questions = sqliteTable(
 		check('questions_status_check', checkIn(table.status, CONTENT_STATUS)),
 		// The draw index for RANDOM quizzes: pick published questions by level and section.
 		index('questions_level_section_status_idx').on(table.level, table.section, table.status),
-		index('questions_group_idx').on(table.groupId, table.groupPosition)
+		index('questions_group_idx').on(table.groupId, table.groupPosition),
+		index('questions_audio_media_idx').on(table.audioMediaId),
+		index('questions_image_media_idx').on(table.imageMediaId),
+		index('questions_created_by_idx').on(table.createdBy)
 	]
 );
 
@@ -150,7 +167,10 @@ export const questionOptions = sqliteTable(
 		uniqueIndex('question_options_position_idx').on(table.questionId, table.position),
 		uniqueIndex('question_options_one_correct_idx')
 			.on(table.questionId)
-			.where(sql`${table.isCorrect} = 1`)
+			.where(sql`${table.isCorrect} = 1`),
+		// Parent key for attempt_answers' composite FK, which is what stops an answer
+		// selecting an option that belongs to a different question.
+		uniqueIndex('question_options_id_question_idx').on(table.id, table.questionId)
 	]
 );
 
@@ -188,7 +208,8 @@ export const quizzes = sqliteTable(
 		check('quizzes_selection_mode_check', checkIn(table.selectionMode, SELECTION_MODES)),
 		check('quizzes_status_check', checkIn(table.status, CONTENT_STATUS)),
 		// The homepage lists published quizzes filtered by level and mode.
-		index('quizzes_status_level_mode_idx').on(table.status, table.level, table.mode)
+		index('quizzes_status_level_mode_idx').on(table.status, table.level, table.mode),
+		index('quizzes_created_by_idx').on(table.createdBy)
 	]
 );
 
@@ -224,7 +245,10 @@ export const quizScoringBands = sqliteTable(
 	(table) => [
 		check('quiz_scoring_bands_code_check', checkIn(table.code, SCORING_BANDS)),
 		uniqueIndex('quiz_scoring_bands_quiz_code_idx').on(table.quizId, table.code),
-		uniqueIndex('quiz_scoring_bands_quiz_position_idx').on(table.quizId, table.position)
+		uniqueIndex('quiz_scoring_bands_quiz_position_idx').on(table.quizId, table.position),
+		// Parent key for quiz_sections' composite FK: a section may only point at a band
+		// belonging to its own quiz.
+		uniqueIndex('quiz_scoring_bands_quiz_id_idx').on(table.quizId, table.id)
 	]
 );
 
@@ -249,9 +273,7 @@ export const quizSections = sqliteTable(
 		/** RANDOM quizzes only: how many questions this section draws from the bank. */
 		drawCount: integer('draw_count'),
 		/** Which band this section's points feed. Null for quizzes that are not scaled. */
-		scoringBandId: integer('scoring_band_id').references(() => quizScoringBands.id, {
-			onDelete: 'restrict'
-		}),
+		scoringBandId: integer('scoring_band_id'),
 		createdAt: createdAt(),
 		updatedAt: updatedAt()
 	},
@@ -260,7 +282,21 @@ export const quizSections = sqliteTable(
 		uniqueIndex('quiz_sections_quiz_section_idx').on(table.quizId, table.section),
 		uniqueIndex('quiz_sections_quiz_position_idx').on(table.quizId, table.position),
 		// Homepage filtering by section joins through here.
-		index('quiz_sections_section_idx').on(table.section)
+		index('quiz_sections_section_idx').on(table.section),
+		index('quiz_sections_scoring_band_idx').on(table.scoringBandId),
+		// Parent key for quiz_questions' composite FK.
+		uniqueIndex('quiz_sections_quiz_id_idx').on(table.quizId, table.id),
+		/**
+		 * Scoped by quiz on purpose. A plain `scoring_band_id -> quiz_scoring_bands(id)`
+		 * would happily attach one quiz's section to another quiz's band, and the scorer
+		 * would then sum those points into a band whose scaled_max belongs elsewhere.
+		 * Null scoring_band_id skips the check, which is what an unscaled quiz needs.
+		 */
+		foreignKey({
+			name: 'quiz_sections_band_fk',
+			columns: [table.quizId, table.scoringBandId],
+			foreignColumns: [quizScoringBands.quizId, quizScoringBands.id]
+		}).onDelete('restrict')
 	]
 );
 
@@ -275,9 +311,7 @@ export const quizQuestions = sqliteTable(
 		quizId: integer('quiz_id')
 			.notNull()
 			.references(() => quizzes.id, { onDelete: 'cascade' }),
-		quizSectionId: integer('quiz_section_id')
-			.notNull()
-			.references(() => quizSections.id, { onDelete: 'cascade' }),
+		quizSectionId: integer('quiz_section_id').notNull(),
 		questionId: integer('question_id')
 			.notNull()
 			.references(() => questions.id, { onDelete: 'restrict' }),
@@ -288,6 +322,15 @@ export const quizQuestions = sqliteTable(
 	},
 	(table) => [
 		uniqueIndex('quiz_questions_quiz_question_idx').on(table.quizId, table.questionId),
-		uniqueIndex('quiz_questions_section_position_idx').on(table.quizSectionId, table.position)
+		uniqueIndex('quiz_questions_section_position_idx').on(table.quizSectionId, table.position),
+		// The leftmost column of every unique index above is quiz_id or quiz_section_id,
+		// so the RESTRICT check on deleting a question would otherwise scan this table.
+		index('quiz_questions_question_idx').on(table.questionId),
+		/** Scoped by quiz: a quiz cannot borrow another quiz's section. */
+		foreignKey({
+			name: 'quiz_questions_section_fk',
+			columns: [table.quizId, table.quizSectionId],
+			foreignColumns: [quizSections.quizId, quizSections.id]
+		}).onDelete('cascade')
 	]
 );
