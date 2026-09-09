@@ -13,3 +13,11 @@ test('health endpoint reports a reachable database', async ({ request }) => {
 	expect(response.status()).toBe(200);
 	expect(await response.json()).toMatchObject({ status: 'ok', database: 'ok' });
 });
+
+test('the homepage guideline reaches the admin dashboard', async ({ page }) => {
+	await page.goto('/');
+
+	await page.getByRole('link', { name: 'Open the admin dashboard' }).click();
+
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview');
+});
