@@ -225,7 +225,7 @@ test.describe('as an administrator', () => {
 	});
 
 	test('cancelling the confirmation changes nothing', async ({ page }) => {
-		await page.goto('/admin/quizzes');
+		await page.goto('/admin/quizzes?level=N3');
 
 		const row = page.getByRole('row').filter({ hasText: 'JLPT N3 模擬試験' });
 
