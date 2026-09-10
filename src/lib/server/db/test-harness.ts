@@ -25,14 +25,22 @@ export type TestDatabase = Database;
 
 const MIGRATIONS = ['migrations/0000_init.sql', 'migrations/0001_schema.sql'];
 
-/** Splits a drizzle-kit migration into executable statements. */
+/**
+ * Splits a drizzle-kit migration into executable statements.
+ *
+ * `-->` here is SQL, not HTML: `--` is SQL's line-comment marker, drizzle-kit writes
+ * `--> statement-breakpoint` as its separator, and the notes in 0001_schema.sql use the
+ * same prefix. Dropped line by line rather than by regex — clearer than a pattern, and it
+ * stops CodeQL's `js/bad-tag-filter` heuristic reading `-->` as an HTML comment terminator.
+ */
 function statements(file: string): string[] {
 	return readFileSync(file, 'utf8')
 		.split('--> statement-breakpoint')
 		.map((chunk) =>
 			chunk
-				// The hand-written `-->` notes in 0001_schema.sql are commentary, not SQL.
-				.replace(/^-->.*$/gm, '')
+				.split('\n')
+				.filter((line) => !line.startsWith('-->'))
+				.join('\n')
 				.trim()
 		)
 		.filter((chunk) => chunk.length > 0);
