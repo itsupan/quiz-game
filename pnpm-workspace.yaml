@@ -1,3 +1,23 @@
 allowBuilds:
   esbuild: true
   workerd: true
+
+# Transitive advisories with no upstream fix available. Both direct dependencies are
+# already on their latest published version, so an upgrade cannot reach either one:
+#
+#   cookie <0.7.0        GHSA-pxg6-pf52-xh8x — accepts out-of-bounds characters in a
+#                        cookie name, path or domain. @sveltejs/kit@2.70.3 declares
+#                        `cookie: ^0.6.0`, which excludes the fix. 0.7.x only makes the
+#                        validation strict; this app passes literal names and `path: '/'`
+#                        and never sets a domain, so nothing it does changes behaviour.
+#
+#   esbuild <=0.24.2     GHSA-67mh-4wv8-2f99 — the esbuild DEV SERVER answers any origin
+#                        with `Access-Control-Allow-Origin: *`. Reached only through
+#                        drizzle-kit -> @esbuild-kit/esm-loader (deprecated, superseded by
+#                        tsx, which drizzle-kit also ships). Nothing here runs
+#                        `esbuild serve`: `pnpm dev` is `vite dev`, on esbuild 0.28.
+#
+# Revisit when @sveltejs/kit widens its cookie range or drizzle-kit drops @esbuild-kit.
+overrides:
+  '@sveltejs/kit>cookie': ^0.7.2
+  '@esbuild-kit/core-utils>esbuild': ^0.25.12
