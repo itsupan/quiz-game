@@ -52,8 +52,18 @@
 	 * numeric option id would never match and the picker would silently render blank —
 	 * submitting nothing and detaching the media on save.
 	 */
-	const field = (name: string, fallback: string | number | null) =>
-		values[name] ?? (fallback === null ? '' : String(fallback));
+	const field = (name: string, fallback: string | number | null) => {
+		if (values[name] !== undefined) {
+			return values[name];
+		}
+		if (typeof document !== 'undefined') {
+			const el = document.getElementById(name) as HTMLInputElement | HTMLSelectElement | null;
+			if (el && el.value) {
+				return el.value;
+			}
+		}
+		return fallback === null ? '' : String(fallback);
+	};
 
 	// Seeded once and then owned by the user's edits. `untrack` says so explicitly: this
 	// is a starting value, not a binding that should snap back when the page reloads.
@@ -68,17 +78,44 @@
 				}));
 			}
 
-			return initial.options.length > 0
-				? initial.options.map((option) => ({ ...option }))
-				: // Four is the JLPT norm, so a new question opens ready to type into.
-					Array.from({ length: 4 }, () => ({ id: null, body: '', isCorrect: false }));
+			const initialRows =
+				initial.options.length > 0
+					? initial.options.map((option) => ({ ...option }))
+					: // Four is the JLPT norm, so a new question opens ready to type into.
+						Array.from({ length: 4 }, () => ({ id: null, body: '', isCorrect: false }));
+
+			if (typeof document !== 'undefined') {
+				const inputs = document.querySelectorAll<HTMLInputElement>('input[name="optionBody"]');
+				inputs.forEach((input, index) => {
+					if (initialRows[index] && input.value) {
+						initialRows[index].body = input.value;
+					}
+				});
+			}
+
+			return initialRows;
 		})
 	);
 
 	// -1 when nothing is marked. Emphatically NOT defaulted to the first option: that
 	// would make every new question silently claim option 1 as its answer key, and the
 	// validator's "mark exactly one" branch would be unreachable from the UI.
-	let correctIndex = $state(rows.findIndex((row) => row.isCorrect));
+	let correctIndex = $state(
+		untrack(() => {
+			if (typeof document !== 'undefined') {
+				const checked = document.querySelector<HTMLInputElement>(
+					'input[name="correctOption"]:checked'
+				);
+				if (checked && checked.value !== '') {
+					const parsed = Number(checked.value);
+					if (Number.isInteger(parsed)) {
+						return parsed;
+					}
+				}
+			}
+			return rows.findIndex((row) => row.isCorrect);
+		})
+	);
 
 	// Two-way bound for the same reason the option rows are local state: a one-way
 	// `value` is re-asserted on every re-render, hydration included, which silently

@@ -32,8 +32,18 @@
 		};
 	} = $props();
 
-	const field = (name: string, fallback: string | number | null) =>
-		values[name] ?? (fallback === null ? '' : String(fallback));
+	const field = (name: string, fallback: string | number | null) => {
+		if (values[name] !== undefined) {
+			return values[name];
+		}
+		if (typeof document !== 'undefined') {
+			const el = document.getElementById(name) as HTMLInputElement | HTMLSelectElement | null;
+			if (el && el.value) {
+				return el.value;
+			}
+		}
+		return fallback === null ? '' : String(fallback);
+	};
 
 	const initialMinutes = $derived(
 		initial.timeLimitSeconds === null ? null : Math.round(initial.timeLimitSeconds / 60)
