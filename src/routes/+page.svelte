@@ -55,9 +55,8 @@
 	</ol>
 
 	<p class="note" data-testid="auth-note">
-		Content is archived rather than deleted, so past attempts keep working. Sign-in is not built
-		yet: while running locally you are signed in as the seeded administrator, and the dashboard
-		refuses every request in staging and production.
+		Content is archived rather than deleted, so past attempts keep working. Sign in with Google to
+		save your history; the dashboard is open to administrators only.
 	</p>
 
 	<p><a href={resolve('/api/health')}>Check database health</a></p>

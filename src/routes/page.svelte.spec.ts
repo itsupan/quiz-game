@@ -14,7 +14,7 @@ const quiz = (id: number, title: string): QuizCard => ({
 });
 
 const props = (quizzes: QuizCard[]): PageProps => ({
-	data: { quizzes },
+	data: { quizzes, user: null },
 	params: {},
 	form: null
 });
@@ -63,15 +63,13 @@ describe('home page', () => {
 		}
 	});
 
-	it('says plainly that sign-in is not built yet', async () => {
-		// Anyone reading this page should not conclude the dashboard is protected by a
-		// login. It is protected by configuration, and only until issue #9 lands.
+	it('says what signing in is for', async () => {
 		const screen = render(Page, props([]));
 
 		// Matched on the element, not on a text node: the sentence wraps across lines in
 		// the source, and toHaveTextContent normalises the whitespace.
 		await expect
 			.element(screen.getByTestId('auth-note'))
-			.toHaveTextContent(/sign-in is not built yet/i);
+			.toHaveTextContent(/sign in with google to save your history/i);
 	});
 });

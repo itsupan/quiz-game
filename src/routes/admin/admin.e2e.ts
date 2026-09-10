@@ -1,28 +1,27 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { ADMIN_SESSION, LEARNER_SESSION, signIn } from '../../../e2e/sessions';
+
 /**
  * The dashboard end to end, against a real worker and a real D1 database.
  *
- * Identity comes from the temporary `dev_user` cookie that
- * `src/lib/server/auth/user.ts` reads (see the ALLOW_DEV_AUTH note there). Setting it to
- * the seeded learner is what makes the authorization tests below real rather than a stub
- * checking itself: the same guard runs, against a different user.
+ * Identity comes from a real session row seeded by `seeds/e2e-sessions.sql` — the same
+ * table, the same hashed-token lookup and the same `validateSession` call a signed-in
+ * person goes through. There is no test-only authentication path in the application.
  */
-const SEEDED_LEARNER = '01JSEEDACCTSTDNT0000000000';
-
 async function signInAsLearner({ page }: { page: Page }) {
-	await page
-		.context()
-		.addCookies([{ name: 'dev_user', value: SEEDED_LEARNER, url: 'http://localhost:4173' }]);
+	await signIn(page.context(), LEARNER_SESSION);
 }
 
 test.describe('admin authorization', () => {
 	test.beforeEach(signInAsLearner);
 
 	for (const path of ['/admin', '/admin/quizzes', '/admin/questions', '/admin/questions/new']) {
-		test(`refuses a learner at ${path}`, async ({ page }) => {
+		test(`refuses a signed-in learner at ${path}`, async ({ page }) => {
 			const response = await page.goto(path);
 
+			// 403, not a redirect to sign in: they ARE signed in, so signing in again
+			// would change nothing.
 			expect(response?.status()).toBe(403);
 		});
 	}
@@ -53,6 +52,10 @@ test.describe('admin authorization', () => {
 });
 
 test.describe('as an administrator', () => {
+	test.beforeEach(async ({ page }) => {
+		await signIn(page.context(), ADMIN_SESSION);
+	});
+
 	test('shows the seeded content on the overview', async ({ page }) => {
 		await page.goto('/admin');
 

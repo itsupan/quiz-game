@@ -10,10 +10,25 @@
 # excludes .env from the Worker env, so your CLOUDFLARE_API_TOKEN stays a CLI
 # credential instead of becoming an app-visible variable.
 #
-# The project has no application secrets yet — this file documents the convention
-# and gives the first one somewhere to go. Delete the sample line when you add a real key.
+# Google sign-in (issue #9). Create an OAuth 2.0 Client ID of type "Web application" in
+# Google Cloud Console -> APIs & Services -> Credentials, and register these four
+# authorised redirect URIs:
+#
+#   http://localhost:5173/auth/google/callback                              vite dev
+#   http://localhost:4173/auth/google/callback                              preview and E2E
+#   https://quiz-game-staging.pichnarin893.workers.dev/auth/google/callback
+#   https://quizgame.ecoapsara.com/auth/google/callback
+#
+# wrangler.jsonc carries placeholder values so the app boots and the E2E suite can build
+# the redirect without credentials; anything set here takes precedence over those.
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
 
-# EXAMPLE_API_KEY="local-development-value"
+# Comma-separated addresses created or promoted to ADMIN on sign-in. Without at least one,
+# every account is a learner and nobody can reach /admin on a fresh database. It bootstraps
+# the first administrator only — it never demotes anyone, and issue #15 replaces it with a
+# proper role screen.
+BOOTSTRAP_ADMIN_EMAILS=""
 
 # Rules for anything you add here:
 #   - Read it only from src/lib/server/** , +page.server.ts, +layout.server.ts,

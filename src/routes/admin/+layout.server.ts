@@ -13,11 +13,4 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	const user = locals.user;
 
 	assertAdmin(user);
-
-	return {
-		admin: {
-			displayName: user.displayName,
-			email: user.email
-		}
-	};
 };

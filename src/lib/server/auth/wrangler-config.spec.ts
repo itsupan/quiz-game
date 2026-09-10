@@ -77,21 +77,6 @@ const config: WranglerConfig = JSON.parse(
 const DEPLOYED = ['staging', 'production'] as const;
 
 describe('wrangler.jsonc', () => {
-	it.each(DEPLOYED)('leaves the dev identity stub disabled in %s', (name) => {
-		// The admin dashboard has no real sign-in yet, so ALLOW_DEV_AUTH is the ONLY
-		// thing keeping /admin shut on a deployed worker. Named environments do not
-		// inherit vars, so absence here is the whole mechanism — see
-		// src/lib/server/auth/user.ts. Adding it to either block opens the dashboard to
-		// the public internet.
-		expect(config.env[name].vars?.ALLOW_DEV_AUTH).toBeUndefined();
-	});
-
-	it('enables the dev identity stub for local development', () => {
-		// If this ever goes missing, every admin route 401s locally and the E2E suite
-		// fails in a way that looks like a routing bug.
-		expect(config.vars?.ALLOW_DEV_AUTH).toBeDefined();
-	});
-
 	it.each(['top level', ...DEPLOYED])('binds the MEDIA bucket in %s', (name) => {
 		// Bindings are not inherited either, so a bucket added only at the top level is
 		// silently missing in deploys and every media upload fails there.
@@ -107,6 +92,16 @@ describe('wrangler.jsonc', () => {
 		);
 
 		expect(new Set(names).size).toBe(names.length);
+	});
+
+	it.each(DEPLOYED)('carries no Google credentials in %s', (name) => {
+		// The top-level values are placeholders that authenticate nobody. Copied into an
+		// environment block they would not fail loudly — sign-in would simply break at
+		// Google, with no clue why. Real credentials belong in `wrangler secret put`.
+		const vars = config.env[name].vars ?? {};
+
+		expect(Object.keys(vars).filter((key) => key.startsWith('GOOGLE_'))).toEqual([]);
+		expect(vars.BOOTSTRAP_ADMIN_EMAILS).toBeUndefined();
 	});
 
 	it('binds nothing but the local bucket at the top level', () => {

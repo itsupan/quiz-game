@@ -3,7 +3,7 @@
 	import { resolve } from '$app/paths';
 	import type { LayoutProps } from './$types';
 
-	let { data, children }: LayoutProps = $props();
+	let { children }: LayoutProps = $props();
 
 	const links = [
 		{ href: resolve('/admin'), label: 'Overview' },
@@ -25,7 +25,7 @@
 
 <div class="shell">
 	<header>
-		<a class="brand" href={resolve('/')}>quiz-game</a>
+		<span class="brand">Admin</span>
 
 		<nav aria-label="Admin sections">
 			<ul>
@@ -38,11 +38,6 @@
 				{/each}
 			</ul>
 		</nav>
-
-		<p class="who">
-			{data.admin.displayName}
-			<span>{data.admin.email}</span>
-		</p>
 	</header>
 
 	<main>
@@ -101,18 +96,6 @@
 	nav a[aria-current='page'] {
 		background: var(--accent-soft);
 		color: var(--accent);
-	}
-
-	.who {
-		margin: 0 0 0 auto;
-		font-size: 0.8125rem;
-		line-height: 1.3;
-		text-align: right;
-	}
-
-	.who span {
-		display: block;
-		color: var(--ink-faint);
 	}
 
 	main {
