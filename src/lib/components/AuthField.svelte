@@ -4,11 +4,20 @@
 		label: string;
 		type?: 'text' | 'email' | 'password';
 		name?: string;
+		value?: string;
 		autocomplete?: 'name' | 'email' | 'current-password' | 'new-password';
 		required?: boolean;
 	};
 
-	let { id, label, type = 'text', name = id, autocomplete, required = false }: Props = $props();
+	let {
+		id,
+		label,
+		type = 'text',
+		name = id,
+		value = '',
+		autocomplete,
+		required = false
+	}: Props = $props();
 </script>
 
 <label
@@ -21,6 +30,7 @@
 	{id}
 	{name}
 	{type}
+	{value}
 	{autocomplete}
 	{required}
 	class="block w-full rounded-none border-0 border-b border-[var(--line-strong)] bg-transparent px-0 pb-3 text-base text-[var(--ink)] outline-none focus:border-b-2 focus:border-[var(--red)] focus:pb-[11px]"

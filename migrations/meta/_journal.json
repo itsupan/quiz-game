@@ -15,6 +15,13 @@
       "when": 1788792744488,
       "tag": "0001_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789017037786,
+      "tag": "0002_add_password_hash",
+      "breakpoints": true
     }
   ]
 }

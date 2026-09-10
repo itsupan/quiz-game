@@ -17,6 +17,7 @@ export const users = sqliteTable(
 		email: text('email').notNull().unique(),
 		displayName: text('display_name').notNull(),
 		avatarUrl: text('avatar_url'),
+		passwordHash: text('password_hash'),
 		role: text('role', { enum: USER_ROLES }).notNull().default('USER'),
 		status: text('status', { enum: USER_STATUS }).notNull().default('ACTIVE'),
 		lastLoginAt: integer('last_login_at', { mode: 'timestamp' }),

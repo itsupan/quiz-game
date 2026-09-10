@@ -1,11 +1,28 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import AuthField from './AuthField.svelte';
 	import Button from './Button.svelte';
 
-	type Props = { mode: 'login' | 'signup' };
-	let { mode }: Props = $props();
+	type FormState = {
+		error?: string;
+		email?: string;
+		name?: string;
+	} | null;
+
+	type Props = {
+		mode: 'login' | 'signup';
+		form?: FormState;
+	};
+
+	let { mode, form }: Props = $props();
 	const isLogin = $derived(mode === 'login');
+
+	const redirectTo = $derived(page.url.searchParams.get('redirectTo') || '');
+	const googleHref = $derived(
+		`/auth/google${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`
+	);
 </script>
 
 <svelte:head>
@@ -69,15 +86,41 @@
 			aria-hidden="true"
 		></span>
 
-		<form class="w-full max-w-[40rem]" onsubmit={(event) => event.preventDefault()}>
+		<form class="w-full max-w-[40rem]" method="POST" use:enhance>
+			{#if redirectTo}
+				<input type="hidden" name="redirectTo" value={redirectTo} />
+			{/if}
+
+			{#if form?.error}
+				<div
+					class="mb-8 border-l-4 border-[var(--red)] bg-red-50 p-4 text-sm font-semibold text-[var(--red)]"
+					role="alert"
+				>
+					{form.error}
+				</div>
+			{/if}
+
 			{#if !isLogin}
 				<div class="mb-10">
-					<AuthField id="name" label="Full name" autocomplete="name" required />
+					<AuthField
+						id="name"
+						label="Full name"
+						autocomplete="name"
+						value={form?.name ?? ''}
+						required
+					/>
 				</div>
 			{/if}
 
 			<div class="mb-10">
-				<AuthField id="email" label="Email address" type="email" autocomplete="email" required />
+				<AuthField
+					id="email"
+					label="Email address"
+					type="email"
+					autocomplete="email"
+					value={form?.email ?? ''}
+					required
+				/>
 			</div>
 
 			<div class="relative mb-16">
@@ -107,19 +150,22 @@
 				<span>or</span>
 			</div>
 
-			<Button variant="secondary" type="button">
+			<Button variant="secondary" href={googleHref}>
 				<i class="fi fi-rs-globe flex text-2xl" aria-hidden="true"></i>
 				Continue with Google
 			</Button>
 
 			<p class="mt-12 text-base text-[var(--muted)]">
 				{isLogin ? 'New to QuizGame?' : 'Already have an account?'}
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
 				<a
 					class="ml-1 font-extrabold text-[var(--red)] no-underline hover:underline"
-					href={resolve(isLogin ? '/signup' : '/login')}
+					href={resolve(isLogin ? '/signup' : '/login') +
+						(redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : '')}
 				>
 					{isLogin ? 'Create an account' : 'Log in'}
 				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			</p>
 		</form>
 

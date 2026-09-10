@@ -1,12 +1,11 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import type { Snippet } from 'svelte';
 
 	type Props = {
 		children: Snippet;
 		variant?: 'primary' | 'secondary';
 		type?: 'button' | 'submit' | 'reset';
-		href?: '/' | '/login' | '/signup';
+		href?: string;
 		disabled?: boolean;
 		ariaLabel?: string;
 		class?: string;
@@ -32,7 +31,8 @@
 </script>
 
 {#if href}
-	<a class={classes} href={resolve(href)} aria-label={ariaLabel} aria-disabled={disabled}>
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+	<a class={classes} {href} aria-label={ariaLabel} aria-disabled={disabled}>
 		<span class="inline-flex items-center justify-center gap-3">{@render children()}</span>
 	</a>
 {:else}

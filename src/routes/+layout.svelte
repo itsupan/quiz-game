@@ -1,9 +1,26 @@
 <script lang="ts">
 	import './layout.css';
+	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
+	import type { LayoutProps } from './$types';
+
+	let { data, children }: LayoutProps = $props();
 
 	// So signing in from a page returns to it rather than dumping you on the homepage.
 	const signInHref = $derived(
 		resolve(`/auth/google?redirectTo=${encodeURIComponent(page.url.pathname + page.url.search)}`)
+	);
+
+	const isAuthPage = $derived(page.url.pathname === '/login' || page.url.pathname === '/signup');
+	const isLearnerPage = $derived(
+		page.url.pathname === '/home' ||
+			page.url.pathname.startsWith('/home/') ||
+			page.url.pathname === '/practice' ||
+			page.url.pathname.startsWith('/practice/') ||
+			page.url.pathname === '/leaderboard' ||
+			page.url.pathname.startsWith('/leaderboard/') ||
+			page.url.pathname === '/analytics' ||
+			page.url.pathname.startsWith('/analytics/')
 	);
 </script>
 
@@ -19,25 +36,28 @@
 	<link rel="icon" href="/brand/logo_icon.png" type="image/png" />
 </svelte:head>
 
-<header class="site">
-	<a class="brand" href={resolve('/')}>quiz-game</a>
+{#if !isAuthPage && !isLearnerPage}
+	<header class="site">
+		<a class="brand" href={resolve('/')}>quiz-game</a>
 
-	<nav aria-label="Account">
-		{#if data.user}
-			<span class="who">{data.user.displayName}</span>
-			{#if data.user.role === 'ADMIN'}
-				<a href={resolve('/admin')}>Admin</a>
+		<nav aria-label="Account">
+			{#if data.user}
+				<span class="who">{data.user.displayName}</span>
+				{#if data.user.role === 'ADMIN'}
+					<a href={resolve('/admin')}>Admin</a>
+				{/if}
+				<!-- POST, so a link or an image cannot sign someone out, and SvelteKit's
+				     origin check applies. -->
+				<form method="POST" action={resolve('/auth/signout')}>
+					<button type="submit">Sign out</button>
+				</form>
+			{:else}
+				<a href={resolve('/login')}>Log in</a>
+				<a class="signin" href={signInHref}>Sign in with Google</a>
 			{/if}
-			<!-- POST, so a link or an image cannot sign someone out, and SvelteKit's
-			     origin check applies. -->
-			<form method="POST" action={resolve('/auth/signout')}>
-				<button type="submit">Sign out</button>
-			</form>
-		{:else}
-			<a class="signin" href={signInHref}>Sign in with Google</a>
-		{/if}
-	</nav>
-</header>
+		</nav>
+	</header>
+{/if}
 
 {@render children()}
 

@@ -1,5 +1,5 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import { redirect, type Handle } from '@sveltejs/kit';
+import { error, redirect, type Handle } from '@sveltejs/kit';
 
 import { getDb } from '$lib/server/db';
 import { assertAdmin } from '$lib/server/auth/guards';
@@ -65,4 +65,52 @@ const adminOnly: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-export const handle = sequence(database, authentication, adminOnly);
+/**
+ * The authorization gate for learner dashboard routes.
+ *
+ * Prevents unauthorized users from accessing /home and other learner sections.
+ * Navigations are redirected to /login with returnTo query param; API/POST requests receive 401.
+ */
+const learnerAuth: Handle = async ({ event, resolve }) => {
+	const pathname = event.url.pathname;
+	const isLearnerProtected =
+		pathname === '/home' ||
+		pathname.startsWith('/home/') ||
+		pathname === '/practice' ||
+		pathname.startsWith('/practice/') ||
+		pathname === '/leaderboard' ||
+		pathname.startsWith('/leaderboard/') ||
+		pathname === '/analytics' ||
+		pathname.startsWith('/analytics/');
+
+	if (isLearnerProtected && !event.locals.user) {
+		const isNavigation = event.request.method === 'GET' || event.request.method === 'HEAD';
+
+		if (isNavigation) {
+			redirect(
+				302,
+				`/login?redirectTo=${encodeURIComponent(event.url.pathname + event.url.search)}`
+			);
+		}
+
+		error(401, 'Unauthorized');
+	}
+
+	if (isLearnerProtected && event.locals.user?.role === 'ADMIN') {
+		const isNavigation = event.request.method === 'GET' || event.request.method === 'HEAD';
+		if (isNavigation) {
+			redirect(302, '/admin');
+		}
+	}
+
+	if (pathname === '/' && event.locals.user && event.locals.user.role !== 'ADMIN') {
+		const isNavigation = event.request.method === 'GET' || event.request.method === 'HEAD';
+		if (isNavigation) {
+			redirect(302, '/home');
+		}
+	}
+
+	return resolve(event);
+};
+
+export const handle = sequence(database, authentication, learnerAuth, adminOnly);
