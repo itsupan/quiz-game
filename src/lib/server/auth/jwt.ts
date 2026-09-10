@@ -8,6 +8,7 @@
  */
 
 import { base64urlDecode } from './encoding';
+import { SignInError } from './errors';
 
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 
@@ -34,7 +35,8 @@ export type VerifyOptions = {
 	clientId: string;
 	nonce: string;
 	now?: Date;
-	fetchJwks?: () => Promise<Jwks>;
+	/** `force` bypasses the cache, for the key-rotation case below. */
+	fetchJwks?: (options?: { force?: boolean }) => Promise<Jwks>;
 };
 
 type Cached = { jwks: Jwks; expiresAt: number };
@@ -51,8 +53,8 @@ function decodeSegment(segment: string): unknown {
 }
 
 /** The default fetcher. Cached for as long as Google's `Cache-Control` allows. */
-export async function fetchGoogleJwks(now: number = Date.now()): Promise<Jwks> {
-	if (cache && cache.expiresAt > now) {
+export async function fetchGoogleJwks(now: number = Date.now(), force = false): Promise<Jwks> {
+	if (!force && cache && cache.expiresAt > now) {
 		return cache.jwks;
 	}
 
@@ -90,7 +92,7 @@ export async function verifyIdToken(token: string, options: VerifyOptions): Prom
 	const parts = token.split('.');
 
 	if (parts.length !== 3) {
-		throw new Error('The ID token is malformed.');
+		throw new SignInError('The ID token is malformed.');
 	}
 
 	const [encodedHeader, encodedPayload, encodedSignature] = parts;
@@ -99,18 +101,26 @@ export async function verifyIdToken(token: string, options: VerifyOptions): Prom
 	// Checked before anything else. Accepting `none` would make the signature optional,
 	// and accepting an HMAC algorithm would let a public key be used as a shared secret.
 	if (header.alg !== 'RS256') {
-		throw new Error('The ID token must be signed with RS256.');
+		throw new SignInError('The ID token must be signed with RS256.');
 	}
 
 	if (!header.kid) {
-		throw new Error('The ID token names no signing key.');
+		throw new SignInError('The ID token names no signing key.');
 	}
 
-	const { keys } = await fetchJwks();
-	const jwk = keys.find((key) => key.kid === header.kid);
+	let { keys } = await fetchJwks();
+	let jwk = keys.find((key) => key.kid === header.kid);
 
 	if (!jwk) {
-		throw new Error('The ID token was signed with an unknown key.');
+		// Google's keys are cached for the hours its Cache-Control allows, so a key added
+		// during that window is unknown to a warm isolate. Without this refetch every
+		// sign-in on that isolate fails until the cache lapses, with no way to recover.
+		({ keys } = await fetchJwks({ force: true }));
+		jwk = keys.find((key) => key.kid === header.kid);
+	}
+
+	if (!jwk) {
+		throw new SignInError('The ID token was signed with an unknown key.');
 	}
 
 	const key = await crypto.subtle.importKey(
@@ -129,45 +139,45 @@ export async function verifyIdToken(token: string, options: VerifyOptions): Prom
 	);
 
 	if (!signed) {
-		throw new Error('The ID token signature does not match.');
+		throw new SignInError('The ID token signature does not match.');
 	}
 
 	const claims = decodeSegment(encodedPayload) as Record<string, unknown>;
 	const seconds = Math.floor(now.getTime() / 1000);
 
 	if (typeof claims.iss !== 'string' || !ISSUERS.includes(claims.iss)) {
-		throw new Error('The ID token has the wrong issuer.');
+		throw new SignInError('The ID token has the wrong issuer.');
 	}
 
 	if (claims.aud !== clientId) {
 		// A token minted for another application is not evidence about this one.
-		throw new Error('The ID token has the wrong audience.');
+		throw new SignInError('The ID token has the wrong audience.');
 	}
 
 	if (typeof claims.exp !== 'number' || claims.exp + CLOCK_SKEW_SECONDS < seconds) {
-		throw new Error('The ID token has expired.');
+		throw new SignInError('The ID token has expired.');
 	}
 
 	if (typeof claims.iat !== 'number' || claims.iat - CLOCK_SKEW_SECONDS > seconds) {
-		throw new Error('The ID token was issued in the future.');
+		throw new SignInError('The ID token was issued in the future.');
 	}
 
 	if (claims.nonce !== nonce) {
 		// Ties the token to the browser that started this sign-in, so one cannot be replayed.
-		throw new Error('The ID token nonce does not match this sign-in.');
+		throw new SignInError('The ID token nonce does not match this sign-in.');
 	}
 
 	if (typeof claims.sub !== 'string' || claims.sub === '') {
-		throw new Error('The ID token carries no subject.');
+		throw new SignInError('The ID token carries no subject.');
 	}
 
 	if (typeof claims.email !== 'string' || claims.email === '') {
-		throw new Error('The ID token carries no email address.');
+		throw new SignInError('The ID token carries no email address.');
 	}
 
 	if (claims.email_verified !== true) {
 		// An unverified address may belong to someone else, and `users.email` is unique.
-		throw new Error('That Google account has no verified email address.');
+		throw new SignInError('That Google account has no verified email address.');
 	}
 
 	return {

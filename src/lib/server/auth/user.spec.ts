@@ -2,9 +2,10 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDatabase, type TestDatabase } from '$lib/server/db/test-harness';
-import { oauthAccounts, users } from '$lib/server/db/schema';
+import { oauthAccounts, sessions, users } from '$lib/server/db/schema';
 import type { GoogleProfile } from './jwt';
-import { isBootstrapAdmin, upsertGoogleUser } from './user';
+import { createSession } from './session';
+import { isBootstrapAdmin, resolveUser, upsertGoogleUser } from './user';
 
 let db: TestDatabase;
 
@@ -96,23 +97,6 @@ describe('upsertGoogleUser', () => {
 		expect(stored.lastLoginAt).toBeInstanceOf(Date);
 	});
 
-	it('adopts an existing account with the same verified email', async () => {
-		// The seeded administrator, or anyone created before Google sign-in existed. Safe
-		// because only verified addresses reach this point — and without it, signing in
-		// would collide with the unique email and fail outright.
-		const [seeded] = await db
-			.insert(users)
-			.values({ email: 'learner@example.com', displayName: 'seeded', role: 'ADMIN' })
-			.returning();
-
-		const user = await upsertGoogleUser(db, profile());
-
-		expect(user.id).toBe(seeded.id);
-		expect(user.role).toBe('ADMIN');
-		expect(await db.select().from(users)).toHaveLength(1);
-		expect(await db.select().from(oauthAccounts)).toHaveLength(1);
-	});
-
 	it('falls back to the email address when Google sends no name', async () => {
 		const user = await upsertGoogleUser(db, profile({ name: null }));
 
@@ -157,5 +141,95 @@ describe('upsertGoogleUser', () => {
 
 			expect(user.status).toBe('SUSPENDED');
 		});
+	});
+});
+
+describe('adopting an account by email', () => {
+	it('refuses when that account is already a different Google identity', async () => {
+		// REGRESSION. A Workspace address can be deleted and re-created; the replacement
+		// verifies the same email but gets a new `sub`. Without this check the stranger is
+		// merged into the original account and inherits its role, history and public id.
+		await upsertGoogleUser(db, profile({ sub: 'the-original-person' }));
+
+		await expect(
+			upsertGoogleUser(db, profile({ sub: 'a-different-person-same-address' }))
+		).rejects.toThrow(/different Google identity/i);
+
+		// Nothing was created or altered on the way to refusing.
+		expect(await db.select().from(users)).toHaveLength(1);
+		expect(await db.select().from(oauthAccounts)).toHaveLength(1);
+	});
+
+	it('still adopts an account that has never been linked', async () => {
+		// The seeded administrator, or anyone created before Google sign-in existed. Safe
+		// because only verified addresses reach this point — and necessary because
+		// `users.email` is unique, so a second row would simply fail to insert.
+		const [seeded] = await db
+			.insert(users)
+			.values({ email: 'learner@example.com', displayName: 'seeded', role: 'ADMIN' })
+			.returning();
+
+		const user = await upsertGoogleUser(db, profile());
+
+		expect(user.id).toBe(seeded.id);
+		expect(user.role).toBe('ADMIN');
+		expect(await db.select().from(users)).toHaveLength(1);
+		expect(await db.select().from(oauthAccounts)).toHaveLength(1);
+	});
+});
+
+describe('resolveUser', () => {
+	/** The slice of a RequestEvent that resolveUser actually touches. */
+	function fakeEvent(token: string | undefined) {
+		const deleted: string[] = [];
+
+		return {
+			deleted,
+			event: {
+				cookies: {
+					get: () => token,
+					set: () => {},
+					delete: (name: string) => deleted.push(name)
+				},
+				locals: { db }
+			}
+		};
+	}
+
+	it('resolves an active user', async () => {
+		const user = await upsertGoogleUser(db, profile());
+		const { token } = await createSession(db, user.id);
+
+		const resolved = await resolveUser(fakeEvent(token).event as never);
+
+		expect(resolved?.email).toBe('learner@example.com');
+	});
+
+	it('treats a suspended user as signed out, and destroys the session', async () => {
+		// REGRESSION. `assertAdmin` was the only guard reading status, and it covers /admin
+		// alone — so suspending a learner revoked nothing, and would have become a real
+		// hole the moment attempt routes started reading `locals.user`.
+		const user = await upsertGoogleUser(db, profile());
+		const { token } = await createSession(db, user.id);
+
+		await db.update(users).set({ status: 'SUSPENDED' }).where(eq(users.id, user.id));
+
+		const fake = fakeEvent(token);
+
+		expect(await resolveUser(fake.event as never)).toBeNull();
+		// Ejected on the next request, not merely refused: the row is gone.
+		expect(await db.select().from(sessions)).toHaveLength(0);
+		expect(fake.deleted).toContain('session');
+	});
+
+	it('is signed out when there is no cookie at all', async () => {
+		expect(await resolveUser(fakeEvent(undefined).event as never)).toBeNull();
+	});
+
+	it('clears a cookie whose session no longer exists', async () => {
+		const fake = fakeEvent('a-token-that-was-never-issued');
+
+		expect(await resolveUser(fake.event as never)).toBeNull();
+		expect(fake.deleted).toContain('session');
 	});
 });

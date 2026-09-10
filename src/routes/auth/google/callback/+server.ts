@@ -1,5 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 
+import { SignInError } from '$lib/server/auth/errors';
 import { clearFlowCookies, googleConfig, readFlowCookies } from '$lib/server/auth/flow';
 import { verifyIdToken } from '$lib/server/auth/jwt';
 import { exchangeCode } from '$lib/server/auth/oauth';
@@ -40,22 +41,39 @@ export const GET: RequestHandler = async ({ cookies, fetch, locals, platform, ur
 
 	const { clientId, clientSecret, bootstrapEmails } = googleConfig(platform);
 
-	const idToken = await exchangeCode({
-		code,
-		codeVerifier: flow.codeVerifier,
-		redirectUri: new URL('/auth/google/callback', url.origin).toString(),
-		clientId,
-		clientSecret,
-		fetch
-	});
+	let session: { token: string; expiresAt: Date };
 
-	const profile = await verifyIdToken(idToken, {
-		clientId,
-		nonce: flow.nonce
-	});
+	try {
+		const idToken = await exchangeCode({
+			code,
+			codeVerifier: flow.codeVerifier,
+			redirectUri: new URL('/auth/google/callback', url.origin).toString(),
+			clientId,
+			clientSecret,
+			fetch
+		});
 
-	const user = await upsertGoogleUser(locals.db, profile, bootstrapEmails);
-	const session = await createSession(locals.db, user.id);
+		const profile = await verifyIdToken(idToken, { clientId, nonce: flow.nonce });
+		const user = await upsertGoogleUser(locals.db, profile, bootstrapEmails);
+
+		if (user.status !== 'ACTIVE') {
+			// Refused here as well as in `resolveUser`: issuing a session and then ignoring
+			// it would leave a usable row in the table for no reason.
+			throw new SignInError('This account has been suspended.');
+		}
+
+		session = await createSession(locals.db, user.id);
+	} catch (cause) {
+		// A deliberate refusal explains itself; anything else is a fault, and a stranger
+		// gets a generic message while the detail goes to the log.
+		if (cause instanceof SignInError) {
+			error(400, cause.message);
+		}
+
+		console.error('[auth] sign-in failed', cause);
+
+		error(502, 'Sign-in is temporarily unavailable. Please try again in a moment.');
+	}
 
 	setSessionCookie(cookies, session.token, session.expiresAt);
 

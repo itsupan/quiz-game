@@ -23,6 +23,9 @@ const FLOW_COOKIE = {
 	maxAge: FLOW_TTL_SECONDS
 } as const;
 
+/** Any origin will do: it exists only so a relative path can be resolved and compared. */
+const PROBE_ORIGIN = 'https://return-to.invalid';
+
 export type GoogleConfig = { clientId: string; clientSecret: string; bootstrapEmails?: string };
 
 /**
@@ -59,16 +62,47 @@ export function safeReturnTo(value: string | null | undefined): string {
 		return '/';
 	}
 
-	if (value.startsWith('//') || value.startsWith('/\\')) {
+	// Rejected before parsing. The URL parser STRIPS tab, CR and LF rather than failing on
+	// them, so `/<TAB>/evil.test/phish` passes a naive prefix check, survives verbatim in a
+	// Location header, and resolves in the browser to https://evil.test/phish. A blocklist
+	// of prefixes cannot catch that; a control-character check plus the origin check below
+	// can. CR and LF would also be header injection.
+	// The no-control-regex rule is right in general and wrong here: matching control
+	// characters is the entire point, because they are what the parser silently strips.
+	// eslint-disable-next-line no-control-regex
+	if (/[\u0000-\u001f\u007f]/.test(value)) {
 		return '/';
 	}
 
-	// A newline in a Location header is header injection.
-	if (/[\r\n]/.test(value)) {
+	// Resolve exactly as a browser would, then insist the result never left this origin.
+	// This is the check that actually holds: it does not care which trick was used.
+	let resolved: URL;
+
+	try {
+		resolved = new URL(value, PROBE_ORIGIN);
+	} catch {
 		return '/';
 	}
 
-	return value;
+	if (resolved.origin !== PROBE_ORIGIN) {
+		return '/';
+	}
+
+	// The normalised form, not the input, so nothing unusual survives into the header.
+	const candidate = resolved.pathname + resolved.search + resolved.hash;
+
+	// Checked AGAIN, because normalising can produce a path that is itself hostile:
+	// `/..//evil.test` resolves to a pathname of `//evil.test`, which is protocol-relative
+	// the moment it is put in a Location header. One pass is not enough.
+	try {
+		if (new URL(candidate, PROBE_ORIGIN).origin !== PROBE_ORIGIN) {
+			return '/';
+		}
+	} catch {
+		return '/';
+	}
+
+	return candidate;
 }
 
 export function setFlowCookies(

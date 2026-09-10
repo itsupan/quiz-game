@@ -3,8 +3,9 @@ import type { RequestEvent } from '@sveltejs/kit';
 
 import type { Database } from '$lib/server/db';
 import { oauthAccounts, users } from '$lib/server/db/schema';
+import { SignInError } from './errors';
 import type { GoogleProfile } from './jwt';
-import { SESSION_COOKIE, setSessionCookie, validateSession } from './session';
+import { SESSION_COOKIE, invalidateSession, setSessionCookie, validateSession } from './session';
 import type { AuthUser } from './types';
 
 export type { AuthUser };
@@ -37,6 +38,17 @@ export async function resolveUser(event: RequestEvent): Promise<AuthUser | null>
 	if (!session) {
 		// The row is gone or expired — signed out elsewhere, or reaped. Drop the cookie so
 		// the browser stops sending a value that can never work again.
+		event.cookies.delete(SESSION_COOKIE, { path: '/' });
+
+		return null;
+	}
+
+	if (session.user.status !== 'ACTIVE') {
+		// Suspension has to take effect on the next request, not the next sign-in. Only
+		// `assertAdmin` used to check status, which covers /admin and nothing else — so
+		// suspending a learner revoked nothing at all, and would have quietly become a
+		// real hole the moment attempt routes started reading `locals.user`.
+		await invalidateSession(event.locals.db, token);
 		event.cookies.delete(SESSION_COOKIE, { path: '/' });
 
 		return null;
@@ -75,10 +87,17 @@ export function isBootstrapAdmin(email: string, list: string | undefined): boole
  * Turns a verified Google profile into the one `users` row that represents that person.
  *
  * Identity is Google's `sub`, held in `oauth_accounts`, because an email address can
- * change and `sub` cannot. An account that already exists under the same address — the
- * seeded administrator, or anyone created before sign-in existed — is adopted rather than
- * duplicated, which is safe only because `jwt.ts` refuses unverified addresses and is
- * necessary because `users.email` is unique.
+ * change and `sub` cannot.
+ *
+ * An account that already exists under the same address is adopted rather than duplicated
+ * — the seeded administrator, or anyone created before sign-in existed. That is safe only
+ * because `jwt.ts` refuses unverified addresses, and it is necessary because `users.email`
+ * is unique, so a new row would simply fail to insert.
+ *
+ * Adoption is refused when the account is ALREADY linked to a different Google identity.
+ * A Workspace address can be deleted and re-created, and the replacement gets a new `sub`
+ * while verifying the same email; without this check that stranger would be merged into
+ * the original account and inherit its role, its history and its public id.
  */
 export async function upsertGoogleUser(
 	db: Database,
@@ -98,7 +117,21 @@ export async function upsertGoogleUser(
 
 	const [byEmail] = linked
 		? []
-		: await db.select({ id: users.id }).from(users).where(eq(users.email, profile.email)).limit(1);
+		: await db
+				.select({ id: users.id, linkedTo: oauthAccounts.providerAccountId })
+				.from(users)
+				.leftJoin(
+					oauthAccounts,
+					and(eq(oauthAccounts.userId, users.id), eq(oauthAccounts.provider, 'google'))
+				)
+				.where(eq(users.email, profile.email))
+				.limit(1);
+
+	if (byEmail?.linkedTo) {
+		throw new SignInError(
+			'An account already exists for that email address under a different Google identity. Contact an administrator.'
+		);
+	}
 
 	const existingId = linked?.userId ?? byEmail?.id;
 

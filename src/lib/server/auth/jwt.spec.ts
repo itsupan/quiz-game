@@ -124,6 +124,57 @@ describe('verifyIdToken', () => {
 		await expect(verify(await signToken({}, { kid: 'someone-elses-key' }))).rejects.toThrow(/key/i);
 	});
 
+	it('refetches once when the key id is unknown, in case Google rotated', async () => {
+		// REGRESSION. The JWKS is cached for the hours Google's Cache-Control allows, so a
+		// key added inside that window is unknown to a warm isolate. Without this refetch
+		// EVERY sign-in on that isolate fails until the cache lapses, with no recovery.
+		let calls = 0;
+
+		const profile = await verify(await signToken(), {
+			fetchJwks: async (options?: { force?: boolean }) => {
+				calls += 1;
+
+				// A cold cache holding yesterday's keys, then the real set on a forced read.
+				return options?.force ? jwks : { keys: [] };
+			}
+		});
+
+		expect(calls).toBe(2);
+		expect(profile.sub).toBe('110169484474386276334');
+	});
+
+	it('does not refetch when the key is already known', async () => {
+		let calls = 0;
+
+		await verify(await signToken(), {
+			fetchJwks: async () => {
+				calls += 1;
+
+				return jwks;
+			}
+		});
+
+		// A network round trip per sign-in would be a needless dependency on Google being
+		// reachable at that instant.
+		expect(calls).toBe(1);
+	});
+
+	it('gives up after one forced refetch', async () => {
+		let calls = 0;
+
+		await expect(
+			verify(await signToken({}, { kid: 'never-existed' }), {
+				fetchJwks: async () => {
+					calls += 1;
+
+					return jwks;
+				}
+			})
+		).rejects.toThrow(/unknown key/i);
+
+		expect(calls).toBe(2);
+	});
+
 	it('rejects a token minted for a different client', async () => {
 		await expect(
 			verify(await signToken({ aud: 'another-app.apps.googleusercontent.com' }))

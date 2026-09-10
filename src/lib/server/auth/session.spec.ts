@@ -158,7 +158,9 @@ describe('validateSession', () => {
 		expect(result?.expiresAt.getTime()).toBe(expiresAt.getTime());
 	});
 
-	it('still resolves a suspended user, leaving the decision to the guards', async () => {
+	it('reports a suspended user rather than hiding them', async () => {
+		// A session lookup answers who the token belongs to; `resolveUser` is what refuses
+		// to sign a non-ACTIVE account in, and destroys the session while it is there.
 		await db.update(users).set({ status: 'SUSPENDED' }).where(eq(users.id, userId));
 
 		const { token } = await createSession(db, userId);

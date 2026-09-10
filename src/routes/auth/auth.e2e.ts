@@ -108,7 +108,14 @@ test.describe('signed out', () => {
 		expect(decodeURIComponent(await returnToCookie(page))).toBe('/admin/quizzes');
 	});
 
-	for (const hostile of ['https://evil.test/phish', '//evil.test/phish']) {
+	for (const hostile of [
+		'https://evil.test/phish',
+		'//evil.test/phish',
+		// The tab is the interesting one: the URL parser strips it, so this passes any
+		// prefix check and a browser resolves it to https://evil.test/phish.
+		'/\t/evil.test/phish',
+		'/..//evil.test/phish'
+	]) {
 		test(`refuses to send you onward to ${hostile}`, async ({ page }) => {
 			// Otherwise the sign-in link is an open redirect: a convincing way to bounce
 			// someone off this site to a phishing page.

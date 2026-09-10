@@ -1,4 +1,5 @@
 import { base64urlEncode, randomToken, sha256 } from './encoding';
+import { SignInError } from './errors';
 
 /**
  * The Google half of the sign-in flow: authorization-code with PKCE.
@@ -92,7 +93,7 @@ export async function exchangeCode(options: {
 		// difference between a five-minute fix and an afternoon.
 		const reason = payload.error_description ?? payload.error ?? `HTTP ${response.status}`;
 
-		throw new Error(`Google rejected the authorization code: ${reason}`);
+		throw new SignInError(`Google rejected the sign-in: ${reason}. Please try again.`);
 	}
 
 	if (!payload.id_token) {
