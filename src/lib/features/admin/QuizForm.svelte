@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 
+	import Button from '$lib/components/Button.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import { JLPT_LEVELS, QUIZ_MODES, SELECTION_MODES } from '$lib/domain/enums';
 
@@ -63,7 +64,7 @@
 </script>
 
 <form method="POST" {action}>
-	<section>
+	<section class="mb-5 border-2 border-ink bg-white p-5">
 		<Field id="title" label="Title" error={errors.title} required>
 			{#snippet control(props)}
 				<input {...props} type="text" name="title" value={field('title', initial.title)} required />
@@ -78,7 +79,7 @@
 			{/snippet}
 		</Field>
 
-		<div class="row">
+		<div class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-x-4">
 			<Field id="mode" label="Mode" error={errors.mode} required>
 				{#snippet control(props)}
 					<select {...props} name="mode" bind:value={mode}>
@@ -129,31 +130,5 @@
 		</div>
 	</section>
 
-	<button type="submit" class="primary">{submitLabel}</button>
+	<Button type="submit" size="md">{submitLabel}</Button>
 </form>
-
-<style>
-	section {
-		padding: 1.25rem;
-		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: var(--radius);
-		margin-bottom: 1.25rem;
-	}
-
-	.row {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-		gap: 0 1rem;
-	}
-
-	.primary {
-		padding: 0.5625rem 1rem;
-		border: 0;
-		border-radius: var(--radius-sm);
-		background: var(--accent);
-		color: var(--accent-ink);
-		font-size: 0.9375rem;
-		font-weight: 600;
-	}
-</style>

@@ -39,14 +39,14 @@
 	);
 </script>
 
-<div class="field">
-	<label for={id}>
+<div class="mb-4 flex flex-col gap-1">
+	<label for={id} class="text-xs font-bold tracking-widest uppercase">
 		{label}
-		{#if required}<span class="required" aria-hidden="true">*</span>{/if}
+		{#if required}<span class="text-brand-red" aria-hidden="true">*</span>{/if}
 	</label>
 
 	{#if hint}
-		<p class="hint" id={hintId}>{hint}</p>
+		<p class="m-0 text-xs text-muted" id={hintId}>{hint}</p>
 	{/if}
 
 	{@render control({
@@ -57,36 +57,6 @@
 
 	{#if error}
 		<!-- Announced when validation swaps it in after a failed submit. -->
-		<p class="error" id={errorId} role="alert">{error}</p>
+		<p class="m-0 text-xs font-semibold text-danger" id={errorId} role="alert">{error}</p>
 	{/if}
 </div>
-
-<style>
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		margin-bottom: 1rem;
-	}
-
-	label {
-		font-size: 0.875rem;
-		font-weight: 600;
-	}
-
-	.required {
-		color: var(--danger);
-	}
-
-	.hint {
-		margin: 0;
-		font-size: 0.8125rem;
-		color: var(--ink-muted);
-	}
-
-	.error {
-		margin: 0;
-		font-size: 0.8125rem;
-		color: var(--danger);
-	}
-</style>

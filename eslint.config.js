@@ -35,6 +35,17 @@ export default defineConfig(
 		}
 	},
 	{
+		/**
+		 * These render an href their caller has already put through resolve() — NavLink
+		 * takes one as a prop, Pagination takes a function that builds one. The rule
+		 * cannot see through either, so it would flag the single line each component is
+		 * made of. Scoping the exemption to these files keeps it enforced everywhere
+		 * else, including the rest of AppShell and both admin list pages.
+		 */
+		files: ['src/lib/components/NavLink.svelte', 'src/lib/features/admin/Pagination.svelte'],
+		rules: { 'svelte/no-navigation-without-resolve': 'off' }
+	},
+	{
 		// Override or add rule settings here, such as:
 		// 'svelte/button-has-type': 'error'
 		rules: {}

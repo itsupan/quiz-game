@@ -18,10 +18,13 @@ async function returnToCookie(page: Page): Promise<string> {
 }
 
 test.describe('signed out', () => {
-	test('the header offers Google sign-in', async ({ page }) => {
+	test('the root sends you to sign in', async ({ page }) => {
+		// `/` is a signpost, not a page: the placeholder listing it used to render was
+		// replaced by /home.
 		await page.goto('/');
 
-		await expect(page.getByRole('link', { name: 'Sign in with Google' })).toBeVisible();
+		await expect(page).toHaveURL('/login');
+		await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
 	});
 
@@ -133,12 +136,14 @@ test.describe('signed in as a learner', () => {
 		await signIn(page.context(), LEARNER_SESSION);
 	});
 
-	test('the header shows the account, with no admin link', async ({ page }) => {
+	test('the account menu shows the learner, with no admin link', async ({ page }) => {
 		await page.goto('/');
 
 		await expect(page).toHaveURL('/home');
-		await expect(page.getByText('学習者テスト')).toBeVisible();
-		await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
+
+		await page.getByLabel('User menu').click();
+		await expect(page.getByText('学習者テスト', { exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Admin Dashboard' })).toHaveCount(0);
 	});
 
 	test('the dashboard is forbidden, not merely hidden', async ({ page }) => {
@@ -151,11 +156,18 @@ test.describe('signed in as an administrator', () => {
 		await signIn(page.context(), ADMIN_SESSION);
 	});
 
-	test('the header links to the dashboard', async ({ page }) => {
+	test('the root lands on the dashboard', async ({ page }) => {
 		await page.goto('/');
 
+		await expect(page).toHaveURL('/admin');
+	});
+
+	test('the account menu links to the dashboard', async ({ page }) => {
+		await page.goto('/home');
+
+		await page.getByLabel('User menu').click();
 		await expect(page.getByText('管理者テスト')).toBeVisible();
-		await expect(page.getByRole('link', { name: 'Admin', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Admin Dashboard' })).toBeVisible();
 	});
 
 	test('the dashboard opens', async ({ page }) => {
@@ -173,10 +185,12 @@ test.describe('signing out', () => {
 		await page.goto('/admin');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview');
 
+		await page.getByLabel('User menu').click();
 		await page.getByRole('button', { name: 'Sign out' }).click();
 
-		await expect(page).toHaveURL('/');
-		await expect(page.getByRole('link', { name: 'Sign in with Google' })).toBeVisible();
+		// Sign-out redirects to `/`, which forwards a signed-out visitor to /login.
+		await expect(page).toHaveURL('/login');
+		await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
 
 		// The row is gone, so even a browser that kept the cookie has nothing to match
 		// against. This is the difference between signing out and clearing a cookie.
@@ -205,8 +219,8 @@ test.describe('credentials authentication', () => {
 	test('renders auth pages without site header and provides google link', async ({ page }) => {
 		await page.goto('/login');
 
-		// Header is hidden on auth pages
-		await expect(page.locator('header.site')).toHaveCount(0);
+		// Auth pages render no app chrome at all — AuthPage is their whole shell.
+		await expect(page.getByRole('banner')).toHaveCount(0);
 		await expect(page.getByRole('heading', { name: /Login/i })).toBeVisible();
 
 		// Continue with Google button links to /auth/google
@@ -227,7 +241,8 @@ test.describe('credentials authentication', () => {
 		await page.getByRole('button', { name: 'Create account' }).click();
 
 		await expect(page).toHaveURL('/home');
-		await expect(page.getByText('E2E Learner')).toBeVisible();
+		await page.getByLabel('User menu').click();
+		await expect(page.getByText('E2E Learner', { exact: true })).toBeVisible();
 	});
 
 	test('logs in with registered credentials', async ({ page }) => {
@@ -251,7 +266,8 @@ test.describe('credentials authentication', () => {
 		await page.getByRole('button', { name: 'Authenticate' }).click();
 
 		await expect(page).toHaveURL('/home');
-		await expect(page.getByText('Login Tester')).toBeVisible();
+		await page.getByLabel('User menu').click();
+		await expect(page.getByText('Login Tester', { exact: true })).toBeVisible();
 	});
 
 	test('shows error message on bad credentials', async ({ page }) => {

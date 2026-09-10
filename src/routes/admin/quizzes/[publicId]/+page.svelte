@@ -4,6 +4,10 @@
 	import ConfirmSubmit from '$lib/components/ConfirmSubmit.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import Notice from '$lib/components/Notice.svelte';
+	import BlockerList from '$lib/features/admin/BlockerList.svelte';
+	import PageHeader from '$lib/features/admin/PageHeader.svelte';
 	import QuizForm from '$lib/features/admin/QuizForm.svelte';
 	import { SECTIONS } from '$lib/domain/enums';
 	import type { PageProps } from './$types';
@@ -26,50 +30,43 @@
 	);
 </script>
 
-<p class="crumb"><a href={resolve('/admin/quizzes')}>← Quizzes</a></p>
+<PageHeader title={data.quiz.title} back={{ href: resolve('/admin/quizzes'), label: 'Quizzes' }}>
+	{#snippet meta()}
+		<StatusBadge status={data.quiz.status} />
+		<span>Created {timestamp.format(data.quiz.createdAt)}</span>
+		<span>Last updated {timestamp.format(data.quiz.updatedAt)}</span>
+		{#if data.quiz.publishedAt}
+			<span>First published {timestamp.format(data.quiz.publishedAt)}</span>
+		{/if}
+	{/snippet}
 
-<div class="head">
-	<div>
-		<h1>{data.quiz.title}</h1>
-		<p class="meta">
-			<StatusBadge status={data.quiz.status} />
-			<span>Created {timestamp.format(data.quiz.createdAt)}</span>
-			<span>Last updated {timestamp.format(data.quiz.updatedAt)}</span>
-			{#if data.quiz.publishedAt}
-				<span>First published {timestamp.format(data.quiz.publishedAt)}</span>
+	{#snippet action()}
+		<form method="POST" class="flex gap-2" use:enhance>
+			{#if data.quiz.status !== 'PUBLISHED'}
+				<Button type="submit" size="sm" formaction="?/publish">Publish</Button>
 			{/if}
-		</p>
-	</div>
-
-	<form method="POST" class="status-actions" use:enhance>
-		{#if data.quiz.status !== 'PUBLISHED'}
-			<button type="submit" formaction="?/publish" class="primary">Publish</button>
-		{/if}
-		{#if data.quiz.status !== 'ARCHIVED'}
-			<ConfirmSubmit
-				label="Archive"
-				formaction="?/archive"
-				title="Archive this quiz?"
-				message="It disappears from the homepage immediately. Attempts already made against it keep working, and you can publish it again later."
-				confirmLabel="Archive quiz"
-			/>
-		{/if}
-	</form>
-</div>
+			{#if data.quiz.status !== 'ARCHIVED'}
+				<ConfirmSubmit
+					label="Archive"
+					formaction="?/archive"
+					title="Archive this quiz?"
+					message="It disappears from the homepage immediately. Attempts already made against it keep working, and you can publish it again later."
+					confirmLabel="Archive quiz"
+				/>
+			{/if}
+		</form>
+	{/snippet}
+</PageHeader>
 
 {#if form?.message}
-	<p class="notice" class:bad={!form.ok} role="alert">{form.message}</p>
+	<Notice tone={form.ok ? 'success' : 'danger'} alert>{form.message}</Notice>
 {/if}
 
-{#if data.blockers.length > 0 && data.quiz.status !== 'PUBLISHED'}
-	<ul class="blockers" aria-label="Blocking publication">
-		{#each data.blockers as blocker (blocker)}
-			<li>{blocker}</li>
-		{/each}
-	</ul>
+{#if data.quiz.status !== 'PUBLISHED'}
+	<BlockerList blockers={data.blockers} label="Blocking publication" />
 {/if}
 
-<h2>Details</h2>
+<h2 class="mt-8 text-lg font-black tracking-tight uppercase">Details</h2>
 <QuizForm
 	action="?/update"
 	submitLabel="Save details"
@@ -85,107 +82,121 @@
 	}}
 />
 
-<h2>Sections</h2>
-<p class="lede">
+<h2 class="mt-8 text-lg font-black tracking-tight uppercase">Sections</h2>
+<p class="mt-0 mb-4 text-sm text-muted">
 	The structure of the paper: which content section, in what order, with its own optional time
 	limit.{#if isRandom}
 		This quiz draws at random, so each section says how many questions it pulls from the bank.{/if}
 </p>
 
 {#if data.sections.length > 0}
-	<table>
-		<thead>
-			<tr>
-				<th scope="col">Section</th>
-				<th scope="col">Position</th>
-				<th scope="col">Time limit (min)</th>
-				<th scope="col">Questions drawn</th>
-				<th scope="col"><span class="visually-hidden">Actions</span></th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each data.sections as section (section.id)}
+	<div class="overflow-x-auto border-2 border-ink bg-white">
+		<table>
+			<thead>
 				<tr>
-					<th scope="row">{section.section}</th>
-					<td>
-						<!-- Editable, not just listed: switching a quiz to RANDOM leaves its
+					<th scope="col">Section</th>
+					<th scope="col">Position</th>
+					<th scope="col">Time limit (min)</th>
+					<th scope="col">Questions drawn</th>
+					<th scope="col"><span class="visually-hidden">Actions</span></th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each data.sections as section (section.id)}
+					<tr>
+						<th scope="row">{section.section}</th>
+						<td>
+							<!-- Editable, not just listed: switching a quiz to RANDOM leaves its
 						     existing sections without a draw count, and without this there
 						     would be no way to supply one short of deleting the section. -->
-						<label class="visually-hidden" for="position-{section.id}">
-							Position for {section.section}
-						</label>
-						<input
-							id="position-{section.id}"
-							form="section-{section.id}"
-							type="number"
-							name="position"
-							min="1"
-							value={section.position}
-						/>
-					</td>
-					<td>
-						<label class="visually-hidden" for="minutes-{section.id}">
-							Time limit in minutes for {section.section}
-						</label>
-						<input
-							id="minutes-{section.id}"
-							form="section-{section.id}"
-							type="number"
-							name="timeLimitMinutes"
-							min="1"
-							placeholder="none"
-							value={section.timeLimitSeconds === null ? '' : section.timeLimitSeconds / 60}
-						/>
-					</td>
-					<td>
-						{#if isRandom}
-							<label class="visually-hidden" for="draw-{section.id}">
-								Questions drawn for {section.section}
+							<label class="visually-hidden" for="position-{section.id}">
+								Position for {section.section}
 							</label>
 							<input
-								id="draw-{section.id}"
+								id="position-{section.id}"
 								form="section-{section.id}"
 								type="number"
-								name="drawCount"
+								name="position"
 								min="1"
-								aria-invalid={section.drawCount === null ? 'true' : undefined}
-								value={section.drawCount ?? ''}
+								value={section.position}
 							/>
-						{:else}
-							<span class="none">not drawn</span>
-						{/if}
-					</td>
-					<td class="actions">
-						<!-- The row's inputs live in the table cells and point back here with
+						</td>
+						<td>
+							<label class="visually-hidden" for="minutes-{section.id}">
+								Time limit in minutes for {section.section}
+							</label>
+							<input
+								id="minutes-{section.id}"
+								form="section-{section.id}"
+								type="number"
+								name="timeLimitMinutes"
+								min="1"
+								placeholder="none"
+								value={section.timeLimitSeconds === null ? '' : section.timeLimitSeconds / 60}
+							/>
+						</td>
+						<td>
+							{#if isRandom}
+								<label class="visually-hidden" for="draw-{section.id}">
+									Questions drawn for {section.section}
+								</label>
+								<input
+									id="draw-{section.id}"
+									form="section-{section.id}"
+									type="number"
+									name="drawCount"
+									min="1"
+									aria-invalid={section.drawCount === null ? 'true' : undefined}
+									value={section.drawCount ?? ''}
+								/>
+							{:else}
+								<span class="text-sm text-muted">not drawn</span>
+							{/if}
+						</td>
+						<td>
+							<div class="flex justify-end gap-2">
+								<!-- The row's inputs live in the table cells and point back here with
 						     `form`, because a <form> is not valid markup inside a <tr>. -->
-						<form id="section-{section.id}" method="POST" action="?/saveSection" use:enhance>
-							<input type="hidden" name="sectionId" value={section.id} />
-							<input type="hidden" name="section" value={section.section} />
-							<button type="submit">Save</button>
-						</form>
-						<form method="POST" action="?/deleteSection" use:enhance>
-							<input type="hidden" name="sectionId" value={section.id} />
-							<ConfirmSubmit
-								label="Remove"
-								title="Remove this section?"
-								message="Any questions attached to it would go with it, so removal is refused while it still has any."
-								confirmLabel="Remove section"
-							/>
-						</form>
-					</td>
-				</tr>
-			{/each}
-		</tbody>
-	</table>
+								<form id="section-{section.id}" method="POST" action="?/saveSection" use:enhance>
+									<input type="hidden" name="sectionId" value={section.id} />
+									<input type="hidden" name="section" value={section.section} />
+									<Button type="submit" variant="ghost" size="sm">Save</Button>
+								</form>
+								<form method="POST" action="?/deleteSection" use:enhance>
+									<input type="hidden" name="sectionId" value={section.id} />
+									<ConfirmSubmit
+										label="Remove"
+										title="Remove this section?"
+										message="Any questions attached to it would go with it, so removal is refused while it still has any."
+										confirmLabel="Remove section"
+									/>
+								</form>
+							</div>
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
 {:else}
-	<p class="empty" data-testid="no-sections">This quiz has no sections yet.</p>
+	<p
+		class="border-2 border-dashed border-line p-6 text-center text-muted"
+		data-testid="no-sections"
+	>
+		This quiz has no sections yet.
+	</p>
 {/if}
 
 {#if unusedSections.length > 0}
-	<form method="POST" action="?/saveSection" class="add-section" use:enhance>
-		<h3>Add a section</h3>
+	<form
+		method="POST"
+		action="?/saveSection"
+		class="mt-5 border-2 border-ink bg-white p-5"
+		use:enhance
+	>
+		<h3 class="mt-0 text-base font-black tracking-tight uppercase">Add a section</h3>
 
-		<div class="row">
+		<div class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-x-4">
 			<Field id="section" label="Section" error={sectionErrors.section} required>
 				{#snippet control(props)}
 					<select {...props} name="section">
@@ -222,146 +233,10 @@
 			{/if}
 		</div>
 
-		<button type="submit" class="primary">Add section</button>
+		<Button type="submit" size="md">Add section</Button>
 	</form>
 {:else}
-	<p class="empty">Every section is already configured for this quiz.</p>
+	<p class="border-2 border-dashed border-line p-6 text-center text-muted">
+		Every section is already configured for this quiz.
+	</p>
 {/if}
-
-<style>
-	.crumb {
-		margin: 0 0 0.25rem;
-		font-size: 0.875rem;
-	}
-
-	.crumb a {
-		text-decoration: none;
-		color: var(--ink-muted);
-	}
-
-	.head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 1rem;
-	}
-
-	.meta {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.75rem;
-		margin: 0;
-		font-size: 0.8125rem;
-		color: var(--ink-muted);
-	}
-
-	.status-actions {
-		display: flex;
-		gap: 0.5rem;
-	}
-
-	h2 {
-		margin-top: 2rem;
-	}
-
-	.lede {
-		margin: 0 0 1rem;
-		color: var(--ink-muted);
-	}
-
-	.notice {
-		padding: 0.625rem 0.875rem;
-		border-radius: var(--radius-sm);
-		margin: 0 0 1rem;
-		background: var(--success-soft);
-		border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
-		color: var(--success);
-	}
-
-	.notice.bad {
-		background: var(--danger-soft);
-		border-color: color-mix(in srgb, var(--danger) 25%, transparent);
-		color: var(--danger);
-	}
-
-	.blockers {
-		margin: 0 0 1rem;
-		padding: 0.75rem 0.875rem 0.75rem 2rem;
-		background: var(--warning-soft);
-		border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
-		border-radius: var(--radius-sm);
-		color: var(--warning);
-		font-size: 0.875rem;
-	}
-
-	table {
-		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: var(--radius);
-		overflow: hidden;
-	}
-
-	.actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
-	}
-
-	.actions button {
-		padding: 0.4375rem 0.75rem;
-		border: 1px solid var(--line-strong);
-		border-radius: var(--radius-sm);
-		background: var(--surface);
-		font-size: 0.875rem;
-		font-weight: 550;
-	}
-
-	tbody input {
-		max-width: 8rem;
-	}
-
-	.none {
-		color: var(--ink-faint);
-		font-size: 0.875rem;
-	}
-
-	.empty {
-		padding: 1.5rem 1rem;
-		text-align: center;
-		color: var(--ink-muted);
-		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: var(--radius);
-	}
-
-	.add-section {
-		margin-top: 1.25rem;
-		padding: 1.25rem;
-		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: var(--radius);
-	}
-
-	.add-section h3 {
-		margin-top: 0;
-	}
-
-	.row {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-		gap: 0 1rem;
-	}
-
-	.primary {
-		padding: 0.5rem 0.875rem;
-		border: 0;
-		border-radius: var(--radius-sm);
-		background: var(--accent);
-		color: var(--accent-ink);
-		font-size: 0.9375rem;
-		font-weight: 550;
-	}
-</style>

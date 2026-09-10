@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 
 import { ADMIN_SESSION, LEARNER_SESSION, signIn } from '../../../e2e/sessions';
 
@@ -11,6 +11,29 @@ import { ADMIN_SESSION, LEARNER_SESSION, signIn } from '../../../e2e/sessions';
  */
 async function signInAsLearner({ page }: { page: Page }) {
 	await signIn(page.context(), LEARNER_SESSION);
+}
+
+/**
+ * What a learner actually sees on the public listing.
+ *
+ * It has to be a learner's own session: an administrator visiting /home is redirected
+ * to /admin, so asserting the listing from the admin's page would only ever prove the
+ * redirect fired. Returns the titles currently listed.
+ */
+async function learnerHomeTitles(browser: Browser, title: string) {
+	const context = await browser.newContext();
+
+	await signIn(context, LEARNER_SESSION);
+
+	const learnerPage = await context.newPage();
+
+	await learnerPage.goto('/home');
+
+	const count = await learnerPage.getByRole('listitem').filter({ hasText: title }).count();
+
+	await context.close();
+
+	return count;
 }
 
 test.describe('admin authorization', () => {
@@ -44,7 +67,7 @@ test.describe('admin authorization', () => {
 
 		// And the quiz it aimed at is untouched — a 403 returned after the write would
 		// look identical from here.
-		await page.goto('/');
+		await page.goto('/home');
 		await expect(
 			page.getByRole('listitem').filter({ hasText: 'JLPT N4 模擬本試験' })
 		).toBeVisible();
@@ -191,7 +214,10 @@ test.describe('as an administrator', () => {
 		await expect(page.getByRole('alert')).toContainText('Published.');
 	});
 
-	test('asks before archiving, and archiving takes the quiz off the homepage', async ({ page }) => {
+	test('asks before archiving, and archiving takes the quiz off the homepage', async ({
+		page,
+		browser
+	}) => {
 		// Self-contained: the seed is applied with ON CONFLICT DO NOTHING, so archiving a
 		// seeded quiz would leave it archived and break this test on the next run.
 		const title = `アーカイブ確認 ${Date.now()}`;
@@ -206,10 +232,8 @@ test.describe('as an administrator', () => {
 		await page.getByRole('button', { name: 'Publish' }).click();
 		await expect(page.getByRole('alert')).toContainText('Published.');
 
-		await page.goto('/');
-		await expect(page.getByRole('listitem').filter({ hasText: title })).toBeVisible();
+		expect(await learnerHomeTitles(browser, title)).toBe(1);
 
-		await page.goBack();
 		await page.getByRole('button', { name: 'Archive' }).click();
 
 		// A real dialog element, not a blocking window.confirm.
@@ -220,8 +244,7 @@ test.describe('as an administrator', () => {
 		await dialog.getByRole('button', { name: 'Archive quiz' }).click();
 		await expect(page.getByRole('alert')).toContainText('Archived.');
 
-		await page.goto('/');
-		await expect(page.getByRole('listitem').filter({ hasText: title })).toHaveCount(0);
+		expect(await learnerHomeTitles(browser, title)).toBe(0);
 	});
 
 	test('cancelling the confirmation changes nothing', async ({ page }) => {

@@ -122,24 +122,24 @@
 	<!-- 01 / OVERVIEW SECTION -->
 	<section aria-labelledby="overview-heading">
 		<div class="mb-6 flex items-center gap-2">
-			<span class="inline-block h-8 w-1.5 bg-[#B6251F]" aria-hidden="true"></span>
+			<span class="inline-block h-8 w-1.5 bg-brand-red" aria-hidden="true"></span>
 			<h2
 				id="overview-heading"
 				class="flex items-center gap-2 text-2xl font-black tracking-tight uppercase sm:text-3xl"
 			>
-				<span class="text-[#B6251F]">01</span>
-				<span class="text-[#202121]">/ OVERVIEW</span>
+				<span class="text-brand-red">01</span>
+				<span class="text-ink">/ OVERVIEW</span>
 			</h2>
 		</div>
 
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Welcome Back & Streak Card -->
 			<div
-				class="relative flex min-h-[220px] flex-col justify-between border-2 border-[#202121] bg-white p-6 sm:p-8"
+				class="relative flex min-h-[220px] flex-col justify-between border-2 border-ink bg-white p-6 sm:p-8"
 			>
 				<!-- Top Right Flame Corner Badge -->
 				<div
-					class="absolute top-0 right-0 flex h-12 w-12 items-center justify-center bg-[#B6251F] text-white"
+					class="absolute top-0 right-0 flex h-12 w-12 items-center justify-center bg-brand-red text-white"
 					aria-label="Active Streak Badge"
 				>
 					<svg class="h-6 w-6 fill-current" viewBox="0 0 24 24">
@@ -150,7 +150,7 @@
 				</div>
 
 				<div>
-					<h3 class="text-2xl font-extrabold tracking-tight text-[#202121] sm:text-3xl">
+					<h3 class="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
 						Welcome back, {userName}.
 					</h3>
 					<p class="mt-2 max-w-md text-sm leading-relaxed font-medium text-stone-600 sm:text-base">
@@ -159,21 +159,21 @@
 				</div>
 
 				<div class="mt-8 flex items-baseline gap-2.5">
-					<span class="text-6xl leading-none font-black tracking-tight text-[#B6251F] sm:text-7xl">
+					<span class="text-6xl leading-none font-black tracking-tight text-brand-red sm:text-7xl">
 						{data.streakDays ?? 14}
 					</span>
-					<span class="pb-1 text-xs font-black tracking-widest text-[#202121] uppercase">
+					<span class="pb-1 text-xs font-black tracking-widest text-ink uppercase">
 						DAY STREAK
 					</span>
 				</div>
 			</div>
 
 			<!-- ACTIVE METRIC BOX (Double Border Style) -->
-			<div class="border border-[#202121] bg-white p-1.5">
-				<div class="flex h-full min-h-[208px] flex-col justify-between border border-[#202121] p-6">
+			<div class="border border-ink bg-white p-1.5">
+				<div class="flex h-full min-h-[208px] flex-col justify-between border border-ink p-6">
 					<div class="flex items-center justify-between border-b border-stone-200 pb-3">
 						<span
-							class="border-b-2 border-[#B6251F] pb-0.5 text-xs font-black tracking-widest text-[#B6251F] uppercase"
+							class="border-b-2 border-brand-red pb-0.5 text-xs font-black tracking-widest text-brand-red uppercase"
 						>
 							ACTIVE METRIC
 						</span>
@@ -188,7 +188,7 @@
 							{#each [{ id: 'mon', day: 'M', h: '45%', active: false }, { id: 'tue', day: 'T', h: '65%', active: false }, { id: 'wed', day: 'W', h: '85%', active: false }, { id: 'thu', day: 'T', h: '50%', active: false }, { id: 'fri', day: 'F', h: '95%', active: true }, { id: 'sat', day: 'S', h: '70%', active: false }, { id: 'sun', day: 'S', h: '90%', active: true }] as item (item.id)}
 								<div class="flex h-full flex-col items-center justify-end gap-1.5">
 									<div
-										class="w-full transition-all {item.active ? 'bg-[#B6251F]' : 'bg-[#202121]'}"
+										class="w-full transition-all {item.active ? 'bg-brand-red' : 'bg-ink'}"
 										style="height: {item.h};"
 									></div>
 									<span class="font-mono text-[10px] font-bold text-stone-600">{item.day}</span>
@@ -198,9 +198,9 @@
 					</div>
 
 					<div
-						class="flex items-center justify-between border-t border-stone-100 pt-3 text-xs font-bold tracking-wider text-[#202121] uppercase"
+						class="flex items-center justify-between border-t border-stone-100 pt-3 text-xs font-bold tracking-wider text-ink uppercase"
 					>
-						<span>ACCURACY: <span class="text-[#B6251F]">94.2%</span></span>
+						<span>ACCURACY: <span class="text-brand-red">94.2%</span></span>
 						<span class="font-mono text-[11px] text-stone-500">180 / 180 PT</span>
 					</div>
 				</div>
@@ -211,7 +211,7 @@
 	<!-- FILTER BY LEVEL BAR -->
 	<section aria-label="Filter quizzes by JLPT level" class="pt-4">
 		<div class="mb-4 flex items-center gap-4">
-			<span class="text-xs font-black tracking-widest whitespace-nowrap text-[#B6251F] uppercase">
+			<span class="text-xs font-black tracking-widest whitespace-nowrap text-brand-red uppercase">
 				FILTER BY LEVEL:
 			</span>
 			<div class="flex-1 border-b border-stone-300" aria-hidden="true"></div>
@@ -224,8 +224,8 @@
 					onclick={() => setLevel(level)}
 					class="px-4 py-1.5 text-xs font-black tracking-widest uppercase transition-colors {selectedLevel ===
 					level
-						? 'border-2 border-[#B6251F] bg-[#B6251F] text-white'
-						: 'border-2 border-[#202121] bg-white text-[#202121] hover:bg-stone-100'}"
+						? 'border-2 border-brand-red bg-brand-red text-white'
+						: 'border-2 border-ink bg-white text-ink hover:bg-stone-100'}"
 				>
 					{level}
 				</button>
@@ -236,14 +236,14 @@
 	<!-- 02 / FEATURED SETS SECTION -->
 	<section aria-labelledby="featured-sets-heading" class="pt-4">
 		<!-- Section Header Row -->
-		<div class="mb-6 flex items-center justify-between border-b-2 border-[#202121] pb-3">
+		<div class="mb-6 flex items-center justify-between border-b-2 border-ink pb-3">
 			<div class="flex items-center gap-2 sm:gap-3">
-				<span class="inline-block bg-[#B6251F] px-2 py-0.5 text-sm font-black text-white">
+				<span class="inline-block bg-brand-red px-2 py-0.5 text-sm font-black text-white">
 					02
 				</span>
 				<h2
 					id="featured-sets-heading"
-					class="text-xl font-black tracking-tight text-[#202121] uppercase sm:text-2xl"
+					class="text-xl font-black tracking-tight text-ink uppercase sm:text-2xl"
 				>
 					FEATURED SETS
 				</h2>
@@ -256,9 +256,9 @@
 
 			<!-- Brutalist Geometric Indicators -->
 			<div class="flex items-center gap-1.5" aria-hidden="true">
-				<span class="inline-block h-3.5 w-8 bg-[#B6251F]"></span>
-				<span class="inline-block h-3.5 w-2.5 bg-[#202121]"></span>
-				<span class="inline-block h-3.5 w-14 border border-[#202121] bg-transparent"></span>
+				<span class="inline-block h-3.5 w-8 bg-brand-red"></span>
+				<span class="inline-block h-3.5 w-2.5 bg-ink"></span>
+				<span class="inline-block h-3.5 w-14 border border-ink bg-transparent"></span>
 			</div>
 		</div>
 
@@ -271,12 +271,12 @@
 				{#each filteredCards as card (card.id)}
 					<li role="listitem" class="flex">
 						<article
-							class="relative flex flex-1 flex-col justify-between border-2 border-[#202121] bg-white p-6 transition-shadow hover:shadow-lg"
+							class="relative flex flex-1 flex-col justify-between border-2 border-ink bg-white p-6 transition-shadow hover:shadow-lg"
 						>
 							<!-- Decorative corner triangle for featured cards (e.g. Card 3) -->
 							{#if card.cornerTriangle}
 								<div
-									class="pointer-events-none absolute top-0 right-0 h-0 w-0 border-t-[28px] border-r-[28px] border-b-[28px] border-l-[28px] border-t-[#B6251F] border-r-[#B6251F] border-b-transparent border-l-transparent"
+									class="pointer-events-none absolute top-0 right-0 h-0 w-0 border-t-[28px] border-r-[28px] border-b-[28px] border-l-[28px] border-t-brand-red border-r-brand-red border-b-transparent border-l-transparent"
 									aria-hidden="true"
 								></div>
 							{/if}
@@ -286,20 +286,20 @@
 								<div class="mb-4 flex items-center justify-between">
 									{#if card.categoryStyle === 'boxed'}
 										<span
-											class="border border-[#202121] px-2 py-0.5 text-[11px] font-bold tracking-widest text-[#202121] uppercase"
+											class="border border-ink px-2 py-0.5 text-[11px] font-bold tracking-widest text-ink uppercase"
 										>
 											{card.category}
 										</span>
 									{:else}
 										<span
-											class="inline-block border-b border-[#202121] pb-0.5 text-xs font-bold tracking-widest text-[#202121] uppercase"
+											class="inline-block border-b border-ink pb-0.5 text-xs font-bold tracking-widest text-ink uppercase"
 										>
 											{card.category}
 										</span>
 									{/if}
 
 									<!-- Icon corresponding to category -->
-									<div class="text-[#B6251F]">
+									<div class="text-brand-red">
 										{#if card.icon === 'book'}
 											<svg
 												class="h-5 w-5"
@@ -328,7 +328,7 @@
 											</svg>
 										{:else}
 											<svg
-												class="h-5 w-5 text-[#202121]"
+												class="h-5 w-5 text-ink"
 												fill="none"
 												stroke="currentColor"
 												stroke-width="2"
@@ -343,7 +343,7 @@
 								</div>
 
 								<!-- Card Title & Description -->
-								<h3 class="mb-2 text-xl leading-snug font-black tracking-tight text-[#202121]">
+								<h3 class="mb-2 text-xl leading-snug font-black tracking-tight text-ink">
 									{card.title}
 								</h3>
 								<p
@@ -355,21 +355,18 @@
 
 							<!-- Dotted Separator & Action Buttons -->
 							<div class="mt-6">
-								<div
-									class="mb-5 border-b-2 border-dotted border-[#202121]"
-									aria-hidden="true"
-								></div>
+								<div class="mb-5 border-b-2 border-dotted border-ink" aria-hidden="true"></div>
 
 								<div class="grid grid-cols-2 gap-3">
 									<button
 										type="button"
-										class="flex cursor-pointer items-center justify-center bg-[#B6251F] px-3 py-2.5 text-center text-xs font-black tracking-wider text-white uppercase transition-colors hover:bg-[#9a1f1a]"
+										class="flex cursor-pointer items-center justify-center bg-brand-red px-3 py-2.5 text-center text-xs font-black tracking-wider text-white uppercase transition-colors hover:bg-brand-red-dark"
 									>
 										LEARN MODE
 									</button>
 									<button
 										type="button"
-										class="flex cursor-pointer items-center justify-center border-2 border-[#202121] px-3 py-2.5 text-center text-xs font-black tracking-wider text-[#202121] uppercase transition-colors hover:bg-[#202121] hover:text-white"
+										class="flex cursor-pointer items-center justify-center border-2 border-ink px-3 py-2.5 text-center text-xs font-black tracking-wider text-ink uppercase transition-colors hover:bg-ink hover:text-white"
 									>
 										EXAM MODE
 									</button>
@@ -380,14 +377,14 @@
 				{/each}
 			</ul>
 		{:else}
-			<div class="space-y-3 border-2 border-[#202121] bg-white p-10 text-center">
-				<p class="text-lg font-black tracking-tight text-[#202121] uppercase">
+			<div class="space-y-3 border-2 border-ink bg-white p-10 text-center">
+				<p class="text-lg font-black tracking-tight text-ink uppercase">
 					No quiz sets found for level {selectedLevel}
 				</p>
 				<p class="text-xs font-medium tracking-wider text-stone-500 uppercase">
 					Try selecting <button
 						onclick={() => setLevel('ALL LEVELS')}
-						class="font-bold text-[#B6251F] underline">ALL LEVELS</button
+						class="font-bold text-brand-red underline">ALL LEVELS</button
 					> or adjusting your search query.
 				</p>
 			</div>

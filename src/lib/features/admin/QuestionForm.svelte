@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 
+	import Button from '$lib/components/Button.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import { JLPT_LEVELS, SECTIONS } from '$lib/domain/enums';
 
@@ -145,8 +146,8 @@
 </script>
 
 <form method="POST" {action}>
-	<div class="grid">
-		<section>
+	<div class="grid gap-4">
+		<section class="border-2 border-ink bg-white p-5">
 			<h2>Question</h2>
 
 			<Field id="stem" label="Question text" error={errors.stem} required>
@@ -168,7 +169,7 @@
 				{/snippet}
 			</Field>
 
-			<div class="row">
+			<div class="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-x-4">
 				<Field id="level" label="Level" error={errors.level} required>
 					{#snippet control(props)}
 						<select {...props} name="level" bind:value={level}>
@@ -199,25 +200,29 @@
 			</div>
 		</section>
 
-		<section>
+		<section class="border-2 border-ink bg-white p-5">
 			<h2>Options</h2>
-			<p class="hint">Mark exactly one option as the correct answer.</p>
+			<p class="mt-[-0.25rem] mb-4 text-xs text-muted">
+				Mark exactly one option as the correct answer.
+			</p>
 
 			{#if errors.options}
-				<p class="error" role="alert">{errors.options}</p>
+				<p class="mt-1 mb-0 text-xs font-semibold text-danger" role="alert">{errors.options}</p>
 			{/if}
 			{#if errors.correctOption}
-				<p class="error" role="alert">{errors.correctOption}</p>
+				<p class="mt-1 mb-0 text-xs font-semibold text-danger" role="alert">
+					{errors.correctOption}
+				</p>
 			{/if}
 
-			<fieldset>
+			<fieldset class="m-0 mb-3 border-0 p-0">
 				<legend class="visually-hidden">Answer options</legend>
 
 				{#each rows as row, index (index)}
-					<div class="option">
+					<div class="mb-2 flex items-start gap-3">
 						<input type="hidden" name="optionId" value={row.id ?? ''} />
 
-						<label class="key">
+						<label class="pt-2.5">
 							<input
 								type="radio"
 								name="correctOption"
@@ -228,7 +233,7 @@
 							<span class="visually-hidden">Option {index + 1} is the correct answer</span>
 						</label>
 
-						<div class="body">
+						<div class="flex-1">
 							<label class="visually-hidden" for="optionBody-{index}">Option {index + 1}</label>
 							<input
 								id="optionBody-{index}"
@@ -241,7 +246,11 @@
 									: undefined}
 							/>
 							{#if errors[`optionBody.${index}`]}
-								<p class="error" id="optionBody-{index}-error" role="alert">
+								<p
+									class="mt-1 mb-0 text-xs font-semibold text-danger"
+									id="optionBody-{index}-error"
+									role="alert"
+								>
 									{errors[`optionBody.${index}`]}
 								</p>
 							{/if}
@@ -250,7 +259,7 @@
 						{#if rows.length > 2}
 							<button
 								type="button"
-								class="remove"
+								class="min-h-8 cursor-pointer border-2 border-line-strong bg-white px-3 text-xs font-bold tracking-wider text-ink uppercase"
 								aria-label="Remove option {index + 1}"
 								onclick={() => removeRow(index)}
 							>
@@ -261,17 +270,17 @@
 				{/each}
 			</fieldset>
 
-			<button type="button" class="quiet" onclick={addRow}>Add option</button>
+			<Button type="button" variant="ghost" size="sm" onclick={addRow}>Add option</Button>
 		</section>
 
-		<section>
+		<section class="border-2 border-ink bg-white p-5">
 			<h2>Media</h2>
-			<p class="hint">
+			<p class="mt-[-0.25rem] mb-4 text-xs text-muted">
 				Alt text and transcripts are edited with the file itself, on the Media page, because they
 				describe the file rather than this question.
 			</p>
 
-			<div class="row">
+			<div class="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-x-4">
 				<Field id="imageMediaId" label="Image" error={errors.imageMediaId}>
 					{#snippet control(props)}
 						<select {...props} name="imageMediaId" bind:value={imageMediaId}>
@@ -297,87 +306,7 @@
 		</section>
 	</div>
 
-	<div class="submit">
-		<button type="submit" class="primary">{submitLabel}</button>
+	<div class="mt-5">
+		<Button type="submit" size="md">{submitLabel}</Button>
 	</div>
 </form>
-
-<style>
-	.grid {
-		display: grid;
-		gap: 1rem;
-	}
-
-	section {
-		padding: 1.25rem;
-		background: var(--surface);
-		border: 1px solid var(--line);
-		border-radius: var(--radius);
-	}
-
-	h2 {
-		margin-top: 0;
-	}
-
-	.hint {
-		margin: -0.25rem 0 1rem;
-		font-size: 0.8125rem;
-		color: var(--ink-muted);
-	}
-
-	.row {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-		gap: 0 1rem;
-	}
-
-	fieldset {
-		border: 0;
-		margin: 0 0 0.75rem;
-		padding: 0;
-	}
-
-	.option {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.75rem;
-		margin-bottom: 0.5rem;
-	}
-
-	.key {
-		padding-top: 0.625rem;
-	}
-
-	.body {
-		flex: 1;
-	}
-
-	.error {
-		margin: 0.25rem 0 0;
-		font-size: 0.8125rem;
-		color: var(--danger);
-	}
-
-	.remove,
-	.quiet {
-		padding: 0.4375rem 0.75rem;
-		border: 1px solid var(--line-strong);
-		border-radius: var(--radius-sm);
-		background: var(--surface);
-		font-size: 0.875rem;
-	}
-
-	.submit {
-		margin-top: 1.25rem;
-	}
-
-	.primary {
-		padding: 0.5625rem 1rem;
-		border: 0;
-		border-radius: var(--radius-sm);
-		background: var(--accent);
-		color: var(--accent-ink);
-		font-size: 0.9375rem;
-		font-weight: 600;
-	}
-</style>

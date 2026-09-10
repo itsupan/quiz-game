@@ -59,9 +59,14 @@
 	}
 </script>
 
+<!--
+	Native <button> elements rather than the shared Button component: the trigger needs a
+	`bind:this` DOM reference so proceed() can re-click it, which keeps its formaction,
+	name and value.
+-->
 <button
 	bind:this={trigger}
-	class="danger"
+	class="min-h-8 cursor-pointer border-2 border-danger bg-danger-soft px-3 text-xs font-bold tracking-wider text-danger uppercase"
 	type="submit"
 	{formaction}
 	{name}
@@ -71,56 +76,33 @@
 	{label}
 </button>
 
-<dialog bind:this={dialog} aria-labelledby={headingId}>
-	<h2 id={headingId}>{title}</h2>
-	<p>{message}</p>
-	<div class="actions">
-		<button type="button" class="quiet" onclick={() => dialog.close()}>Cancel</button>
-		<button type="button" class="danger" onclick={proceed}>{confirmLabel}</button>
+<dialog
+	bind:this={dialog}
+	aria-labelledby={headingId}
+	class="max-w-[26rem] border-2 border-ink p-5 text-ink shadow-hard"
+>
+	<h2 id={headingId} class="text-lg font-black tracking-tight uppercase">{title}</h2>
+	<p class="mt-0 mb-5 text-sm text-muted">{message}</p>
+	<div class="flex justify-end gap-2">
+		<button
+			type="button"
+			class="min-h-8 cursor-pointer border-2 border-line-strong bg-white px-3 text-xs font-bold tracking-wider text-ink uppercase"
+			onclick={() => dialog.close()}>Cancel</button
+		>
+		<button
+			type="button"
+			class="min-h-8 cursor-pointer border-2 border-danger bg-danger-soft px-3 text-xs font-bold tracking-wider text-danger uppercase"
+			onclick={proceed}>{confirmLabel}</button
+		>
 	</div>
 </dialog>
 
 <style>
-	button {
-		padding: 0.4375rem 0.75rem;
-		border-radius: var(--radius-sm);
-		border: 1px solid transparent;
-		font-size: 0.875rem;
-		font-weight: 550;
-	}
-
-	.danger {
-		background: var(--danger-soft);
-		border-color: color-mix(in srgb, var(--danger) 30%, transparent);
-		color: var(--danger);
-	}
-
-	.quiet {
-		background: var(--surface);
-		border-color: var(--line-strong);
-	}
-
-	dialog {
-		max-width: 26rem;
-		padding: 1.25rem;
-		border: 1px solid var(--line);
-		border-radius: var(--radius);
-		box-shadow: var(--shadow);
-		color: var(--ink);
-	}
-
+	/*
+	 * The one scoped rule left in the app: ::backdrop is a pseudo-element, so no utility
+	 * class can reach it.
+	 */
 	dialog::backdrop {
-		background: rgb(16 24 40 / 45%);
-	}
-
-	dialog p {
-		margin: 0 0 1.25rem;
-		color: var(--ink-muted);
-	}
-
-	.actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
+		background: rgb(32 33 33 / 55%);
 	}
 </style>

@@ -66,7 +66,10 @@ test.describe('learner home page (authenticated)', () => {
 		// Section 01: Overview
 		await expect(page.getByRole('heading', { name: /01\s*\/ OVERVIEW/i })).toBeVisible();
 		await expect(page.getByText(/Welcome back/i)).toBeVisible();
-		await expect(page.getByText('14', { exact: false })).toBeVisible();
+		// Exact: earlier admin tests publish quizzes titled with a Date.now() stamp, and a
+		// loose match finds "14" inside one of those timestamps whenever it happens to
+		// contain those two digits.
+		await expect(page.getByText('14', { exact: true })).toBeVisible();
 		await expect(page.getByText('DAY STREAK')).toBeVisible();
 		await expect(page.getByText('ACTIVE METRIC')).toBeVisible();
 

@@ -1,41 +1,186 @@
+/**
+ * The single source of truth for the app's visual system.
+ *
+ * Tailwind v4 is CSS-first: the `@theme` block below both generates utilities
+ * (`bg-brand-red`) and emits the matching custom properties (`var(--color-brand-red)`),
+ * so utility classes and hand-written CSS can never drift apart.
+ *
+ * History: there used to be a second, competing token sheet at `src/app.css`. It was
+ * silently unhooked when the home page landed, leaving 177 of 240 `var()` references in
+ * the codebase resolving to nothing. Everything now resolves against this file. If you
+ * add a token, add it here — do not start a second palette.
+ */
+
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
 @import '@flaticon/flaticon-uicons/css/regular/straight.css';
 
-:root {
-	font-family:
-		Inter,
-		ui-sans-serif,
-		system-ui,
-		-apple-system,
-		BlinkMacSystemFont,
-		'Segoe UI',
-		sans-serif;
-	color: #222;
-	background: #fdfdfc;
-	font-synthesis: none;
-	--paper: #fdfdfc;
-	--ink: #202121;
-	--red: #b6251f;
-	--brown: #604741;
-	--muted: #606060;
-	--line: #d7d7d7;
-	--line-strong: #8b8f94;
+@theme {
+	/* Brand. Flat, high-contrast, no gradients — the look is deliberately blunt. */
+	--color-paper: #fdfdfc;
+	--color-ink: #202121;
+	--color-brand-red: #b6251f;
+	--color-brand-red-dark: #9a1f1a;
+	--color-brown: #604741;
+	--color-muted: #606060;
+	--color-line: #d7d7d7;
+	--color-line-strong: #8b8f94;
+
+	/* Status. Restated against the brand rather than the old blue-accent palette. */
+	--color-success: #067647;
+	--color-success-soft: #ecfdf3;
+	--color-warning: #b54708;
+	--color-warning-soft: #fffaeb;
+	--color-danger: #b42318;
+	--color-danger-soft: #fef3f2;
+
+	/* One stack, so kana and kanji share a baseline and weight with the Latin text
+	   around them. Inter is self-hosted above; without the CJK entries the Japanese in
+	   the auth pages renders in a substituted face at a different weight. */
+	--font-sans:
+		'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Hiragino Sans',
+		'Hiragino Kaku Gothic ProN', 'Noto Sans JP', Meiryo, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+	/* Square by default. The depth cue is the hard offset shadow, not a radius. */
+	--radius-none: 0;
+	--shadow-hard: 4px 4px 0 var(--color-ink);
+	--shadow-hard-lg: 6px 6px 0 var(--color-ink);
 }
 
-* {
-	box-sizing: border-box;
+@layer base {
+	:root {
+		color-scheme: light;
+		font-synthesis: none;
+	}
+
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+
+	/* Dark behind the page, so overscroll reveals ink rather than white. */
+	html {
+		background: var(--color-ink);
+	}
+
+	body {
+		margin: 0;
+		background: var(--color-paper);
+		color: var(--color-ink);
+		font-family: var(--font-sans);
+		line-height: 1.6;
+		-webkit-text-size-adjust: 100%;
+	}
+
+	h1,
+	h2,
+	h3 {
+		margin: 0 0 0.5rem;
+		line-height: 1.2;
+		font-weight: 800;
+		letter-spacing: -0.01em;
+	}
+
+	h1 {
+		font-size: 1.5rem;
+	}
+
+	h2 {
+		font-size: 1.1875rem;
+	}
+
+	h3 {
+		font-size: 1rem;
+	}
+
+	a {
+		color: inherit;
+	}
+
+	code {
+		font-family: var(--font-mono);
+		font-size: 0.875em;
+	}
+
+	/* A visible ring everywhere — the dashboard is fully keyboard-operable. */
+	:focus-visible {
+		outline: 3px solid var(--color-brand-red);
+		outline-offset: 2px;
+	}
+
+	button,
+	input,
+	select,
+	textarea {
+		font: inherit;
+		color: inherit;
+	}
+
+	button {
+		cursor: pointer;
+	}
+
+	input[type='text'],
+	input[type='number'],
+	input[type='file'],
+	input[type='email'],
+	input[type='password'],
+	select,
+	textarea {
+		width: 100%;
+		padding: 0.5rem 0.625rem;
+		border: 2px solid var(--color-ink);
+		border-radius: 0;
+		background: #fff;
+	}
+
+	textarea {
+		min-height: 6rem;
+		resize: vertical;
+	}
+
+	/* Set by every field that failed validation, so the styling and the accessible
+	   name for assistive technology can never drift apart. */
+	[aria-invalid='true'] {
+		border-color: var(--color-danger);
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	th {
+		text-align: left;
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--color-muted);
+	}
+
+	th,
+	td {
+		padding: 0.625rem 0.75rem;
+		border-bottom: 1px solid var(--color-line);
+		vertical-align: top;
+	}
 }
 
-html {
-	background: var(--ink);
-}
-
-body {
-	margin: 0;
-	background: var(--paper);
-}
-
-button,
-input {
-	font: inherit;
+/**
+ * Screen-reader-only text. Used by ten call sites across the admin tables and forms;
+ * its only definition used to live in the orphaned `src/app.css`, so all of it was
+ * rendering visibly — a stray "Actions" column header and bare position/minutes inputs.
+ */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }

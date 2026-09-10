@@ -22,7 +22,7 @@
 
 <label
 	for={id}
-	class="mb-4 block text-[0.84rem] font-extrabold tracking-[0.09em] text-[var(--brown)] uppercase"
+	class="mb-4 block text-[0.84rem] font-extrabold tracking-[0.09em] text-brown uppercase"
 >
 	{label}
 </label>
@@ -33,5 +33,5 @@
 	{value}
 	{autocomplete}
 	{required}
-	class="block w-full rounded-none border-0 border-b border-[var(--line-strong)] bg-transparent px-0 pb-3 text-base text-[var(--ink)] outline-none focus:border-b-2 focus:border-[var(--red)] focus:pb-[11px]"
+	class="block w-full rounded-none border-0 border-b border-line-strong bg-transparent px-0 pb-3 text-base text-ink outline-none focus:border-b-2 focus:border-brand-red focus:pb-[11px]"
 />

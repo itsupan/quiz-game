@@ -1,0 +1,28 @@
+{
+	"permissions": {
+		"allow": [
+			"Bash(pnpm lint)",
+			"Bash(pnpm lint *)",
+			"Bash(pnpm check)",
+			"Bash(pnpm check *)",
+			"Bash(pnpm typecheck)",
+			"Bash(pnpm typecheck *)",
+			"Bash(pnpm run typecheck)",
+			"Bash(pnpm run lint)",
+			"Bash(pnpm test:unit *)",
+			"Bash(pnpm format:check)",
+			"Bash(pnpm format:check *)",
+			"Bash(pnpm run check:locales)",
+			"Bash(pnpm run check:routes)",
+			"Bash(pnpm run check:salary-form)",
+			"Bash(pnpm run check:employee-form)",
+			"Bash(docker compose ps *)",
+			"Bash(docker compose config *)",
+			"Bash(docker compose logs *)",
+			"mcp__claude-in-chrome__find",
+			"mcp__claude-in-chrome__tabs_context_mcp",
+			"mcp__claude-in-chrome__read_console_messages",
+			"mcp__claude-in-chrome__read_page"
+		]
+	}
+}

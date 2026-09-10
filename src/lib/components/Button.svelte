@@ -3,31 +3,55 @@
 
 	type Props = {
 		children: Snippet;
-		variant?: 'primary' | 'secondary';
+		variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+		/** `lg` is the full-width auth-page button; `md` is the default everywhere else. */
+		size?: 'sm' | 'md' | 'lg';
 		type?: 'button' | 'submit' | 'reset';
 		href?: string;
 		disabled?: boolean;
+		/** Submit this button to a named form action instead of the form's own. */
+		formaction?: string;
+		name?: string;
+		value?: string;
 		ariaLabel?: string;
+		onclick?: () => void;
 		class?: string;
 	};
 
 	let {
 		children,
 		variant = 'primary',
+		size = 'md',
 		type = 'button',
 		href,
 		disabled = false,
+		formaction,
+		name,
+		value,
 		ariaLabel,
+		onclick,
 		class: className = ''
 	}: Props = $props();
 
+	// Square and hard-shadowed; the depth cue is the offset, never a radius.
 	const base =
-		'relative inline-flex min-h-16 w-full cursor-pointer items-center justify-center border-2 font-[inherit] text-base font-semibold no-underline shadow-[4px_4px_0_var(--ink)] transition-[transform,box-shadow,background] duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_var(--ink)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_var(--ink)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-red-300 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 sm:min-h-19 sm:text-lg';
-	const variants = {
-		primary: 'border-[var(--red)] bg-[var(--red)] text-white',
-		secondary: 'border-[var(--ink)] bg-[var(--paper)] text-[var(--ink)]'
+		'relative inline-flex cursor-pointer items-center justify-center border-2 font-[inherit] font-semibold no-underline transition-[transform,box-shadow,background] duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-3 focus-visible:outline-offset-4 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55';
+
+	const sizes = {
+		sm: 'min-h-8 px-3 text-xs tracking-wider uppercase shadow-[2px_2px_0_var(--color-ink)] hover:shadow-hard',
+		md: 'min-h-10 px-4 text-sm tracking-wider uppercase shadow-hard hover:shadow-hard-lg',
+		lg: 'min-h-16 w-full px-6 text-base shadow-hard hover:shadow-hard-lg sm:min-h-19 sm:text-lg'
 	};
-	const classes = $derived(`${base} ${variants[variant]} ${className}`);
+
+	const variants = {
+		primary: 'border-brand-red bg-brand-red text-white',
+		secondary: 'border-ink bg-paper text-ink',
+		ghost:
+			'border-line-strong bg-white text-ink shadow-none hover:translate-x-0 hover:translate-y-0 hover:shadow-none',
+		danger: 'border-danger bg-danger-soft text-danger'
+	};
+
+	const classes = $derived(`${base} ${sizes[size]} ${variants[variant]} ${className}`);
 </script>
 
 {#if href}
@@ -36,7 +60,16 @@
 		<span class="inline-flex items-center justify-center gap-3">{@render children()}</span>
 	</a>
 {:else}
-	<button class={classes} {type} {disabled} aria-label={ariaLabel}>
+	<button
+		class={classes}
+		{type}
+		{disabled}
+		{formaction}
+		{name}
+		{value}
+		aria-label={ariaLabel}
+		{onclick}
+	>
 		<span class="inline-flex items-center justify-center gap-3">{@render children()}</span>
 	</button>
 {/if}
