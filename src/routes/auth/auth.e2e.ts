@@ -136,8 +136,8 @@ test.describe('signed in as a learner', () => {
 	test('the header shows the account, with no admin link', async ({ page }) => {
 		await page.goto('/');
 
+		await expect(page).toHaveURL('/home');
 		await expect(page.getByText('学習者テスト')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
 	});
 
@@ -198,5 +198,68 @@ test.describe('signing out', () => {
 		// 405: a link, an <img> or a prefetch must not be able to sign someone out.
 		expect(response.status()).toBe(405);
 		expect((await page.goto('/admin'))?.status()).toBe(200);
+	});
+});
+
+test.describe('credentials authentication', () => {
+	test('renders auth pages without site header and provides google link', async ({ page }) => {
+		await page.goto('/login');
+
+		// Header is hidden on auth pages
+		await expect(page.locator('header.site')).toHaveCount(0);
+		await expect(page.getByRole('heading', { name: /Login/i })).toBeVisible();
+
+		// Continue with Google button links to /auth/google
+		const googleButton = page.getByRole('link', { name: 'Continue with Google' });
+		await expect(googleButton).toBeVisible();
+		await expect(googleButton).toHaveAttribute('href', '/auth/google');
+	});
+
+	test('signs up a new user, automatically signs in, and shows user in header', async ({
+		page
+	}) => {
+		const testEmail = `e2e_${Date.now()}@example.com`;
+
+		await page.goto('/signup');
+		await page.getByLabel('Full name').fill('E2E Learner');
+		await page.getByLabel('Email address').fill(testEmail);
+		await page.getByLabel('Password').fill('password123!');
+		await page.getByRole('button', { name: 'Create account' }).click();
+
+		await expect(page).toHaveURL('/home');
+		await expect(page.getByText('E2E Learner')).toBeVisible();
+	});
+
+	test('logs in with registered credentials', async ({ page }) => {
+		const testEmail = `login_${Date.now()}@example.com`;
+
+		// Register first
+		await page.goto('/signup');
+		await page.getByLabel('Full name').fill('Login Tester');
+		await page.getByLabel('Email address').fill(testEmail);
+		await page.getByLabel('Password').fill('password123!');
+		await page.getByRole('button', { name: 'Create account' }).click();
+
+		await expect(page).toHaveURL('/home');
+		await page.getByLabel('User menu').click();
+		await page.getByRole('button', { name: 'Sign out' }).click();
+
+		// Now log in
+		await page.goto('/login');
+		await page.getByLabel('Email address').fill(testEmail);
+		await page.getByLabel('Password').fill('password123!');
+		await page.getByRole('button', { name: 'Authenticate' }).click();
+
+		await expect(page).toHaveURL('/home');
+		await expect(page.getByText('Login Tester')).toBeVisible();
+	});
+
+	test('shows error message on bad credentials', async ({ page }) => {
+		await page.goto('/login');
+		await page.getByLabel('Email address').fill('nonexistent@example.com');
+		await page.getByLabel('Password').fill('wrongpassword123!');
+		await page.getByRole('button', { name: 'Authenticate' }).click();
+
+		await expect(page.getByRole('alert')).toContainText('Invalid email or password.');
 	});
 });

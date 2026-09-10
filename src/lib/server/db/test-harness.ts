@@ -23,7 +23,11 @@ import * as schema from './schema';
  */
 export type TestDatabase = Database;
 
-const MIGRATIONS = ['migrations/0000_init.sql', 'migrations/0001_schema.sql'];
+const MIGRATIONS = [
+	'migrations/0000_init.sql',
+	'migrations/0001_schema.sql',
+	'migrations/0002_add_password_hash.sql'
+];
 
 /**
  * Splits a drizzle-kit migration into executable statements.

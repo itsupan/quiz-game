@@ -42,6 +42,7 @@ export const GET: RequestHandler = async ({ cookies, fetch, locals, platform, ur
 	const { clientId, clientSecret, bootstrapEmails } = googleConfig(platform);
 
 	let session: { token: string; expiresAt: Date };
+	let userRole: string;
 
 	try {
 		const idToken = await exchangeCode({
@@ -55,6 +56,7 @@ export const GET: RequestHandler = async ({ cookies, fetch, locals, platform, ur
 
 		const profile = await verifyIdToken(idToken, { clientId, nonce: flow.nonce });
 		const user = await upsertGoogleUser(locals.db, profile, bootstrapEmails);
+		userRole = user.role;
 
 		if (user.status !== 'ACTIVE') {
 			// Refused here as well as in `resolveUser`: issuing a session and then ignoring
@@ -77,5 +79,6 @@ export const GET: RequestHandler = async ({ cookies, fetch, locals, platform, ur
 
 	setSessionCookie(cookies, session.token, session.expiresAt);
 
-	redirect(303, flow.returnTo);
+	const destination = flow.returnTo === '/' && userRole !== 'ADMIN' ? '/home' : flow.returnTo;
+	redirect(303, destination);
 };
