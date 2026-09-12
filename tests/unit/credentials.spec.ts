@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '$lib/server/db/test-harness';
 import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { loginUser, registerUser } from './credentials';
+import { loginUser, registerUser } from '$lib/server/auth/credentials';
 
 let db: TestDatabase;
 

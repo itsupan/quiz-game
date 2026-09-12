@@ -13,7 +13,7 @@ import {
 	invalidateSession,
 	setSessionCookie,
 	validateSession
-} from './session';
+} from '$lib/server/auth/session';
 
 const DAY = 24 * 60 * 60 * 1000;
 
