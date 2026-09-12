@@ -17,14 +17,11 @@
 	<title>Leaderboard | QuizGame</title>
 </svelte:head>
 
-<div class="mx-auto max-w-4xl pb-16">
+<div class="pb-16">
 	<!-- Header -->
 	<div class="mb-12 flex items-end justify-between border-b border-ink pb-2">
-		<div class="flex items-center gap-2">
-			<div class="bg-brand-red px-2 py-1">
-				<span class="text-3xl font-black text-white">03</span>
-			</div>
-			<span class="text-3xl font-black text-ink">/</span>
+		<div class="flex items-center gap-3">
+			<span class="h-8 w-1.5 bg-brand-red" aria-hidden="true"></span>
 			<h1 class="text-3xl font-black tracking-tight text-ink uppercase">Leaderboard</h1>
 		</div>
 		<span class="text-xs font-bold tracking-widest text-stone-500 uppercase">Top Scorers</span>

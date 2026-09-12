@@ -13,13 +13,6 @@
 	<article
 		class="relative flex flex-1 flex-col justify-between border-2 border-ink bg-white p-6 transition-shadow hover:shadow-lg"
 	>
-		{#if card.cornerTriangle}
-			<div
-				class="pointer-events-none absolute top-0 right-0 h-0 w-0 border-t-[28px] border-r-[28px] border-b-[28px] border-l-[28px] border-t-brand-red border-r-brand-red border-b-transparent border-l-transparent"
-				aria-hidden="true"
-			></div>
-		{/if}
-
 		<div>
 			<div class="mb-4 flex items-center justify-between">
 				{#if card.categoryStyle === 'boxed'}
@@ -35,46 +28,7 @@
 				{/if}
 
 				<div class="text-brand-red">
-					{#if card.icon === 'book'}
-						<svg
-							class="h-5 w-5"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-							<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-						</svg>
-					{:else if card.icon === 'flask'}
-						<svg
-							class="h-5 w-5"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path d="M10 2v7.31L4.69 18.66A2 2 0 0 0 6.4 22h11.2a2 2 0 0 0 1.71-3.34L14 9.31V2"
-							></path>
-							<line x1="8.5" y1="2" x2="15.5" y2="2"></line>
-							<line x1="7" y1="16" x2="17" y2="16"></line>
-						</svg>
-					{:else}
-						<svg
-							class="h-5 w-5 text-ink"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<rect x="3" y="3" width="18" height="18" rx="1"></rect>
-							<line x1="3" y1="9" x2="21" y2="9"></line>
-							<line x1="9" y1="21" x2="9" y2="9"></line>
-						</svg>
-					{/if}
+					<i class="fi fi-rs-{card.icon} flex text-xl" aria-hidden="true"></i>
 				</div>
 			</div>
 

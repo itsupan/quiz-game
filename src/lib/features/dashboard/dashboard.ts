@@ -1,4 +1,4 @@
-import type { JlptLevel, QuizMode, Section } from '$lib/domain/enums';
+import type { JlptLevel, QuizIcon, QuizMode, Section } from '$lib/domain/enums';
 
 export type DashboardQuiz = {
 	publicId: string;
@@ -6,6 +6,7 @@ export type DashboardQuiz = {
 	description: string | null;
 	level: JlptLevel;
 	mode: QuizMode;
+	icon: QuizIcon;
 	timeLimitSeconds: number | null;
 	sections: Section[];
 	createdAt: string;
@@ -20,7 +21,7 @@ export type QuizCardItem = {
 	timeLimitSeconds: number | null;
 	category: string;
 	categoryStyle: 'underlined' | 'boxed';
-	icon: 'book' | 'flask' | 'math';
+	icon: QuizIcon;
 	cornerTriangle: boolean;
 };
 
@@ -38,7 +39,7 @@ export function toQuizCards(quizzes: DashboardQuiz[]): QuizCardItem[] {
 			timeLimitSeconds: quiz.timeLimitSeconds,
 			category: isListening ? 'SCIENCES' : isExam ? 'MATHEMATICS' : 'LANGUAGE ARTS',
 			categoryStyle: isExam && !isListening ? 'boxed' : 'underlined',
-			icon: isListening ? 'flask' : isExam ? 'math' : 'book',
+			icon: quiz.icon,
 			cornerTriangle: index % 3 === 2
 		};
 	});

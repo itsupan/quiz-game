@@ -27,6 +27,7 @@ const currentQuiz: QuizInput = {
 	mode: 'JLPT_PRACTICE',
 	level: 'N3',
 	selectionMode: 'RANDOM',
+	icon: 'brain',
 	timeLimitSeconds: null,
 	showStudyAidsDuringAttempt: true,
 	xpReward: 50
@@ -40,6 +41,7 @@ describe('parseQuizCreateBody', () => {
 			mode: 'FULL_EXAM',
 			level: 'N4',
 			selectionMode: 'FIXED',
+			icon: 'book',
 			timeLimitSeconds: 6900,
 			showStudyAidsDuringAttempt: false,
 			xpReward: 0

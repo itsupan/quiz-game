@@ -38,6 +38,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request, url }) =>
 				mode: found.quiz.mode,
 				level: found.quiz.level,
 				selectionMode: found.quiz.selectionMode,
+				icon: found.quiz.icon,
 				timeLimitSeconds: found.quiz.timeLimitSeconds,
 				showStudyAidsDuringAttempt: found.quiz.showStudyAidsDuringAttempt,
 				xpReward: found.quiz.xpReward

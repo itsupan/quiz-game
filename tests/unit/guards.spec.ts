@@ -8,6 +8,7 @@ const user = (overrides: Partial<AuthUser> = {}): AuthUser => ({
 	publicId: '01JSEEDACCTADMN00000000000',
 	email: 'admin@example.com',
 	displayName: '管理者テスト',
+	avatarUrl: null,
 	role: 'ADMIN',
 	status: 'ACTIVE',
 	...overrides

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import './layout.css';
+	import Toast from '$lib/components/Toast.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -24,3 +25,4 @@
 	learner route would have done the same.
 -->
 {@render children()}
+<Toast />

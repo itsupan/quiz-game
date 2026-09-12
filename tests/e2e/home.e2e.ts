@@ -22,10 +22,8 @@ test.describe('learner dashboard authorization guard', () => {
 		expect(response.status()).toBe(401);
 	});
 
-	test('unauthorized access to /practice, /leaderboard, /analytics redirects to login', async ({
-		page
-	}) => {
-		for (const path of ['/practice', '/leaderboard', '/analytics']) {
+	test('unauthorized access to /leaderboard, /analytics redirects to login', async ({ page }) => {
+		for (const path of ['/leaderboard', '/analytics']) {
 			const response = await page.request.get(path, { maxRedirects: 0 });
 			expect(response.status()).toBe(302);
 			expect(response.headers()['location']).toBe(`/login?redirectTo=${encodeURIComponent(path)}`);
@@ -58,13 +56,12 @@ test.describe('learner home page (authenticated)', () => {
 		// Navbar elements
 		await expect(page.getByText('QUIZGAME')).toBeVisible();
 		await expect(page.getByRole('link', { name: 'DASHBOARD' })).toBeVisible();
-		await expect(page.getByRole('link', { name: 'PRACTICE' })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'LEADERBOARD' })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'ANALYTICS' })).toBeVisible();
 		await expect(page.getByPlaceholder('SEARCH TOPICS...')).toBeVisible();
 
-		// Section 01: Overview
-		await expect(page.getByRole('heading', { name: /01\s*\/ OVERVIEW/i })).toBeVisible();
+		// Overview section
+		await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
 		await expect(page.getByText(/Welcome back/i)).toBeVisible();
 		// Other suites can complete an attempt for this shared learner while running in parallel.
 		await expect(page.getByTestId('streak-days')).toHaveText(/^\d+$/);
@@ -91,9 +88,6 @@ test.describe('learner home page (authenticated)', () => {
 			'href',
 			'/quiz/01JSEEDQZN4EXAM00000000000'
 		);
-
-		// Bottom brutalist status bar
-		await expect(page.getByText('SYSTEM STATUS: ACTIVE')).toBeVisible();
 	});
 
 	test('filters sets reactively when level buttons are clicked', async ({ page }) => {

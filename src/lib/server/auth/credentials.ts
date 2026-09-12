@@ -15,6 +15,7 @@ const SELECTED = {
 	publicId: users.publicId,
 	email: users.email,
 	displayName: users.displayName,
+	avatarUrl: users.avatarUrl,
 	role: users.role,
 	status: users.status
 } as const;
@@ -93,6 +94,7 @@ export async function loginUser(db: Database, input: LoginInput): Promise<AuthUs
 			publicId: users.publicId,
 			email: users.email,
 			displayName: users.displayName,
+			avatarUrl: users.avatarUrl,
 			passwordHash: users.passwordHash,
 			role: users.role,
 			status: users.status
@@ -135,6 +137,7 @@ export async function loginUser(db: Database, input: LoginInput): Promise<AuthUs
 		publicId: found.publicId,
 		email: found.email,
 		displayName: found.displayName,
+		avatarUrl: found.avatarUrl,
 		role: found.role,
 		status: found.status
 	};

@@ -96,7 +96,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		index,
 		total: view.questions.length,
 		answeredCount: view.questions.filter((question) => question.selectedOptionId !== null).length,
-		question
+		question,
+		revealStudyAids: view.attempt.showStudyAidsDuringAttempt
 	};
 };
 

@@ -13,7 +13,10 @@ const overview = (overrides: Partial<PageData['overview']> = {}): PageData['over
 });
 
 const props = (data: PageData['overview']): PageProps => ({
-	data: { overview: data, user: { displayName: '管理者テスト', role: 'ADMIN' } },
+	data: {
+		overview: data,
+		user: { displayName: '管理者テスト', avatarUrl: null, role: 'ADMIN' }
+	},
 	params: {},
 	form: null
 });

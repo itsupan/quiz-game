@@ -77,6 +77,7 @@ export async function validateSession(
 				publicId: users.publicId,
 				email: users.email,
 				displayName: users.displayName,
+				avatarUrl: users.avatarUrl,
 				role: users.role,
 				status: users.status
 			}

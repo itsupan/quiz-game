@@ -1,9 +1,11 @@
 import {
 	JLPT_LEVELS,
+	QUIZ_ICONS,
 	QUIZ_MODES,
 	SECTIONS,
 	SELECTION_MODES,
 	type JlptLevel,
+	type QuizIcon,
 	type QuizMode,
 	type Section,
 	type SelectionMode
@@ -22,6 +24,7 @@ export type QuizInput = {
 	mode: QuizMode;
 	level: JlptLevel;
 	selectionMode: SelectionMode;
+	icon: QuizIcon;
 	timeLimitSeconds: number | null;
 	/** Lets a practice quiz expose passage translations/transliterations/concept review during the attempt. */
 	showStudyAidsDuringAttempt: boolean;
@@ -81,6 +84,7 @@ export function parseQuizForm(
 	const mode = formText(data, 'mode');
 	const level = formText(data, 'level');
 	const selectionMode = formText(data, 'selectionMode');
+	const icon = formText(data, 'icon');
 
 	if (title === '') errors.title = 'Enter a title.';
 	if (!isOneOf(mode, QUIZ_MODES)) errors.mode = `Choose a mode: ${QUIZ_MODES.join(', ')}.`;
@@ -88,6 +92,7 @@ export function parseQuizForm(
 	if (!isOneOf(selectionMode, SELECTION_MODES)) {
 		errors.selectionMode = `Choose how questions are selected: ${SELECTION_MODES.join(', ')}.`;
 	}
+	if (!isOneOf(icon, QUIZ_ICONS)) errors.icon = `Choose an icon: ${QUIZ_ICONS.join(', ')}.`;
 
 	const minutes = optionalPositiveInteger(formText(data, 'timeLimitMinutes'));
 	if (minutes === undefined) {
@@ -108,6 +113,7 @@ export function parseQuizForm(
 			mode: mode as QuizMode,
 			level: level as JlptLevel,
 			selectionMode: selectionMode as SelectionMode,
+			icon: icon as QuizIcon,
 			timeLimitSeconds: minutes ? minutes * 60 : null,
 			showStudyAidsDuringAttempt: current.showStudyAidsDuringAttempt,
 			xpReward: current.xpReward

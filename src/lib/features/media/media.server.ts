@@ -4,7 +4,7 @@ import { count, desc, eq, or } from 'drizzle-orm';
 import type { MediaKind } from '$lib/domain/enums';
 import type { Database } from '$lib/server/db';
 import { isForeignKeyFailure } from '$lib/server/db/errors';
-import { mediaAssets, questionGroups, questions } from '$lib/server/db/schema';
+import { mediaAssets, questionGroups, questions, users } from '$lib/server/db/schema';
 import type { MediaAsset } from '$lib/server/db/schema';
 import { describeUpload } from './media';
 import type { WriteResult } from '$lib/domain/write-result';
@@ -80,7 +80,11 @@ export async function uploadMedia(
 
 	const upload = checked.value;
 
-	await bucket.put(upload.r2Key, file.stream(), {
+	// `file` directly, not `file.stream()`: a `File` is also a `Blob`, with a known byte
+	// length R2 can use up front. The raw stream has none under Miniflare's dev runtime,
+	// which then refuses the write with "must have a known length" — a real Worker never
+	// hits this, but there's no reason to feed it an unsized stream either way.
+	await bucket.put(upload.r2Key, file, {
 		httpMetadata: { contentType: upload.mimeType }
 	});
 
@@ -181,4 +185,54 @@ export async function getAssetByPublicId(db: Database, publicId: string) {
 	const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.publicId, publicId));
 
 	return asset ?? null;
+}
+
+/** The prefix `updateAvatar` writes and reads back to tell "one of ours" from a Google URL. */
+const AVATAR_PATH_PREFIX = '/media/';
+
+/**
+ * A learner's self-uploaded profile photo.
+ *
+ * Reuses the exact same storage `uploadMedia` gives question images — an avatar is just
+ * an `IMAGE` asset nobody attaches to a question. Restricted to image MIME types here,
+ * ahead of `uploadMedia`, so an audio file never reaches R2 only to be rejected after.
+ *
+ * The previous avatar, if this account had uploaded one before, is deleted once the new
+ * one is live — `deleteMedia`'s own in-use check is a no-op here since an avatar is never
+ * attached to a question, so this never refuses.
+ */
+export async function updateAvatar(
+	db: Database,
+	bucket: MediaBucket,
+	user: { id: number; avatarUrl: string | null },
+	file: File
+): Promise<WriteResult<MediaAsset>> {
+	if (!file.type.startsWith('image/')) {
+		return { ok: false, message: 'Please upload an image file (PNG, JPEG or WebP).' };
+	}
+
+	const uploaded = await uploadMedia(db, bucket, user.id, file, {
+		altText: 'Profile photo',
+		transcript: null
+	});
+
+	if (!uploaded.ok) {
+		return uploaded;
+	}
+
+	await db
+		.update(users)
+		.set({ avatarUrl: `${AVATAR_PATH_PREFIX}${uploaded.value.publicId}` })
+		.where(eq(users.id, user.id));
+
+	if (user.avatarUrl?.startsWith(AVATAR_PATH_PREFIX)) {
+		const oldPublicId = user.avatarUrl.slice(AVATAR_PATH_PREFIX.length);
+		const old = await getAssetByPublicId(db, oldPublicId);
+
+		if (old) {
+			await deleteMedia(db, bucket, old);
+		}
+	}
+
+	return uploaded;
 }

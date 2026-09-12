@@ -28,7 +28,7 @@ test.describe('timer expiry', () => {
 		// The section countdown posts to the advance action. It must move to the next open
 		// section rather than trapping the learner on a form the server refuses to save.
 		await expect(page.getByText('Question 2 of 2')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByText('GRAMMAR_READING')).toBeVisible();
+		await expect(page.getByText('GRAMMAR READING')).toBeVisible();
 
 		// The quiz's own eight-second deadline still closes and scores the whole sitting.
 		await page.waitForTimeout(5500);
@@ -36,6 +36,6 @@ test.describe('timer expiry', () => {
 
 		await expect(page).toHaveURL(/\/result$/);
 		await expect(page.getByText('Time ran out')).toBeVisible();
-		await expect(page.getByText('1 / 2 correct (1 of 2)')).toBeVisible();
+		await expect(page.getByText('1 of 2 correct')).toBeVisible();
 	});
 });

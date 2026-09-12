@@ -3,7 +3,20 @@
 
 	import Button from '$lib/components/Button.svelte';
 	import Field from '$lib/components/Field.svelte';
-	import { JLPT_LEVELS, QUIZ_MODES, SELECTION_MODES } from '$lib/domain/enums';
+	import { JLPT_LEVELS, QUIZ_ICONS, QUIZ_MODES, SELECTION_MODES } from '$lib/domain/enums';
+
+	/** Human-readable labels for the `QUIZ_ICONS` presets, in the same order. */
+	const ICON_LABELS: Record<(typeof QUIZ_ICONS)[number], string> = {
+		book: 'Book',
+		flask: 'Flask',
+		calculator: 'Calculator',
+		headphones: 'Headphones',
+		microphone: 'Microphone',
+		brain: 'Brain',
+		pencil: 'Pencil',
+		'graduation-cap': 'Graduation cap',
+		trophy: 'Trophy'
+	};
 
 	/**
 	 * Quiz details, shared by the create and edit pages.
@@ -29,6 +42,7 @@
 			mode: string;
 			level: string;
 			selectionMode: string;
+			icon: string;
 			timeLimitSeconds: number | null;
 		};
 	} = $props();
@@ -61,6 +75,7 @@
 	let mode = $state(untrack(() => field('mode', initial.mode)));
 	let level = $state(untrack(() => field('level', initial.level)));
 	let selectionMode = $state(untrack(() => field('selectionMode', initial.selectionMode)));
+	let icon = $state(untrack(() => field('icon', initial.icon)));
 </script>
 
 <form method="POST" {action}>
@@ -125,6 +140,22 @@
 						min="1"
 						value={field('timeLimitMinutes', initialMinutes)}
 					/>
+				{/snippet}
+			</Field>
+
+			<Field
+				id="icon"
+				label="Card icon"
+				hint="Shown on the dashboard quiz card."
+				error={errors.icon}
+				required
+			>
+				{#snippet control(props)}
+					<select {...props} name="icon" bind:value={icon}>
+						{#each QUIZ_ICONS as option (option)}
+							<option value={option}>{ICON_LABELS[option]}</option>
+						{/each}
+					</select>
 				{/snippet}
 			</Field>
 		</div>

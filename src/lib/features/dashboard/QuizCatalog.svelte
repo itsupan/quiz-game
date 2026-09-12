@@ -36,7 +36,7 @@
 <section aria-labelledby="featured-sets-heading" class="pt-4">
 	<div class="mb-6 flex items-center justify-between border-b-2 border-ink pb-3">
 		<div class="flex items-center gap-2 sm:gap-3">
-			<span class="inline-block bg-brand-red px-2 py-0.5 text-sm font-black text-white">02</span>
+			<span class="inline-block h-6 w-1.5 bg-brand-red" aria-hidden="true"></span>
 			<h2
 				id="featured-sets-heading"
 				class="text-xl font-black tracking-tight text-ink uppercase sm:text-2xl"

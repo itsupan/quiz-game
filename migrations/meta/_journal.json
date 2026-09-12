@@ -57,6 +57,13 @@
       "when": 1789235492055,
       "tag": "0007_attempt_presentations",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789241476129,
+      "tag": "0008_quiz_icon",
+      "breakpoints": true
     }
   ]
 }

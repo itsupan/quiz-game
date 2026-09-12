@@ -74,7 +74,7 @@ const adminOnly: Handle = async ({ event, resolve }) => {
  * (`attempts.user_id` is nullable for exactly that), but building the route split and
  * the "sign in to keep this result" flow guest play needs is a follow-up.
  */
-const LEARNER_PATHS = ['/home', '/practice', '/leaderboard', '/analytics', '/quiz'];
+const LEARNER_PATHS = ['/home', '/leaderboard', '/analytics', '/quiz'];
 
 /**
  * The authorization gate for learner dashboard routes.

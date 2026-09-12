@@ -100,9 +100,54 @@
 <style>
 	/*
 	 * The one scoped rule left in the app: ::backdrop is a pseudo-element, so no utility
-	 * class can reach it.
+	 * class can reach it, and a native <dialog>'s own centering needs restating here too —
+	 * something upstream in the cascade zeroes out the `margin: auto` the UA stylesheet
+	 * relies on to center a `showModal()` dialog, which otherwise pins it to the
+	 * top-left corner instead of the middle of the screen.
 	 */
+	dialog {
+		margin: auto;
+		opacity: 0;
+		scale: 0.95;
+		translate: 0 8px;
+		transition:
+			opacity 180ms ease,
+			scale 180ms ease,
+			translate 180ms ease,
+			overlay 180ms allow-discrete,
+			display 180ms allow-discrete;
+	}
+
+	dialog[open] {
+		opacity: 1;
+		scale: 1;
+		translate: 0 0;
+	}
+
+	@starting-style {
+		dialog[open] {
+			opacity: 0;
+			scale: 0.95;
+			translate: 0 8px;
+		}
+	}
+
 	dialog::backdrop {
 		background: rgb(32 33 33 / 55%);
+		opacity: 0;
+		transition:
+			opacity 180ms ease,
+			overlay 180ms allow-discrete,
+			display 180ms allow-discrete;
+	}
+
+	dialog[open]::backdrop {
+		opacity: 1;
+	}
+
+	@starting-style {
+		dialog[open]::backdrop {
+			opacity: 0;
+		}
 	}
 </style>
