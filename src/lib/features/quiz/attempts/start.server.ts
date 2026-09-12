@@ -5,6 +5,7 @@ import type { ScoringBand, Section } from '$lib/domain/enums';
 import type { WriteResult } from '$lib/domain/write-result';
 import type { Database } from '$lib/server/db';
 import { isForeignKeyFailure } from '$lib/server/db/errors';
+import { newPublicId } from '$lib/server/db/ids';
 import {
 	attemptQuestionOptions,
 	attemptQuestions,
@@ -196,29 +197,16 @@ export async function startAttempt(
 		servedResult.value.map((served) => served.questionId)
 	);
 	const bandBySection = bandCodeBySection(sections, bands);
-
-	// The autoincrement `attempts.id` every frozen child row below needs to reference
-	// cannot be known before this insert runs, so it stays outside the batch. Everything
-	// that follows is keyed by values already known in application code (JS-assigned
-	// question position, not a DB-generated id), so it needs no further chaining and can
-	// all commit — or fail — together in one batch.
-	const [created] = await db
-		.insert(attempts)
-		.values({
-			quizId: quiz.id,
-			userId,
-			idempotencyKey,
-			status: 'IN_PROGRESS',
-			startedAt: now,
-			expiresAt: attemptDeadline(now, quiz.timeLimitSeconds),
-			scaledTotalMax: quiz.scaledTotalMax,
-			passMarkTotal: quiz.passMarkTotal
-		})
-		.returning({ id: attempts.id, publicId: attempts.publicId });
+	const attemptPublicId = newPublicId();
+	const attemptId = sql<number>`(
+		select ${attempts.id}
+		from ${attempts}
+		where ${attempts.publicId} = ${attemptPublicId}
+	)`;
 
 	const optionRows = servedResult.value.flatMap((served, index) =>
 		(answerKey.get(served.questionId) ?? []).map((option) => ({
-			attemptId: created.id,
+			attemptId,
 			questionPosition: index + 1,
 			position: option.position,
 			body: option.body,
@@ -227,12 +215,23 @@ export async function startAttempt(
 	);
 
 	const statements = [
+		db.insert(attempts).values({
+			publicId: attemptPublicId,
+			quizId: quiz.id,
+			userId,
+			idempotencyKey,
+			status: 'IN_PROGRESS',
+			startedAt: now,
+			expiresAt: attemptDeadline(now, quiz.timeLimitSeconds),
+			scaledTotalMax: quiz.scaledTotalMax,
+			passMarkTotal: quiz.passMarkTotal
+		}),
 		...(sections.length === 0
 			? []
 			: [
 					db.insert(attemptSections).values(
 						sections.map((section) => ({
-							attemptId: created.id,
+							attemptId,
 							section: section.section,
 							position: section.position,
 							timeLimitSeconds: section.timeLimitSeconds
@@ -244,7 +243,7 @@ export async function startAttempt(
 			: [
 					db.insert(attemptScoringBands).values(
 						bands.map((band) => ({
-							attemptId: created.id,
+							attemptId,
 							bandCode: band.code,
 							label: band.label,
 							scaledMax: band.scaledMax,
@@ -254,7 +253,7 @@ export async function startAttempt(
 				]),
 		db.insert(attemptQuestions).values(
 			servedResult.value.map((served, index) => ({
-				attemptId: created.id,
+				attemptId,
 				questionId: served.questionId,
 				section: served.section,
 				position: index + 1,
@@ -274,8 +273,6 @@ export async function startAttempt(
 	try {
 		await db.batch(statements as [(typeof statements)[number], ...typeof statements]);
 	} catch (cause) {
-		await db.delete(attempts).where(eq(attempts.id, created.id));
-
 		if (isForeignKeyFailure(cause)) {
 			return { ok: false, message: 'One of this quiz’s questions no longer exists.' };
 		}
@@ -283,7 +280,7 @@ export async function startAttempt(
 		throw cause;
 	}
 
-	return { ok: true, value: created.publicId };
+	return { ok: true, value: attemptPublicId };
 }
 
 export async function startPublishedAttempt(

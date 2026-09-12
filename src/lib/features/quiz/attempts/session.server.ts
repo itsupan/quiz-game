@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 
 import type { WriteResult } from '$lib/domain/write-result';
 import type { Database } from '$lib/server/db';
@@ -133,19 +133,43 @@ export async function saveAnswer(
 		return { ok: false, message: 'That is not one of this question’s options.' };
 	}
 
-	await db
-		.insert(attemptAnswers)
-		.values({
-			attemptId: view.attempt.id,
-			attemptQuestionId,
-			questionId: served.questionId,
-			selectedOptionId,
-			answeredAt: now
+	const attemptStillOpen = and(
+		eq(attempts.id, view.attempt.id),
+		eq(attempts.status, 'IN_PROGRESS'),
+		or(isNull(attempts.expiresAt), gt(attempts.expiresAt, now))
+	);
+	const answerCandidate = db
+		.select({
+			id: sql<number | null>`null`.as('id'),
+			attemptId: sql<number>`${view.attempt.id}`.as('attempt_id'),
+			attemptQuestionId: sql<number>`${attemptQuestionId}`.as('attempt_question_id'),
+			questionId: sql<number>`${served.questionId}`.as('question_id'),
+			selectedOptionId: sql<number | null>`${selectedOptionId}`.as('selected_option_id'),
+			isCorrect: sql<boolean | null>`null`.as('is_correct'),
+			pointsEarned: sql<number | null>`null`.as('points_earned'),
+			answeredAt: sql<Date>`${Math.floor(now.getTime() / 1000)}`.as('answered_at'),
+			createdAt: sql<Date>`(unixepoch())`.as('created_at'),
+			updatedAt: sql<Date>`(unixepoch())`.as('updated_at')
 		})
+		.from(attempts)
+		.where(attemptStillOpen);
+	const answerWrite = db
+		.insert(attemptAnswers)
+		.select(answerCandidate)
 		.onConflictDoUpdate({
 			target: attemptAnswers.attemptQuestionId,
-			set: { selectedOptionId, answeredAt: now }
-		});
+			set: { selectedOptionId, answeredAt: now, updatedAt: now }
+		})
+		.returning({ id: attemptAnswers.id });
+	const bumpRevision = db
+		.update(attempts)
+		.set({ revision: sql`${attempts.revision} + 1` })
+		.where(attemptStillOpen);
+	const [written] = await db.batch([answerWrite, bumpRevision]);
+
+	if (written.length === 0) {
+		return { ok: false, message: 'This attempt is no longer open.' };
+	}
 
 	return { ok: true, value: undefined };
 }

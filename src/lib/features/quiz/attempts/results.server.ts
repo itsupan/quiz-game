@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, exists, inArray, sql } from 'drizzle-orm';
 
 import type { ScoringBand, Section } from '$lib/domain/enums';
 import type { Database } from '$lib/server/db';
@@ -87,6 +87,7 @@ export async function finalizeAttempt(
 		.select({
 			id: attempts.id,
 			startedAt: attempts.startedAt,
+			revision: attempts.revision,
 			scaledTotalMax: attempts.scaledTotalMax,
 			passMarkTotal: attempts.passMarkTotal
 		})
@@ -135,6 +136,17 @@ export async function finalizeAttempt(
 		scaledTotalMax: claimable.scaledTotalMax,
 		passMarkTotal: claimable.passMarkTotal
 	});
+	const attemptIsUnchanged = and(
+		eq(attempts.id, attemptId),
+		eq(attempts.status, 'IN_PROGRESS'),
+		eq(attempts.revision, claimable.revision)
+	);
+	const attemptIsUnchangedExists = exists(
+		db
+			.select({ value: sql<number>`1` })
+			.from(attempts)
+			.where(attemptIsUnchanged)
+	);
 
 	const groups = new Map<string, { isCorrect: boolean; pointsEarned: number; ids: number[] }>();
 	for (const answer of scored.answers) {
@@ -149,14 +161,12 @@ export async function finalizeAttempt(
 	}
 
 	const statements = [
-		...groups
-			.values()
-			.map((group) =>
-				db
-					.update(attemptAnswers)
-					.set({ isCorrect: group.isCorrect, pointsEarned: group.pointsEarned })
-					.where(inArray(attemptAnswers.attemptQuestionId, group.ids))
-			),
+		...groups.values().map((group) =>
+			db
+				.update(attemptAnswers)
+				.set({ isCorrect: group.isCorrect, pointsEarned: group.pointsEarned })
+				.where(and(inArray(attemptAnswers.attemptQuestionId, group.ids), attemptIsUnchangedExists))
+		),
 		...(scored.sectionScores.length === 0
 			? []
 			: [
@@ -174,6 +184,7 @@ export async function finalizeAttempt(
 						)
 						.onConflictDoUpdate({
 							target: [attemptSectionScores.attemptId, attemptSectionScores.section],
+							setWhere: attemptIsUnchangedExists,
 							set: {
 								rawScore: sql`excluded.raw_score`,
 								rawMax: sql`excluded.raw_max`,
@@ -201,6 +212,7 @@ export async function finalizeAttempt(
 						)
 						.onConflictDoUpdate({
 							target: [attemptBandScores.attemptId, attemptBandScores.bandCode],
+							setWhere: attemptIsUnchangedExists,
 							set: {
 								rawScore: sql`excluded.raw_score`,
 								rawMax: sql`excluded.raw_max`,
@@ -224,10 +236,18 @@ export async function finalizeAttempt(
 				durationMs: at.getTime() - claimable.startedAt.getTime(),
 				passed: scored.passed
 			})
-			.where(and(eq(attempts.id, attemptId), eq(attempts.status, 'IN_PROGRESS')))
+			.where(attemptIsUnchanged)
 	];
 
 	await db.batch(statements as [(typeof statements)[number], ...typeof statements]);
+
+	const [settled] = await db
+		.select({ status: attempts.status })
+		.from(attempts)
+		.where(eq(attempts.id, attemptId));
+	if (settled?.status === 'IN_PROGRESS') {
+		await finalizeAttempt(db, attemptId, status, at);
+	}
 }
 
 export async function enforceDeadline(

@@ -587,6 +587,69 @@ describe('enforceDeadline and finalizeAttempt', () => {
 		expect(row.durationMs).toBe(5_000);
 	});
 
+	it('rejects an answer written from a stale view after finalization', async () => {
+		const quiz = await createFixedQuiz(db, { sections: [{ section: 'VOCAB_KANJI' }] });
+		const started = await startAttempt(db, quiz, quiz.sections, learnerId, START);
+		if (!started.ok) throw new Error(started.message);
+		const staleView = await loadAttempt(db, started.value, learnerId);
+		if (!staleView) throw new Error('did not load');
+
+		await finalizeAttempt(db, staleView.attempt.id, 'SUBMITTED', after(5));
+		const written = await saveAnswer(
+			db,
+			staleView,
+			staleView.questions[0].attemptQuestionId,
+			staleView.questions[0].options[0].id,
+			after(1)
+		);
+
+		expect(written).toEqual({ ok: false, message: 'This attempt is no longer open.' });
+		expect(await db.select().from(attemptAnswers)).toHaveLength(0);
+	});
+
+	it('restarts scoring when an answer changes before the close is committed', async () => {
+		const quiz = await createFixedQuiz(db, { sections: [{ section: 'VOCAB_KANJI' }] });
+		const started = await startAttempt(db, quiz, quiz.sections, learnerId, START);
+		if (!started.ok) throw new Error(started.message);
+		const view = await loadAttempt(db, started.value, learnerId);
+		if (!view) throw new Error('did not load');
+		const question = view.questions[0];
+
+		const firstWrite = await saveAnswer(
+			db,
+			view,
+			question.attemptQuestionId,
+			question.options[0].id,
+			after(1)
+		);
+		expect(firstWrite.ok).toBe(true);
+
+		await db.run(
+			sql.raw(`
+				CREATE TRIGGER change_answer_during_scoring
+				BEFORE INSERT ON attempt_section_scores
+				WHEN (SELECT revision FROM attempts WHERE id = NEW.attempt_id) = 1
+				BEGIN
+					UPDATE attempts SET revision = revision + 1 WHERE id = NEW.attempt_id;
+					UPDATE attempt_answers
+					SET selected_option_id = ${question.options[1].id}
+					WHERE attempt_id = NEW.attempt_id;
+				END
+			`)
+		);
+
+		await finalizeAttempt(db, view.attempt.id, 'SUBMITTED', after(5));
+
+		const result = await loadResult(db, started.value, learnerId);
+		expect(result?.attempt.status).toBe('SUBMITTED');
+		expect(result?.attempt.rawScore).toBe(0);
+		expect(result?.questions[0]).toMatchObject({
+			selectedOptionId: question.options[1].id,
+			isCorrect: false,
+			pointsEarned: 0
+		});
+	});
+
 	it('rolls every score write back when closing the attempt fails, then retries cleanly', async () => {
 		const quiz = await createFixedQuiz(db, { sections: [{ section: 'VOCAB_KANJI' }] });
 		const started = await startAttempt(db, quiz, quiz.sections, learnerId, START);

@@ -36,6 +36,13 @@
       "when": 1789226398870,
       "tag": "0004_freeze_attempt_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789228775371,
+      "tag": "0005_attempt_revision",
+      "breakpoints": true
     }
   ]
 }

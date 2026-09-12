@@ -37,6 +37,8 @@ export const attempts = sqliteTable(
 		userId: integer('user_id').references(() => users.id, { onDelete: 'restrict' }),
 		/** Makes retried API start requests return the same sitting instead of creating another. */
 		idempotencyKey: text('idempotency_key'),
+		/** Optimistic concurrency token shared by answer writes and final scoring. */
+		revision: integer('revision').notNull().default(0),
 		status: text('status', { enum: ATTEMPT_STATUS }).notNull().default('IN_PROGRESS'),
 		startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
 		expiresAt: integer('expires_at', { mode: 'timestamp' }),
