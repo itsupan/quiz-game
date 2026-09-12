@@ -9,7 +9,8 @@
 		{ href: resolve('/admin'), label: 'Overview' },
 		{ href: resolve('/admin/quizzes'), label: 'Quizzes' },
 		{ href: resolve('/admin/questions'), label: 'Questions' },
-		{ href: resolve('/admin/media'), label: 'Media' }
+		{ href: resolve('/admin/media'), label: 'Media' },
+		{ href: resolve('/admin/users'), label: 'Users' }
 	];
 </script>
 
