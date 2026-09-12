@@ -22,13 +22,27 @@
 
 <fieldset class="m-0 border-0 p-0" {disabled}>
 	<legend class="visually-hidden">Answer options</legend>
+	<div class="flex flex-col gap-4">
+		{#each options as option, i (option.id)}
+			<label
+				class="flex cursor-pointer items-center gap-6 border border-ink bg-white p-4 transition-colors hover:bg-stone-50 has-checked:border-2 has-checked:bg-paper has-disabled:opacity-60"
+			>
+				<input
+					type="radio"
+					{name}
+					value={option.id}
+					checked={selectedOptionId === option.id}
+					class="sr-only"
+				/>
 
-	{#each options as option (option.id)}
-		<label
-			class="mb-2 flex items-center gap-3 border-2 border-line bg-white p-3 has-checked:border-ink has-checked:bg-paper has-disabled:opacity-60"
-		>
-			<input type="radio" {name} value={option.id} checked={selectedOptionId === option.id} />
-			<span>{option.body}</span>
-		</label>
-	{/each}
+				<div class="flex items-center justify-center border border-ink px-2 py-1">
+					<span class="text-xs font-bold text-ink">{String.fromCharCode(65 + i)}</span>
+				</div>
+
+				<div class="flex-1">
+					<span class="text-base font-medium text-ink">{option.body}</span>
+				</div>
+			</label>
+		{/each}
+	</div>
 </fieldset>
