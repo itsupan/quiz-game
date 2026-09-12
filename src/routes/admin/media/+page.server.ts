@@ -1,14 +1,12 @@
 import { error, fail } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
-
 import { recordAudit } from '$lib/features/admin/audit.server';
 import {
 	deleteMedia,
+	getMediaAssetById,
 	listMedia,
 	updateMediaDescription,
 	uploadMedia
-} from '$lib/features/admin/media/media.server';
-import { mediaAssets } from '$lib/server/db/schema';
+} from '$lib/features/media/media.server';
 import type { Actions, PageServerLoad } from './$types';
 
 /** The R2 binding, or a clear failure. Missing bindings are silent in named envs. */
@@ -66,10 +64,7 @@ export const actions: Actions = {
 	 */
 	describe: async ({ locals, request }) => {
 		const data = await request.formData();
-		const [asset] = await locals.db
-			.select()
-			.from(mediaAssets)
-			.where(eq(mediaAssets.id, Number(data.get('assetId'))));
+		const asset = await getMediaAssetById(locals.db, Number(data.get('assetId')));
 
 		if (!asset) {
 			return fail(404, { message: 'That file no longer exists.' });
@@ -86,10 +81,7 @@ export const actions: Actions = {
 	/** The one genuine delete in the dashboard. Everything else is archived. */
 	delete: async ({ locals, platform, request }) => {
 		const data = await request.formData();
-		const [asset] = await locals.db
-			.select()
-			.from(mediaAssets)
-			.where(eq(mediaAssets.id, Number(data.get('assetId'))));
+		const asset = await getMediaAssetById(locals.db, Number(data.get('assetId')));
 
 		if (!asset) {
 			return fail(404, { message: 'That file no longer exists.' });

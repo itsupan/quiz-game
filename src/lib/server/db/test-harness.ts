@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { drizzle } from 'drizzle-orm/sqlite-proxy';
+import {
+	drizzle,
+	type AsyncBatchRemoteCallback,
+	type RemoteCallback
+} from 'drizzle-orm/sqlite-proxy';
 
 import type { Database } from './index';
 import * as schema from './schema';
@@ -18,8 +22,9 @@ import * as schema from './schema';
  * against a database and awkward to assert through a browser, and faking a Drizzle query
  * builder well enough to test them would prove nothing about the SQL.
  *
- * `db.batch()` is a D1 extension and is NOT available here — code that batches has to be
- * covered by the Playwright suite instead.
+ * The proxy's batch callback wraps every statement in a real SQLite transaction. That
+ * mirrors D1's atomic `batch()` contract, so multi-statement persistence can be tested
+ * here instead of being left exclusively to Playwright.
  */
 export type TestDatabase = Database;
 
@@ -63,34 +68,51 @@ export function createTestDatabase() {
 		}
 	}
 
-	const db = drizzle(
-		async (sql, params, method) => {
-			const statement = sqlite.prepare(sql);
+	const execute: RemoteCallback = async (sql, params, method) => {
+		const statement = sqlite.prepare(sql);
 
-			// Drizzle's proxy driver maps result columns by position, not by name.
-			statement.setReturnArrays(true);
+		// Drizzle's proxy driver maps result columns by position, not by name.
+		statement.setReturnArrays(true);
 
-			const values = params.map((param) => {
-				if (param === undefined) return null;
-				if (typeof param === 'boolean') return param ? 1 : 0;
+		const values = params.map((param) => {
+			if (param === undefined) return null;
+			if (typeof param === 'boolean') return param ? 1 : 0;
 
-				return param;
-			}) as never[];
+			return param;
+		}) as never[];
 
-			if (method === 'run') {
-				statement.run(...values);
+		if (method === 'run') {
+			statement.run(...values);
 
-				return { rows: [] };
+			return { rows: [] };
+		}
+
+		if (method === 'get') {
+			return { rows: (statement.get(...values) as unknown as unknown[]) ?? [] };
+		}
+
+		return { rows: statement.all(...values) as unknown as unknown[][] };
+	};
+
+	const executeBatch: AsyncBatchRemoteCallback = async (queries) => {
+		const rows: { rows: unknown[] }[] = [];
+
+		sqlite.exec('BEGIN IMMEDIATE');
+
+		try {
+			for (const query of queries) {
+				rows.push(await execute(query.sql, query.params, query.method));
 			}
 
-			if (method === 'get') {
-				return { rows: (statement.get(...values) as unknown as unknown[]) ?? [] };
-			}
+			sqlite.exec('COMMIT');
+			return rows;
+		} catch (cause) {
+			sqlite.exec('ROLLBACK');
+			throw cause;
+		}
+	};
 
-			return { rows: statement.all(...values) as unknown as unknown[][] };
-		},
-		{ schema }
-	);
+	const db = drizzle(execute, executeBatch, { schema });
 
 	return {
 		// The proxy driver and the D1 driver differ only in their result envelope, which

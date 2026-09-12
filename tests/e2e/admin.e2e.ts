@@ -188,6 +188,8 @@ test.describe('as an administrator', () => {
 
 		await page.getByLabel('Title').fill(title);
 		await page.getByLabel('Mode').selectOption('MOCK_TEST');
+		// N4, because a fixed paper can only be filled from the bank at its own level.
+		await page.getByLabel('JLPT level').selectOption('N4');
 		await page.getByLabel('Time limit (minutes)').fill('');
 
 		// A mock test with no clock is a misconfiguration, so it is refused.
@@ -210,8 +212,37 @@ test.describe('as an administrator', () => {
 		await expect(page.getByRole('alert')).toContainText('Section saved.');
 		await expect(page.getByRole('rowheader', { name: 'LISTENING' })).toBeVisible();
 
+		// A section with no questions is an empty paper, so publishing is still refused.
+		await expect(page.getByRole('list', { name: 'Blocking publication' })).toContainText(
+			'every section needs at least one question'
+		);
+
+		await page.getByRole('button', { name: 'Add to paper' }).click();
+		await expect(page.getByRole('alert')).toContainText('Question added to the paper.');
+
 		await page.getByRole('button', { name: 'Publish' }).click();
 		await expect(page.getByRole('alert')).toContainText('Published.');
+	});
+
+	test('creates and publishes a full exam through the admin form', async ({ page }) => {
+		await page.goto('/admin/quizzes/new');
+
+		const title = `フル試験 ${Date.now()}`;
+
+		await page.getByLabel('Title').fill(title);
+		await page.getByLabel('Mode').selectOption('FULL_EXAM');
+		await page.getByLabel('JLPT level').selectOption('N4');
+		await page.getByLabel('Time limit (minutes)').fill('115');
+		await page.getByRole('button', { name: 'Create quiz' }).click();
+
+		await page.getByRole('combobox', { name: 'Section', exact: true }).selectOption('VOCAB_KANJI');
+		await page.locator('#sectionTimeLimit').fill('115');
+		await page.getByRole('button', { name: 'Add section' }).click();
+		await page.getByRole('button', { name: 'Add to paper' }).click();
+		await page.getByRole('button', { name: 'Publish' }).click();
+
+		await expect(page.getByRole('alert')).toContainText('Published.');
+		await expect(page.getByLabel('Mode')).toHaveValue('FULL_EXAM');
 	});
 
 	test('asks before archiving, and archiving takes the quiz off the homepage', async ({
@@ -225,10 +256,12 @@ test.describe('as an administrator', () => {
 		await page.goto('/admin/quizzes/new');
 		await page.getByLabel('Title').fill(title);
 		await page.getByLabel('Mode').selectOption('JLPT_PRACTICE');
+		await page.getByLabel('JLPT level').selectOption('N4');
 		await page.getByRole('button', { name: 'Create quiz' }).click();
 
 		await page.getByRole('combobox', { name: 'Section', exact: true }).selectOption('VOCAB_KANJI');
 		await page.getByRole('button', { name: 'Add section' }).click();
+		await page.getByRole('button', { name: 'Add to paper' }).click();
 		await page.getByRole('button', { name: 'Publish' }).click();
 		await expect(page.getByRole('alert')).toContainText('Published.');
 
@@ -514,6 +547,8 @@ test.describe('as an administrator', () => {
 		await page.goto('/admin/quizzes/new');
 		await page.getByLabel('Title').fill(title);
 		await page.getByLabel('Mode').selectOption('JLPT_PRACTICE');
+		// N3, which is the level the seeded vocabulary bank is deep enough to draw from.
+		await page.getByLabel('JLPT level').selectOption('N3');
 		await page.getByRole('button', { name: 'Create quiz' }).click();
 
 		await page.getByRole('combobox', { name: 'Section', exact: true }).selectOption('VOCAB_KANJI');
@@ -530,6 +565,16 @@ test.describe('as an administrator', () => {
 		await expect(page.getByRole('alert')).toContainText('needs a draw count');
 
 		// The row is editable, so the missing number can actually be supplied.
+		await page.getByLabel('Questions drawn for VOCAB_KANJI').fill('50');
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
+		await expect(page.getByRole('alert')).toContainText('Section saved.');
+
+		// A draw bigger than the bank is not a draw: every learner would silently get a
+		// shorter paper than the quiz claims to be.
+		await expect(page.getByRole('list', { name: 'Blocking publication' })).toContainText(
+			'not enough published questions'
+		);
+
 		await page.getByLabel('Questions drawn for VOCAB_KANJI').fill('5');
 		await page.getByRole('button', { name: 'Save', exact: true }).click();
 		await expect(page.getByRole('alert')).toContainText('Section saved.');

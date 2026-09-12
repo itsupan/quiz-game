@@ -6,9 +6,10 @@
 --
 -- Covers every structural shape the schema supports, so a fresh clone can exercise
 -- all of it without an admin UI:
---   quiz 1  N4 FULL_EXAM      FIXED   2 scoring bands (120 + 60), 3 sections
+--   quiz 1  N4 FULL_EXAM      FIXED   2 scoring bands (120 + 60), 3 sections, has media
 --   quiz 2  N3 MOCK_TEST      FIXED   3 scoring bands (60 each), 3 sections
 --   quiz 3  N3 JLPT_PRACTICE  RANDOM  no bands, draws 5 from the bank
+--   quiz 4  N5 JLPT_PRACTICE  FIXED   3 second first section, 8 second quiz clock
 --
 -- Scaled bands and pass marks are a LINEAR APPROXIMATION of JLPT scoring, which is
 -- item-response-theory based and unpublished. Confirm against the official site
@@ -17,6 +18,20 @@
 INSERT INTO users (id, public_id, email, display_name, role, status) VALUES
 	(1, '01JSEEDACCTADMN00000000000', 'admin@example.com', '管理者テスト', 'ADMIN', 'ACTIVE'),
 	(2, '01JSEEDACCTSTDNT0000000000', 'learner@example.com', '学習者テスト', 'USER', 'ACTIVE')
+ON CONFLICT(id) DO NOTHING;
+
+-- The bytes these rows describe live in R2, not here — `pnpm db:seed:media` puts
+-- seeds/fixtures/sample-image.png and sample-audio.mp3 at these exact keys in the local
+-- bucket. Without that step the rows exist but `/media/[publicId]` 404s them, the same
+-- as a half-completed delete.
+INSERT INTO media_assets
+	(id, public_id, kind, r2_key, mime_type, byte_size, alt_text, transcript, original_filename, uploaded_by)
+VALUES
+	(1, '01JSEEDASSETPNG00000000000', 'IMAGE', '01JSEEDASSETPNG00000000000.png', 'image/png', 74,
+		'赤い正方形のサンプル画像。', NULL, 'sample-image.png', 1),
+	(2, '01JSEEDASSETMP300000000000', 'AUDIO', '01JSEEDASSETMP300000000000.mp3', 'audio/mpeg', 4510,
+		NULL, '（音声）男の人と女の人が話しています。「では、これで会議を終わります。」',
+		'sample-audio.mp3', 1)
 ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO quizzes (id, public_id, title, description, mode, level, selection_mode, time_limit_seconds, scaled_total_max, pass_mark_total, status, created_by, published_at) VALUES
@@ -63,8 +78,17 @@ INSERT INTO questions (id, public_id, group_id, group_position, level, section, 
 	(10, '01JSEEDQ001000000000000000', NULL, NULL, 'N3', 'VOCAB_KANJI', '「彼は 責任を ＿＿＿。」', '責任は「果たす」ものです。', 1, 'PUBLISHED', 1),
 	(11, '01JSEEDQ001100000000000000', 1, 1, 'N3', 'GRAMMAR_READING', '平日の 開館時間は 何時までですか。', '本文に「平日は午前九時から午後八時まで」とあります。', 1, 'PUBLISHED', 1),
 	(12, '01JSEEDQ001200000000000000', 1, 2, 'N3', 'GRAMMAR_READING', '休館日は いつですか。', '本文に「毎月第一月曜日は館内整理のため休館」とあります。', 1, 'PUBLISHED', 1),
-	(13, '01JSEEDQ001300000000000000', NULL, NULL, 'N3', 'LISTENING', '女の人は 何に ついて 話して いますか。', '会話全体が引っ越しの手続きについての内容です。', 1, 'PUBLISHED', 1)
+	(13, '01JSEEDQ001300000000000000', NULL, NULL, 'N3', 'LISTENING', '女の人は 何に ついて 話して いますか。', '会話全体が引っ越しの手続きについての内容です。', 1, 'PUBLISHED', 1),
+	-- N4, VOCAB_KANJI, with an image: the sample admin dashboard has nothing to show an
+	-- image or audio question until at least one of each exists.
+	(14, '01JSEEDQ001400000000000000', NULL, NULL, 'N4', 'VOCAB_KANJI', 'この 図形は 何色ですか。', '画像の正方形は赤色です。', 1, 'PUBLISHED', 1)
 ON CONFLICT(id) DO NOTHING;
+
+-- Question 4 already asks a LISTENING question; giving it audio here rather than at
+-- INSERT keeps that block reading as pure seed data instead of mixing two migrations of
+-- intent.
+UPDATE questions SET audio_media_id = 2 WHERE id = 4;
+UPDATE questions SET image_media_id = 1 WHERE id = 14;
 
 -- Exactly one option per question carries is_correct = 1. A second would be rejected
 -- by the question_options_one_correct_idx partial unique index, not by a validator.
@@ -120,7 +144,11 @@ INSERT INTO question_options (id, question_id, body, is_correct, position) VALUE
 	(49, 13, '引っ越しの 手続き', 1, 1),
 	(50, 13, '旅行の 計画', 0, 2),
 	(51, 13, '仕事の 面接', 0, 3),
-	(52, 13, '料理の 作り方', 0, 4)
+	(52, 13, '料理の 作り方', 0, 4),
+	(53, 14, '赤', 1, 1),
+	(54, 14, '青', 0, 2),
+	(55, 14, '緑', 0, 3),
+	(56, 14, '黄色', 0, 4)
 ON CONFLICT(id) DO NOTHING;
 
 -- FIXED quizzes only. Quiz 3 is RANDOM, so what it serves is decided per attempt and
@@ -134,5 +162,67 @@ INSERT INTO quiz_questions (id, quiz_id, quiz_section_id, question_id, position)
 	(6, 2, 4, 6, 2),
 	(7, 2, 5, 11, 1),
 	(8, 2, 5, 12, 2),
-	(9, 2, 6, 13, 1)
+	(9, 2, 6, 13, 1),
+	(10, 1, 1, 14, 3)
 ON CONFLICT(id) DO NOTHING;
+
+-- Quiz 4: a real sitting with a three-second first section and an eight-second overall
+-- limit. Playwright watches both deadlines without fake clocks or test-only app paths.
+INSERT INTO quizzes
+	(id, public_id, title, description, mode, level, selection_mode, time_limit_seconds, status, created_by, published_at)
+VALUES
+	(4, '01JSEEDQZN5TEST00000000000', 'タイマー確認用（8秒）',
+		'タイマーの動作確認専用のクイズです。制限時間はわずか8秒です。',
+		'JLPT_PRACTICE', 'N5', 'FIXED', 8, 'PUBLISHED', 1, unixepoch())
+ON CONFLICT(id) DO NOTHING;
+
+-- Unlike ordinary demo content, this row is executable test configuration, so keep a
+-- previously seeded local database aligned with the current timing assertions.
+UPDATE quizzes
+SET title = 'タイマー確認用（8秒）',
+	description = 'タイマーの動作確認専用のクイズです。制限時間はわずか8秒です。',
+	time_limit_seconds = 8
+WHERE id = 4;
+
+INSERT INTO quiz_sections (id, quiz_id, section, position, time_limit_seconds, draw_count, scoring_band_id) VALUES
+	(8, 4, 'VOCAB_KANJI', 1, 3, NULL, NULL)
+ON CONFLICT(id) DO NOTHING;
+
+UPDATE quiz_sections SET time_limit_seconds = 3 WHERE id = 8 AND quiz_id = 4;
+
+INSERT INTO quiz_sections
+	(quiz_id, section, position, time_limit_seconds, draw_count, scoring_band_id)
+VALUES
+	(4, 'GRAMMAR_READING', 2, NULL, NULL, NULL)
+ON CONFLICT(quiz_id, section) DO UPDATE SET
+	position = excluded.position,
+	time_limit_seconds = excluded.time_limit_seconds;
+
+INSERT INTO questions (id, public_id, group_id, group_position, level, section, stem, explanation, points, status, created_by) VALUES
+	(15, '01JSEEDQ001500000000000000', NULL, NULL, 'N5', 'VOCAB_KANJI', '「＿＿＿」に 入る ことばは どれですか。「これは ＿＿＿ です。」', '「ほん」＝本のことです。', 1, 'PUBLISHED', 1),
+	(16, '01JSEEDQ001600000000000000', NULL, NULL, 'N5', 'GRAMMAR_READING', '「みず」を 漢字で 書くと どれですか。', '「水」と書きます。', 1, 'PUBLISHED', 1)
+ON CONFLICT(id) DO NOTHING;
+
+UPDATE questions SET section = 'GRAMMAR_READING' WHERE id = 16;
+
+INSERT INTO question_options (id, question_id, body, is_correct, position) VALUES
+	(57, 15, 'ほん', 1, 1),
+	(58, 15, 'えき', 0, 2),
+	(59, 15, 'いす', 0, 3),
+	(60, 15, 'つくえ', 0, 4),
+	(61, 16, '水', 1, 1),
+	(62, 16, '木', 0, 2),
+	(63, 16, '火', 0, 3),
+	(64, 16, '土', 0, 4)
+ON CONFLICT(id) DO NOTHING;
+
+INSERT INTO quiz_questions (id, quiz_id, quiz_section_id, question_id, position) VALUES
+	(11, 4, 8, 15, 1),
+	(12, 4, 8, 16, 2)
+ON CONFLICT(id) DO NOTHING;
+
+UPDATE quiz_questions
+SET quiz_section_id = (
+	SELECT id FROM quiz_sections WHERE quiz_id = 4 AND section = 'GRAMMAR_READING'
+)
+WHERE id = 12;

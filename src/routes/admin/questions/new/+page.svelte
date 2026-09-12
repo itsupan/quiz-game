@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import Notice from '$lib/components/Notice.svelte';
 	import PageHeader from '$lib/features/admin/PageHeader.svelte';
-	import QuestionForm from '$lib/features/admin/questions/QuestionForm.svelte';
+	import QuestionForm from '$lib/features/questions/QuestionForm.svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();

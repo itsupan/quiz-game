@@ -1,5 +1,5 @@
 import { newPublicId } from '$lib/server/db/ids';
-import type { MediaKind } from '$lib/server/db/schema/enums';
+import type { MediaKind } from '$lib/domain/enums';
 
 /**
  * What an uploaded file is allowed to be, and what it becomes in R2.

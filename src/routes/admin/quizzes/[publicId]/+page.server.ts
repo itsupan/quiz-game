@@ -2,14 +2,19 @@ import { error, fail } from '@sveltejs/kit';
 
 import { recordAudit } from '$lib/features/admin/audit.server';
 import {
+	attachQuestion,
 	deleteSection,
+	detachQuestion,
 	getQuiz,
+	listAttachableQuestions,
+	listAttachedQuestions,
 	quizPublishBlockers,
+	sectionPublishCounts,
 	setQuizStatus,
 	updateQuiz,
 	upsertSection
-} from '$lib/features/admin/quizzes/quizzes.server';
-import { parseQuizForm, parseQuizSectionForm } from '$lib/features/admin/validation';
+} from '$lib/features/quiz/admin/quizzes.server';
+import { parseQuizForm, parseQuizSectionForm } from '$lib/features/quiz/admin/validation';
 import type { Actions, PageServerLoad } from './$types';
 
 async function load404(locals: App.Locals, publicId: string) {
@@ -22,15 +27,39 @@ async function load404(locals: App.Locals, publicId: string) {
 	return found;
 }
 
+/**
+ * The publish gate's input, assembled once so the load and the publish action can never
+ * disagree about whether a quiz is ready.
+ */
+async function blockersFor(
+	locals: App.Locals,
+	quiz: Awaited<ReturnType<typeof load404>>['quiz'],
+	sections: Awaited<ReturnType<typeof load404>>['sections']
+) {
+	const counts = await sectionPublishCounts(locals.db, quiz, sections);
+
+	return quizPublishBlockers(
+		quiz,
+		sections.map((section) => ({ ...section, ...counts[section.id] }))
+	);
+}
+
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const { quiz, sections } = await load404(locals, params.publicId);
 
 	return {
 		quiz,
 		sections,
+		// A RANDOM quiz draws from the bank at attempt start, so its paper is empty by
+		// design and the picker below has nothing to offer.
+		attached: quiz.selectionMode === 'FIXED' ? await listAttachedQuestions(locals.db, quiz.id) : [],
+		attachable:
+			quiz.selectionMode === 'FIXED'
+				? await listAttachableQuestions(locals.db, quiz, sections)
+				: {},
 		// Scoring bands are a later epic, so sections here carry no `scoring_band_id` and
 		// the quiz reports a raw score only.
-		blockers: quizPublishBlockers(quiz, sections)
+		blockers: await blockersFor(locals, quiz, sections)
 	};
 };
 
@@ -86,9 +115,39 @@ export const actions: Actions = {
 		return { ok: true, message: 'Section removed.' };
 	},
 
+	attachQuestion: async ({ locals, params, request }) => {
+		const { quiz } = await load404(locals, params.publicId);
+		const data = await request.formData();
+
+		const written = await attachQuestion(
+			locals.db,
+			quiz,
+			Number(data.get('quizSectionId')),
+			Number(data.get('questionId'))
+		);
+
+		if (!written.ok) {
+			return fail(409, { message: written.message });
+		}
+
+		return { ok: true, message: 'Question added to the paper.' };
+	},
+
+	detachQuestion: async ({ locals, params, request }) => {
+		const { quiz } = await load404(locals, params.publicId);
+		const data = await request.formData();
+		const removed = await detachQuestion(locals.db, quiz.id, Number(data.get('quizQuestionId')));
+
+		if (!removed.ok) {
+			return fail(409, { message: removed.message });
+		}
+
+		return { ok: true, message: 'Question removed from the paper.' };
+	},
+
 	publish: async ({ locals, params }) => {
 		const { quiz, sections } = await load404(locals, params.publicId);
-		const blockers = quizPublishBlockers(quiz, sections);
+		const blockers = await blockersFor(locals, quiz, sections);
 
 		if (blockers.length > 0) {
 			return fail(400, { message: blockers.join(' ') });

@@ -1,10 +1,11 @@
 import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 
 import type { Database } from '$lib/server/db';
+import { isForeignKeyFailure } from '$lib/server/db/errors';
 import { mediaAssets, questionOptions, questions } from '$lib/server/db/schema';
 import type { ContentStatus, JlptLevel, Question, Section } from '$lib/server/db/schema';
-import { isForeignKeyFailure, type WriteResult } from '../write-result';
-import type { QuestionInput } from '../validation';
+import type { WriteResult } from '$lib/domain/write-result';
+import type { QuestionInput } from './validation';
 
 export type QuestionListItem = Pick<
 	Question,

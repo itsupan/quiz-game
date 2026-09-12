@@ -1,8 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 
-import { listMediaChoices } from '$lib/features/admin/questions/mediaChoices.server';
-import { checkMediaSlots, createQuestion } from '$lib/features/admin/questions/questions.server';
-import { echoValues, parseQuestionForm } from '$lib/features/admin/validation';
+import { listMediaChoices } from '$lib/features/questions/media-choices.server';
+import { checkMediaSlots, createQuestion } from '$lib/features/questions/questions.server';
+import { echoValues, parseQuestionForm } from '$lib/features/questions/validation';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
