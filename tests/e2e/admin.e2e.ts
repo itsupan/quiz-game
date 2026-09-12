@@ -81,9 +81,12 @@ test.describe('as an administrator', () => {
 
 	test('shows the seeded content on the overview', async ({ page }) => {
 		await page.goto('/admin');
-
-		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview');
-
+		try {
+			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview', { timeout: 2000 });
+		} catch (e) {
+			console.log("FAILED HTML DUMP:", await page.content());
+			throw e;
+		}
 		// At least the seeded content. Not an exact count: local D1 persists between runs,
 		// and these tests create rows.
 		await expect(page.getByTestId('total-quizzes')).toHaveText(/^\d+$/);

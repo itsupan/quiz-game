@@ -35,7 +35,7 @@
 
 	// Square and hard-shadowed; the depth cue is the offset, never a radius.
 	const base =
-		'relative inline-flex cursor-pointer items-center justify-center border-2 font-[inherit] font-semibold no-underline transition-all duration-200 ease-out hover:-translate-y-1 active:translate-y-1 active:shadow-none focus-visible:outline-3 focus-visible:outline-offset-4 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55';
+		'relative inline-flex cursor-pointer items-center justify-center border-2 font-[inherit] font-semibold no-underline motion-reduce:transition-[transform,box-shadow,background] motion-reduce:duration-150 motion-reduce:hover:-translate-x-0.5 motion-reduce:hover:-translate-y-0.5 motion-reduce:active:translate-x-0.5 motion-reduce:active:translate-y-0.5 motion-safe:transition-all motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:-translate-y-1 motion-safe:active:translate-y-1 motion-safe:active:shadow-none focus-visible:outline-3 focus-visible:outline-offset-4 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55';
 
 	const sizes = {
 		sm: 'min-h-8 px-3 text-xs tracking-wider uppercase shadow-[2px_2px_0_var(--color-ink)] hover:shadow-[4px_4px_0_var(--color-ink)]',

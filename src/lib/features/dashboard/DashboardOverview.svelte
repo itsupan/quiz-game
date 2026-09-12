@@ -26,7 +26,7 @@
 
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 		<div
-			class="group relative z-0 flex min-h-[220px] animate-fade-up flex-col justify-between overflow-hidden p-6 opacity-0 transition-all duration-300 ease-out before:absolute before:inset-[-150%] before:z-[-2] before:animate-[spin_4s_linear_infinite] before:bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-ink)_0%,#facc15_50%,var(--color-ink)_100%)] before:content-[''] after:absolute after:inset-[2px] after:z-[-1] after:bg-white after:content-[''] hover:-translate-y-1 hover:shadow-hard-lg sm:p-8"
+			class="group relative z-0 flex min-h-[220px] flex-col justify-between overflow-hidden p-6 transition-all duration-300 ease-out before:absolute before:inset-[-50%] before:z-[-2] motion-safe:before:animate-[spin_4s_linear_infinite] before:bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-ink)_0%,#facc15_50%,var(--color-ink)_100%)] before:content-[''] after:absolute after:inset-[2px] after:z-[-1] after:bg-white after:content-[''] hover:-translate-y-1 hover:shadow-hard-lg sm:p-8"
 		>
 			<div
 				class="absolute top-0 right-0 z-10 flex h-12 w-12 items-center justify-center bg-brand-red text-white"
@@ -60,7 +60,7 @@
 		</div>
 
 		<div
-			class="group relative z-0 animate-fade-up overflow-hidden p-1.5 opacity-0 transition-all duration-300 ease-out [animation-delay:100ms] before:absolute before:inset-[-150%] before:z-[-2] before:animate-[spin_4s_linear_infinite] before:bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-ink)_0%,#facc15_50%,var(--color-ink)_100%)] before:content-[''] after:absolute after:inset-[2px] after:z-[-1] after:bg-white after:content-[''] hover:-translate-y-1 hover:shadow-hard-lg"
+			class="group relative z-0 overflow-hidden p-1.5 transition-all duration-300 ease-out [animation-delay:100ms] before:absolute before:inset-[-50%] before:z-[-2] motion-safe:before:animate-[spin_4s_linear_infinite] before:bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-ink)_0%,#facc15_50%,var(--color-ink)_100%)] before:content-[''] after:absolute after:inset-[2px] after:z-[-1] after:bg-white after:content-[''] hover:-translate-y-1 hover:shadow-hard-lg"
 		>
 			<div
 				class="relative z-10 flex h-full min-h-[208px] flex-col justify-between border border-ink p-6"

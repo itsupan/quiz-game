@@ -6,7 +6,10 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
 	reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
-	use: { baseURL: 'http://localhost:4173' },
+	use: { 
+		baseURL: 'http://localhost:4173',
+		contextOptions: { reducedMotion: 'reduce' }
+	},
 	/**
 	 * Builds the Worker, prepares the local D1 database and seeds the sessions the suite
 	 * signs in with, then serves the real `_worker.js` through `wrangler dev` — the same

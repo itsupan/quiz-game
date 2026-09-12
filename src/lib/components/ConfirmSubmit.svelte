@@ -80,6 +80,19 @@
 	bind:this={dialog}
 	aria-labelledby={headingId}
 	class="max-w-[26rem] border-2 border-ink p-5 text-ink shadow-hard"
+	onclick={(e) => {
+		if (!dialog) return;
+		const rect = dialog.getBoundingClientRect();
+		const isInDialog = (
+			rect.top <= e.clientY &&
+			e.clientY <= rect.top + rect.height &&
+			rect.left <= e.clientX &&
+			e.clientX <= rect.left + rect.width
+		);
+		if (!isInDialog) {
+			dialog.close();
+		}
+	}}
 >
 	<h2 id={headingId} class="text-lg font-black tracking-tight uppercase">{title}</h2>
 	<p class="mt-0 mb-5 text-sm text-muted">{message}</p>

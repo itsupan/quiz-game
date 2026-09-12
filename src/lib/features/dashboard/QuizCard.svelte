@@ -11,7 +11,7 @@
 
 <li class="flex">
 	<article
-		class="group relative z-0 flex flex-1 animate-fade-up flex-col justify-between overflow-hidden bg-white p-6 opacity-0 transition-all duration-300 ease-out before:absolute before:inset-[-150%] before:z-[-2] before:animate-[spin_4s_linear_infinite] before:bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-ink)_0%,#facc15_50%,var(--color-ink)_100%)] before:content-[''] after:absolute after:inset-[2px] after:z-[-1] after:bg-white after:content-[''] hover:-translate-y-1 hover:shadow-hard-lg"
+		class="group relative z-0 flex flex-1 flex-col justify-between overflow-hidden bg-white p-6 transition-all duration-300 ease-out before:absolute before:inset-[-50%] before:z-[-2] motion-safe:before:animate-[spin_4s_linear_infinite] before:bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-ink)_0%,#facc15_50%,var(--color-ink)_100%)] before:content-[''] after:absolute after:inset-[2px] after:z-[-1] after:bg-white after:content-[''] hover:-translate-y-1 hover:shadow-hard-lg"
 	>
 		{#if card.cornerTriangle}
 			<div
