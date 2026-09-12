@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ApiProblem } from '$lib/features/quiz/api/http.server';
 import {
+	abandonOwnedAttempt,
 	createAttempt,
 	getOwnedAttempt,
 	getAttemptQuestion,
@@ -121,6 +122,10 @@ describe('quiz API application facade', () => {
 			{ number: 1, body: 'びょういん' },
 			{ number: 2, body: 'びよういん' }
 		]);
+		expect(question).toMatchObject({
+			progress: { current: 1, total: 1, answered: 0 },
+			links: { previous: null, next: null }
+		});
 
 		const answered = await putAttemptAnswer(db, started.attemptId, 1, 1, learnerId, after(5));
 		expect(answered.selectedOptionNumber).toBe(1);
@@ -131,6 +136,19 @@ describe('quiz API application facade', () => {
 			selectedOptionNumber: 1,
 			correctOptionNumber: 1,
 			isCorrect: true
+		});
+		expect(result).toMatchObject({
+			summary: {
+				accuracyPercent: 100,
+				correctCount: 1,
+				incorrectCount: 0,
+				unansweredCount: 0,
+				durationMs: 10_000
+			},
+			links: {
+				quiz: `/api/v1/quizzes/${quizPublicId}`,
+				retry: `/api/v1/quizzes/${quizPublicId}/attempts`
+			}
 		});
 
 		const repeated = await submitAttempt(db, started.attemptId, learnerId, after(20));
@@ -172,6 +190,7 @@ describe('quiz API application facade', () => {
 		const started = await createAttempt(db, quizPublicId, learnerId, 'private-attempt-key', START);
 		const operations = [
 			() => getOwnedAttempt(db, started.attemptId, otherLearnerId, START),
+			() => abandonOwnedAttempt(db, started.attemptId, otherLearnerId, START),
 			() => getAttemptQuestion(db, started.attemptId, 1, otherLearnerId, START),
 			() => putAttemptAnswer(db, started.attemptId, 1, 1, otherLearnerId, START),
 			() => submitAttempt(db, started.attemptId, otherLearnerId, START),
@@ -184,6 +203,47 @@ describe('quiz API application facade', () => {
 				code: 'attempt_not_found'
 			} satisfies Partial<ApiProblem>);
 		}
+	});
+
+	it('abandons an attempt idempotently without producing a result', async () => {
+		const started = await createAttempt(db, quizPublicId, learnerId, 'abandon-attempt-key', START);
+
+		const first = await abandonOwnedAttempt(db, started.attemptId, learnerId, after(5));
+		const repeated = await abandonOwnedAttempt(db, started.attemptId, learnerId, after(10));
+
+		expect(first).toEqual({
+			id: started.attemptId,
+			status: 'ABANDONED',
+			links: {
+				quiz: `/api/v1/quizzes/${quizPublicId}`,
+				catalog: '/api/v1/quizzes'
+			}
+		});
+		expect(repeated).toEqual(first);
+		await expect(
+			getCompletedResult(db, started.attemptId, learnerId, after(10))
+		).rejects.toMatchObject({
+			status: 409,
+			code: 'attempt_abandoned'
+		} satisfies Partial<ApiProblem>);
+	});
+
+	it('does not let abandonment replace a submitted result', async () => {
+		const started = await createAttempt(
+			db,
+			quizPublicId,
+			learnerId,
+			'submit-before-exit-key',
+			START
+		);
+		await submitAttempt(db, started.attemptId, learnerId, after(5));
+
+		await expect(
+			abandonOwnedAttempt(db, started.attemptId, learnerId, after(10))
+		).rejects.toMatchObject({
+			status: 409,
+			code: 'attempt_closed'
+		} satisfies Partial<ApiProblem>);
 	});
 
 	it('settles an expired attempt before returning it or accepting another answer', async () => {

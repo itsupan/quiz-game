@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 
-import { CONTENT_STATUS, JLPT_LEVELS, SECTIONS } from '$lib/domain/enums';
+import { CONTENT_STATUS, JLPT_LEVELS, QUESTION_FORMATS, SECTIONS } from '$lib/domain/enums';
 import {
 	apiEndpoint,
 	assertKnownFields,
@@ -10,6 +10,7 @@ import {
 	parseEnumQuery,
 	parseLimit,
 	parsePageNumber,
+	parsePublicId,
 	readJsonObject,
 	requireAdmin
 } from '$lib/features/admin/api/http.server';
@@ -18,10 +19,11 @@ import {
 	parseQuestionCreateBody,
 	toQuestionListItemDto
 } from '$lib/features/questions/api.server';
+import { getGroupRefByPublicId } from '$lib/features/questions/groups.server';
 import { createQuestion, listQuestions } from '$lib/features/questions/questions.server';
 import type { RequestHandler } from './$types';
 
-const QUERY_PARAMS = ['level', 'section', 'status', 'page', 'limit'] as const;
+const QUERY_PARAMS = ['level', 'section', 'status', 'format', 'groupId', 'page', 'limit'] as const;
 
 export const GET: RequestHandler = async ({ locals, request, url }) =>
 	apiEndpoint(request, async () => {
@@ -29,10 +31,18 @@ export const GET: RequestHandler = async ({ locals, request, url }) =>
 		assertKnownQueryParams(url.searchParams, QUERY_PARAMS);
 		assertNoDuplicateParams(url.searchParams, QUERY_PARAMS);
 
+		const groupPublicId = url.searchParams.get('groupId');
+		const group = groupPublicId
+			? await getGroupRefByPublicId(locals.db, parsePublicId(groupPublicId, 'groupId'))
+			: null;
+
 		const page = await listQuestions(locals.db, {
 			level: parseEnumQuery(url.searchParams.get('level'), JLPT_LEVELS, 'level'),
 			section: parseEnumQuery(url.searchParams.get('section'), SECTIONS, 'section'),
 			status: parseEnumQuery(url.searchParams.get('status'), CONTENT_STATUS, 'status'),
+			format: parseEnumQuery(url.searchParams.get('format'), QUESTION_FORMATS, 'format'),
+			// An unresolvable groupId matches nothing, rather than erroring on a read-only filter.
+			groupId: groupPublicId ? (group?.id ?? -1) : undefined,
 			page: parsePageNumber(url.searchParams.get('page')),
 			limit: parseLimit(url.searchParams.get('limit'))
 		});

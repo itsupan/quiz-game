@@ -5,6 +5,7 @@ import type { Database } from '$lib/server/db';
 import {
 	attemptAnswers,
 	attemptBandScores,
+	attemptQuestionGroups,
 	attemptQuestionOptions,
 	attemptQuestions,
 	attemptScoringBands,
@@ -89,7 +90,8 @@ export async function finalizeAttempt(
 			startedAt: attempts.startedAt,
 			revision: attempts.revision,
 			scaledTotalMax: attempts.scaledTotalMax,
-			passMarkTotal: attempts.passMarkTotal
+			passMarkTotal: attempts.passMarkTotal,
+			xpReward: attempts.xpReward
 		})
 		.from(attempts)
 		.where(and(eq(attempts.id, attemptId), eq(attempts.status, 'IN_PROGRESS')));
@@ -234,7 +236,8 @@ export async function finalizeAttempt(
 				questionCount: scored.questionCount,
 				scaledTotal: scored.scaledTotal,
 				durationMs: at.getTime() - claimable.startedAt.getTime(),
-				passed: scored.passed
+				passed: scored.passed,
+				xpAwarded: status === 'SUBMITTED' ? claimable.xpReward : 0
 			})
 			.where(attemptIsUnchanged)
 	];
@@ -282,6 +285,7 @@ export async function loadResult(
 			questionCount: attempts.questionCount,
 			scaledTotal: attempts.scaledTotal,
 			passed: attempts.passed,
+			xpAwarded: attempts.xpAwarded,
 			scaledTotalMax: attempts.scaledTotalMax,
 			passMarkTotal: attempts.passMarkTotal,
 			quizPublicId: quizzes.publicId,
@@ -316,13 +320,25 @@ export async function loadResult(
 			attemptQuestionId: attemptQuestions.id,
 			questionId: attemptQuestions.questionId,
 			section: attemptQuestions.section,
+			groupPublicId: attemptQuestions.groupPublicId,
 			position: attemptQuestions.position,
 			points: attemptQuestions.points,
+			format: attemptQuestions.format,
 			stem: attemptQuestions.stem,
 			explanation: attemptQuestions.explanation,
+			promptTranslation: attemptQuestions.promptTranslation,
+			focusText: attemptQuestions.focusText,
+			focusReading: attemptQuestions.focusReading,
+			contextText: attemptQuestions.contextText,
+			contextTransliteration: attemptQuestions.contextTransliteration,
 			imagePublicId: attemptQuestions.imagePublicId,
+			imageMimeType: attemptQuestions.imageMimeType,
+			imageWidth: attemptQuestions.imageWidth,
+			imageHeight: attemptQuestions.imageHeight,
 			imageAltText: attemptQuestions.imageAltText,
 			audioPublicId: attemptQuestions.audioPublicId,
+			audioMimeType: attemptQuestions.audioMimeType,
+			audioDurationMs: attemptQuestions.audioDurationMs,
 			audioTranscript: attemptQuestions.audioTranscript,
 			selectedOptionId: attemptAnswers.selectedOptionId,
 			isCorrect: attemptAnswers.isCorrect,
@@ -335,6 +351,43 @@ export async function loadResult(
 
 	const options = await loadFrozenOptions(db, row.id);
 	const correctByPosition = await loadCorrectOptionByPosition(db, row.id);
+	const groupRows = await db
+		.select()
+		.from(attemptQuestionGroups)
+		.where(eq(attemptQuestionGroups.attemptId, row.id));
+	const questionGroups = new Map(
+		groupRows.map((entry) => [
+			entry.publicId,
+			{
+				publicId: entry.publicId,
+				format: entry.format,
+				title: entry.title,
+				instruction: entry.instruction,
+				passageText: entry.passageText,
+				bodyTranslation: entry.bodyTranslation,
+				exampleText: entry.exampleText,
+				exampleTransliteration: entry.exampleTransliteration,
+				exampleTranslation: entry.exampleTranslation,
+				image: entry.imagePublicId
+					? {
+							publicId: entry.imagePublicId,
+							mimeType: entry.imageMimeType,
+							width: entry.imageWidth,
+							height: entry.imageHeight,
+							altText: entry.imageAltText
+						}
+					: null,
+				audio: entry.audioPublicId
+					? {
+							publicId: entry.audioPublicId,
+							mimeType: entry.audioMimeType,
+							durationMs: entry.audioDurationMs,
+							transcript: entry.audioTranscript
+						}
+					: null
+			}
+		])
+	);
 
 	return {
 		attempt: {
@@ -348,7 +401,8 @@ export async function loadResult(
 			correctCount: row.correctCount,
 			questionCount: row.questionCount,
 			scaledTotal: row.scaledTotal,
-			passed: row.passed
+			passed: row.passed,
+			xpAwarded: row.xpAwarded
 		},
 		quiz: {
 			publicId: row.quizPublicId,
@@ -372,13 +426,31 @@ export async function loadResult(
 			section: entry.section,
 			position: entry.position,
 			points: entry.points,
+			format: entry.format,
 			stem: entry.stem ?? '',
 			explanation: entry.explanation,
+			promptTranslation: entry.promptTranslation,
+			focusText: entry.focusText,
+			focusReading: entry.focusReading,
+			contextText: entry.contextText,
+			contextTransliteration: entry.contextTransliteration,
+			group: entry.groupPublicId ? (questionGroups.get(entry.groupPublicId) ?? null) : null,
 			image: entry.imagePublicId
-				? { publicId: entry.imagePublicId, altText: entry.imageAltText }
+				? {
+						publicId: entry.imagePublicId,
+						mimeType: entry.imageMimeType,
+						width: entry.imageWidth,
+						height: entry.imageHeight,
+						altText: entry.imageAltText
+					}
 				: null,
 			audio: entry.audioPublicId
-				? { publicId: entry.audioPublicId, transcript: entry.audioTranscript }
+				? {
+						publicId: entry.audioPublicId,
+						mimeType: entry.audioMimeType,
+						durationMs: entry.audioDurationMs,
+						transcript: entry.audioTranscript
+					}
 				: null,
 			options: options.get(entry.position) ?? [],
 			selectedOptionId: entry.selectedOptionId,

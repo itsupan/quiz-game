@@ -1,4 +1,14 @@
-import type { AttemptView, ResultView } from '../attempts/types.server';
+import type {
+	AttemptQuestionGroupView,
+	AttemptQuestionView,
+	AudioRef,
+	ImageRef,
+	ResultQuestionGroupView,
+	ResultQuestionView,
+	AttemptView,
+	ResultView,
+	ReviewAudioRef
+} from '../attempts/types.server';
 import { sectionOpen } from '../timing';
 import { apiProblem } from './http.server';
 
@@ -7,6 +17,82 @@ function activeSection(view: AttemptView, now: Date) {
 		view.questions.find((question) => sectionOpen(now, view.sectionDeadlines, question.section))
 			?.section ?? null
 	);
+}
+
+function imageDto(image: ImageRef) {
+	return image
+		? {
+				id: image.publicId,
+				url: `/media/${image.publicId}`,
+				mimeType: image.mimeType,
+				width: image.width,
+				height: image.height,
+				altText: image.altText
+			}
+		: null;
+}
+
+function audioDto(audio: AudioRef | ReviewAudioRef | null) {
+	return audio
+		? {
+				id: audio.publicId,
+				url: `/media/${audio.publicId}`,
+				mimeType: audio.mimeType,
+				durationMs: audio.durationMs,
+				...('transcript' in audio ? { transcript: audio.transcript } : {})
+			}
+		: null;
+}
+
+function stimulusDto(group: AttemptQuestionGroupView | ResultQuestionGroupView | null) {
+	if (!group) return null;
+
+	return {
+		id: group.publicId,
+		type: group.format,
+		title: group.title,
+		instruction: group.instruction,
+		body: group.passageText,
+		bodyTranslation: group.bodyTranslation,
+		example: group.exampleText
+			? {
+					text: group.exampleText,
+					transliteration: group.exampleTransliteration,
+					translation: group.exampleTranslation
+				}
+			: null,
+		image: imageDto(group.image),
+		audio: audioDto(group.audio)
+	};
+}
+
+function presentationDto(question: AttemptQuestionView | ResultQuestionView) {
+	const prompt = { text: question.stem, translation: question.promptTranslation };
+
+	switch (question.format) {
+		case 'VOCABULARY_MEANING':
+		case 'KANJI_READING':
+			return {
+				type: question.format,
+				prompt,
+				focus: { text: question.focusText, reading: question.focusReading }
+			};
+		case 'GRAMMAR_CLOZE':
+			return {
+				type: question.format,
+				prompt,
+				context: {
+					text: question.contextText,
+					transliteration: question.contextTransliteration
+				},
+				studyAid: stimulusDto(question.group)
+			};
+		case 'READING_COMPREHENSION':
+		case 'LISTENING_COMPREHENSION':
+			return { type: question.format, prompt, stimulus: stimulusDto(question.group) };
+		case 'STANDARD':
+			return { type: question.format, prompt };
+	}
 }
 
 export function toAttemptDto(view: AttemptView, now: Date) {
@@ -48,6 +134,7 @@ export function toAttemptDto(view: AttemptView, now: Date) {
 		})),
 		links: {
 			self: `/api/v1/attempts/${view.attempt.publicId}`,
+			abandonment: `/api/v1/attempts/${view.attempt.publicId}/abandonment`,
 			submission: `/api/v1/attempts/${view.attempt.publicId}/submission`,
 			result: `/api/v1/attempts/${view.attempt.publicId}/result`
 		}
@@ -73,31 +160,43 @@ export function toQuestionDto(view: AttemptView, questionNumber: number, now: Da
 		section: question.section,
 		points: question.points,
 		stem: question.stem,
-		image: question.image
-			? {
-					id: question.image.publicId,
-					url: `/media/${question.image.publicId}`,
-					altText: question.image.altText
-				}
-			: null,
-		audio: question.audio
-			? { id: question.audio.publicId, url: `/media/${question.audio.publicId}` }
-			: null,
+		presentation: presentationDto(question),
+		image: imageDto(question.image),
+		audio: audioDto(question.audio),
 		options: question.options.map((option) => ({ number: option.position, body: option.body })),
 		selectedOptionNumber:
 			question.options.find((option) => option.id === question.selectedOptionId)?.position ?? null,
+		progress: {
+			current: question.position,
+			total: view.questions.length,
+			answered: view.questions.filter((entry) => entry.selectedOptionId !== null).length
+		},
 		canAnswer:
 			view.attempt.status === 'IN_PROGRESS' &&
 			sectionOpen(now, view.sectionDeadlines, question.section),
 		links: {
 			attempt: `/api/v1/attempts/${view.attempt.publicId}`,
-			answer: `/api/v1/attempts/${view.attempt.publicId}/answers/${question.position}`
+			answer: `/api/v1/attempts/${view.attempt.publicId}/answers/${question.position}`,
+			previous:
+				question.position > 1
+					? `/api/v1/attempts/${view.attempt.publicId}/questions/${question.position - 1}`
+					: null,
+			next:
+				question.position < view.questions.length
+					? `/api/v1/attempts/${view.attempt.publicId}/questions/${question.position + 1}`
+					: null
 		}
 	};
 }
 
 export function toResultDto(result: ResultView) {
 	const { publicId: quizId, ...quiz } = result.quiz;
+	const unansweredCount = result.questions.filter(
+		(question) => question.selectedOptionId === null
+	).length;
+	const correctCount = result.attempt.correctCount ?? 0;
+	const questionCount = result.attempt.questionCount ?? result.questions.length;
+	const incorrectCount = Math.max(0, questionCount - correctCount - unansweredCount);
 
 	return {
 		attempt: {
@@ -114,6 +213,14 @@ export function toResultDto(result: ResultView) {
 			passed: result.attempt.passed
 		},
 		quiz: { id: quizId, ...quiz },
+		reward: { xpAwarded: result.attempt.xpAwarded },
+		summary: {
+			accuracyPercent: questionCount === 0 ? 0 : Math.round((correctCount / questionCount) * 100),
+			correctCount,
+			incorrectCount,
+			unansweredCount,
+			durationMs: result.attempt.durationMs
+		},
 		bandScores: result.bandScores,
 		questions: result.questions.map((question) => ({
 			number: question.position,
@@ -121,20 +228,9 @@ export function toResultDto(result: ResultView) {
 			points: question.points,
 			stem: question.stem,
 			explanation: question.explanation,
-			image: question.image
-				? {
-						id: question.image.publicId,
-						url: `/media/${question.image.publicId}`,
-						altText: question.image.altText
-					}
-				: null,
-			audio: question.audio
-				? {
-						id: question.audio.publicId,
-						url: `/media/${question.audio.publicId}`,
-						transcript: question.audio.transcript
-					}
-				: null,
+			presentation: presentationDto(question),
+			image: imageDto(question.image),
+			audio: audioDto(question.audio),
 			options: question.options.map((option) => ({ number: option.position, body: option.body })),
 			selectedOptionNumber:
 				question.options.find((option) => option.id === question.selectedOptionId)?.position ??
@@ -144,6 +240,10 @@ export function toResultDto(result: ResultView) {
 			isCorrect: question.isCorrect,
 			pointsEarned: question.pointsEarned
 		})),
-		links: { attempt: `/api/v1/attempts/${result.attempt.publicId}` }
+		links: {
+			attempt: `/api/v1/attempts/${result.attempt.publicId}`,
+			quiz: `/api/v1/quizzes/${quizId}`,
+			retry: `/api/v1/quizzes/${quizId}/attempts`
+		}
 	};
 }

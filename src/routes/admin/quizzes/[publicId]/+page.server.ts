@@ -60,7 +60,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
 	update: async ({ locals, params, request }) => {
 		const { quiz } = await load404(locals, params.publicId);
-		const parsed = parseQuizForm(await request.formData());
+		const parsed = parseQuizForm(await request.formData(), {
+			showStudyAidsDuringAttempt: quiz.showStudyAidsDuringAttempt,
+			xpReward: quiz.xpReward
+		});
 
 		if (!parsed.ok) {
 			return fail(400, { errors: parsed.errors, values: parsed.values });

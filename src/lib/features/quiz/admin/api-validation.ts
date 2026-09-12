@@ -19,7 +19,9 @@ export const QUIZ_BODY_FIELDS = [
 	'mode',
 	'level',
 	'selectionMode',
-	'timeLimitSeconds'
+	'timeLimitSeconds',
+	'showStudyAidsDuringAttempt',
+	'xpReward'
 ] as const;
 
 export const QUIZ_SECTION_BODY_FIELDS = [
@@ -105,6 +107,34 @@ function readPositiveInteger(
 	return value;
 }
 
+function readBoolean(
+	body: Record<string, unknown>,
+	field: string,
+	errors: ValidationIssue[]
+): boolean | undefined {
+	if (!(field in body)) return undefined;
+	const value = body[field];
+	if (typeof value !== 'boolean') {
+		errors.push({ field, message: `${field} must be a boolean.` });
+		return undefined;
+	}
+	return value;
+}
+
+function readNonNegativeInteger(
+	body: Record<string, unknown>,
+	field: string,
+	errors: ValidationIssue[]
+): number | undefined {
+	if (!(field in body)) return undefined;
+	const value = body[field];
+	if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+		errors.push({ field, message: `${field} must be a non-negative integer.` });
+		return undefined;
+	}
+	return value;
+}
+
 function readNullablePositiveInteger(
 	body: Record<string, unknown>,
 	field: string,
@@ -134,6 +164,8 @@ export function parseQuizCreateBody(body: Record<string, unknown>): QuizInput {
 	const level = readEnum(body, 'level', JLPT_LEVELS, errors);
 	const selectionMode = readEnum(body, 'selectionMode', SELECTION_MODES, errors);
 	const timeLimitSeconds = readTimeLimitSeconds(body, errors);
+	const showStudyAidsDuringAttempt = readBoolean(body, 'showStudyAidsDuringAttempt', errors);
+	const xpReward = readNonNegativeInteger(body, 'xpReward', errors);
 
 	if (errors.length > 0) fail(errors);
 
@@ -153,7 +185,9 @@ export function parseQuizCreateBody(body: Record<string, unknown>): QuizInput {
 		mode: mode as QuizMode,
 		level: level as JlptLevel,
 		selectionMode: selectionMode as SelectionMode,
-		timeLimitSeconds: resolvedTimeLimit
+		timeLimitSeconds: resolvedTimeLimit,
+		showStudyAidsDuringAttempt: showStudyAidsDuringAttempt ?? false,
+		xpReward: xpReward ?? 0
 	};
 }
 
@@ -172,6 +206,8 @@ export function parseQuizPatchBody(current: QuizInput, body: Record<string, unkn
 	const level = readEnum(body, 'level', JLPT_LEVELS, errors);
 	const selectionMode = readEnum(body, 'selectionMode', SELECTION_MODES, errors);
 	const timeLimitSeconds = readTimeLimitSeconds(body, errors);
+	const showStudyAidsDuringAttempt = readBoolean(body, 'showStudyAidsDuringAttempt', errors);
+	const xpReward = readNonNegativeInteger(body, 'xpReward', errors);
 
 	if (errors.length > 0) fail(errors);
 
@@ -181,7 +217,9 @@ export function parseQuizPatchBody(current: QuizInput, body: Record<string, unkn
 		mode: mode ?? current.mode,
 		level: level ?? current.level,
 		selectionMode: selectionMode ?? current.selectionMode,
-		timeLimitSeconds: timeLimitSeconds === undefined ? current.timeLimitSeconds : timeLimitSeconds
+		timeLimitSeconds: timeLimitSeconds === undefined ? current.timeLimitSeconds : timeLimitSeconds,
+		showStudyAidsDuringAttempt: showStudyAidsDuringAttempt ?? current.showStudyAidsDuringAttempt,
+		xpReward: xpReward ?? current.xpReward
 	};
 
 	if (merged.timeLimitSeconds === null && quizModeRequiresTimeLimit(merged.mode)) {

@@ -1,11 +1,20 @@
-import { JLPT_LEVELS, SECTIONS, type JlptLevel, type Section } from '$lib/domain/enums';
+import {
+	JLPT_LEVELS,
+	QUESTION_FORMATS,
+	SECTIONS,
+	type GroupFormat,
+	type JlptLevel,
+	type QuestionFormat,
+	type Section
+} from '$lib/domain/enums';
 import { apiProblem } from '$lib/features/admin/api/http.server';
-import { getAssetByPublicId } from '$lib/features/media/media.server';
 import type { Database } from '$lib/server/db';
-import type { MediaAsset, Question, QuestionOption } from '$lib/server/db/schema';
+import type { MediaAsset, Question, QuestionGroup, QuestionOption } from '$lib/server/db/schema';
 import type { ValidationIssue } from '$lib/server/http/problem';
-import { checkMediaSlots } from './questions.server';
+import { getGroupRefByPublicId } from './groups.server';
+import { readMediaRef, resolveMediaRefs } from './media-ref.server';
 import type { QuestionInput, QuestionOptionInput } from './validation';
+import { formatContentErrors } from './validation';
 
 /** A single issue becomes the problem's own `detail`; several fall back to a summary. */
 function fail(errors: ValidationIssue[]): never {
@@ -18,11 +27,30 @@ export const QUESTION_BODY_FIELDS = [
 	'explanation',
 	'level',
 	'section',
+	'format',
+	'promptTranslation',
+	'focusText',
+	'focusReading',
+	'contextText',
+	'contextTransliteration',
 	'points',
 	'imageId',
 	'audioId',
+	'groupId',
+	'groupPosition',
 	'options'
 ] as const;
+
+/** Which group format each question format may attach to. `null` means "may not attach a group". */
+const REQUIRED_GROUP_FORMAT: Partial<Record<QuestionFormat, GroupFormat>> = {
+	READING_COMPREHENSION: 'READING_PASSAGE',
+	LISTENING_COMPREHENSION: 'LISTENING_CLIP'
+};
+
+/** Formats a `GRAMMAR_CLOZE` question may optionally attach to, beyond the required map above. */
+const OPTIONAL_GROUP_FORMAT: Partial<Record<QuestionFormat, GroupFormat>> = {
+	GRAMMAR_CLOZE: 'CONCEPT_REVIEW'
+};
 
 type OptionCandidate = { body: string; isCorrect: boolean };
 
@@ -83,17 +111,19 @@ function readStem(body: Record<string, unknown>, errors: ValidationIssue[]): str
 	return stem.trim();
 }
 
-function readExplanation(
+/** A nullable free-text field: omitted = unset, `null` or `""` = clear, otherwise a string. */
+function readNullableText(
 	body: Record<string, unknown>,
+	field: string,
 	errors: ValidationIssue[]
 ): string | null | undefined {
-	if (!('explanation' in body)) return undefined;
-	const { explanation } = body;
-	if (explanation !== null && typeof explanation !== 'string') {
-		errors.push({ field: 'explanation', message: 'explanation must be a string or null.' });
+	if (!(field in body)) return undefined;
+	const value = body[field];
+	if (value !== null && typeof value !== 'string') {
+		errors.push({ field, message: `${field} must be a string or null.` });
 		return undefined;
 	}
-	return explanation === '' ? null : explanation;
+	return value === '' ? null : value;
 }
 
 function readEnum<const Values extends readonly string[]>(
@@ -121,66 +151,89 @@ function readPoints(body: Record<string, unknown>, errors: ValidationIssue[]): n
 	return points;
 }
 
-/** `undefined` = omitted (leave unchanged on a patch), `null` = clear, string = a media public id. */
-function readMediaRef(
+/** `undefined` = omitted, `null` = detach, string = a group public id. */
+function readGroupId(
 	body: Record<string, unknown>,
-	field: 'imageId' | 'audioId',
 	errors: ValidationIssue[]
 ): string | null | undefined {
-	if (!(field in body)) return undefined;
-	const value = body[field];
+	if (!('groupId' in body)) return undefined;
+	const value = body.groupId;
 	if (value !== null && typeof value !== 'string') {
-		errors.push({ field, message: `${field} must be a media id string or null.` });
+		errors.push({ field: 'groupId', message: 'groupId must be a group id string or null.' });
 		return undefined;
 	}
 	return value;
 }
 
-async function resolveMediaRef(
-	db: Database,
-	publicId: string | null,
-	field: 'imageId' | 'audioId'
-): Promise<{ id: number | null; asset: MediaAsset | null }> {
-	if (publicId === null) return { id: null, asset: null };
-
-	if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(publicId)) {
-		fail([{ field, message: `${field} must be a 26-character ULID.` }]);
+function readGroupPosition(
+	body: Record<string, unknown>,
+	errors: ValidationIssue[]
+): number | null | undefined {
+	if (!('groupPosition' in body)) return undefined;
+	const value = body.groupPosition;
+	if (value === null) return null;
+	if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+		errors.push({
+			field: 'groupPosition',
+			message: 'groupPosition must be a positive integer or null.'
+		});
+		return undefined;
 	}
-
-	const asset = await getAssetByPublicId(db, publicId);
-	if (!asset) {
-		fail([{ field, message: 'That file does not exist.' }]);
-	}
-
-	return { id: asset.id, asset };
+	return value;
 }
 
-const MEDIA_FIELD_BY_SLOT: Record<'imageMediaId' | 'audioMediaId', 'imageId' | 'audioId'> = {
-	imageMediaId: 'imageId',
-	audioMediaId: 'audioId'
-};
-
-async function resolveMedia(
+/**
+ * Resolves a question's `groupId`/`groupPosition` against its own (already-merged)
+ * format, level and section — the format-to-group-type compatibility and the
+ * "identical level and section" rule from the coverage plan.
+ */
+async function resolveGroup(
 	db: Database,
-	imageId: string | null,
-	audioId: string | null
-): Promise<{ imageMediaId: number | null; audioMediaId: number | null }> {
-	const image = await resolveMediaRef(db, imageId, 'imageId');
-	const audio = await resolveMediaRef(db, audioId, 'audioId');
-	const imageMediaId = image.id;
-	const audioMediaId = audio.id;
-
-	const slotErrors = await checkMediaSlots(db, { imageMediaId, audioMediaId });
-	if (Object.keys(slotErrors).length > 0) {
-		fail(
-			Object.entries(slotErrors).map(([slot, message]) => ({
-				field: MEDIA_FIELD_BY_SLOT[slot as 'imageMediaId' | 'audioMediaId'],
-				message
-			}))
-		);
+	format: QuestionFormat,
+	level: JlptLevel,
+	section: Section,
+	groupId: string | null,
+	groupPosition: number | null
+): Promise<number | null> {
+	if (groupId === null) {
+		const requiredFormat = REQUIRED_GROUP_FORMAT[format];
+		if (requiredFormat) {
+			fail([{ field: 'groupId', message: `${format} requires a groupId.` }]);
+		}
+		if (groupPosition !== null) {
+			fail([{ field: 'groupPosition', message: 'groupPosition requires a groupId.' }]);
+		}
+		return null;
 	}
 
-	return { imageMediaId, audioMediaId };
+	const allowedFormat = REQUIRED_GROUP_FORMAT[format] ?? OPTIONAL_GROUP_FORMAT[format];
+	if (!allowedFormat) {
+		fail([{ field: 'groupId', message: `groupId is not supported for the ${format} format.` }]);
+	}
+
+	if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(groupId)) {
+		fail([{ field: 'groupId', message: 'groupId must be a 26-character ULID.' }]);
+	}
+
+	const group = await getGroupRefByPublicId(db, groupId);
+	if (!group) {
+		fail([{ field: 'groupId', message: 'That question group does not exist.' }]);
+	}
+
+	if (group.level !== level || group.section !== section) {
+		fail([
+			{
+				field: 'groupId',
+				message: 'The attached group must have the same level and section as the question.'
+			}
+		]);
+	}
+
+	if (group.format !== allowedFormat) {
+		fail([{ field: 'groupId', message: `${format} requires a ${allowedFormat} group.` }]);
+	}
+
+	return group.id;
 }
 
 function toOptionInputs(options: OptionCandidate[]): QuestionOptionInput[] {
@@ -204,26 +257,60 @@ export async function parseQuestionCreateBody(
 	}
 
 	const stem = readStem(body, errors);
-	const explanation = readExplanation(body, errors);
+	const explanation = readNullableText(body, 'explanation', errors);
 	const level = readEnum(body, 'level', JLPT_LEVELS, errors);
 	const section = readEnum(body, 'section', SECTIONS, errors);
+	const format = readEnum(body, 'format', QUESTION_FORMATS, errors);
+	const promptTranslation = readNullableText(body, 'promptTranslation', errors);
+	const focusText = readNullableText(body, 'focusText', errors);
+	const focusReading = readNullableText(body, 'focusReading', errors);
+	const contextText = readNullableText(body, 'contextText', errors);
+	const contextTransliteration = readNullableText(body, 'contextTransliteration', errors);
 	const points = readPoints(body, errors);
 	const imageId = readMediaRef(body, 'imageId', errors);
 	const audioId = readMediaRef(body, 'audioId', errors);
+	const groupId = readGroupId(body, errors);
+	const groupPosition = readGroupPosition(body, errors);
 	const options = readOptions(body, errors);
 
 	if (errors.length > 0) fail(errors);
 
-	const media = await resolveMedia(db, imageId ?? null, audioId ?? null);
+	const resolvedFormat = (format ?? 'STANDARD') as QuestionFormat;
+	const contentErrors = formatContentErrors({
+		format: resolvedFormat,
+		focusText: focusText ?? null,
+		contextText: contextText ?? null
+	});
+	if (contentErrors.length > 0) {
+		fail(contentErrors.map((message) => ({ field: 'format', message })));
+	}
+
+	const media = await resolveMediaRefs(db, imageId ?? null, audioId ?? null);
+	const resolvedGroupId = await resolveGroup(
+		db,
+		resolvedFormat,
+		level as JlptLevel,
+		section as Section,
+		groupId ?? null,
+		groupPosition ?? null
+	);
 
 	return {
 		stem: stem as string,
 		explanation: explanation ?? null,
 		level: level as JlptLevel,
 		section: section as Section,
+		format: resolvedFormat,
+		promptTranslation: promptTranslation ?? null,
+		focusText: focusText ?? null,
+		focusReading: focusReading ?? null,
+		contextText: contextText ?? null,
+		contextTransliteration: contextTransliteration ?? null,
 		points: points ?? 1,
 		imageMediaId: media.imageMediaId,
 		audioMediaId: media.audioMediaId,
+		groupId: resolvedGroupId,
+		groupPosition: groupPosition ?? null,
 		options: toOptionInputs(options as OptionCandidate[])
 	};
 }
@@ -233,24 +320,41 @@ export type CurrentQuestion = {
 	explanation: string | null;
 	level: JlptLevel;
 	section: Section;
+	format: QuestionFormat;
+	promptTranslation: string | null;
+	focusText: string | null;
+	focusReading: string | null;
+	contextText: string | null;
+	contextTransliteration: string | null;
 	points: number;
 	imageId: string | null;
 	audioId: string | null;
+	groupId: string | null;
+	groupPosition: number | null;
 };
 
 export function currentQuestionFrom(
 	question: Question,
 	image: MediaAsset | null,
-	audio: MediaAsset | null
+	audio: MediaAsset | null,
+	group: QuestionGroup | null
 ): CurrentQuestion {
 	return {
 		stem: question.stem,
 		explanation: question.explanation,
 		level: question.level,
 		section: question.section,
+		format: question.format,
+		promptTranslation: question.promptTranslation,
+		focusText: question.focusText,
+		focusReading: question.focusReading,
+		contextText: question.contextText,
+		contextTransliteration: question.contextTransliteration,
 		points: question.points,
 		imageId: image?.publicId ?? null,
-		audioId: audio?.publicId ?? null
+		audioId: audio?.publicId ?? null,
+		groupId: group?.publicId ?? null,
+		groupPosition: question.groupPosition
 	};
 }
 
@@ -261,6 +365,10 @@ export function currentQuestionFrom(
  * them. `existingOptions` is what keeps the "untouched" half real: it is fed back to
  * `updateQuestion` with its original ids and positions so an update that only changes,
  * say, `points` does not disturb the option rows at all.
+ *
+ * Every other field follows the same "omitted keeps current, explicit null clears" rule,
+ * including `groupId` — an update that does not mention `groupId` must not silently
+ * detach an attached group.
  */
 export async function parseQuestionPatchBody(
 	db: Database,
@@ -271,20 +379,58 @@ export async function parseQuestionPatchBody(
 	const errors: ValidationIssue[] = [];
 
 	const stem = readStem(body, errors);
-	const explanation = readExplanation(body, errors);
+	const explanation = readNullableText(body, 'explanation', errors);
 	const level = readEnum(body, 'level', JLPT_LEVELS, errors);
 	const section = readEnum(body, 'section', SECTIONS, errors);
+	const format = readEnum(body, 'format', QUESTION_FORMATS, errors);
+	const promptTranslation = readNullableText(body, 'promptTranslation', errors);
+	const focusText = readNullableText(body, 'focusText', errors);
+	const focusReading = readNullableText(body, 'focusReading', errors);
+	const contextText = readNullableText(body, 'contextText', errors);
+	const contextTransliteration = readNullableText(body, 'contextTransliteration', errors);
 	const points = readPoints(body, errors);
 	const imageId = readMediaRef(body, 'imageId', errors);
 	const audioId = readMediaRef(body, 'audioId', errors);
+	const groupId = readGroupId(body, errors);
+	const groupPosition = readGroupPosition(body, errors);
 	const options = readOptions(body, errors);
 
 	if (errors.length > 0) fail(errors);
 
-	const media = await resolveMedia(
+	const resolvedFormat = (format ?? current.format) as QuestionFormat;
+	const resolvedFocusText = focusText === undefined ? current.focusText : focusText;
+	const resolvedContextText = contextText === undefined ? current.contextText : contextText;
+	const contentErrors = formatContentErrors({
+		format: resolvedFormat,
+		focusText: resolvedFocusText,
+		contextText: resolvedContextText
+	});
+	if (contentErrors.length > 0) {
+		fail(contentErrors.map((message) => ({ field: 'format', message })));
+	}
+
+	const media = await resolveMediaRefs(
 		db,
 		imageId === undefined ? current.imageId : imageId,
 		audioId === undefined ? current.audioId : audioId
+	);
+	const resolvedGroupId = groupId === undefined ? current.groupId : groupId;
+	// A position inherited from `current` is meaningless once the group itself is
+	// detached — an explicit `groupId: null` clears it even when `groupPosition` was
+	// left out of the patch, rather than forcing every detach to also repeat that field.
+	const resolvedGroupPosition =
+		resolvedGroupId === null
+			? null
+			: groupPosition === undefined
+				? current.groupPosition
+				: groupPosition;
+	const groupInternalId = await resolveGroup(
+		db,
+		resolvedFormat,
+		(level ?? current.level) as JlptLevel,
+		(section ?? current.section) as Section,
+		resolvedGroupId,
+		resolvedGroupPosition
 	);
 
 	return {
@@ -292,9 +438,21 @@ export async function parseQuestionPatchBody(
 		explanation: explanation === undefined ? current.explanation : explanation,
 		level: level ?? current.level,
 		section: section ?? current.section,
+		format: resolvedFormat,
+		promptTranslation:
+			promptTranslation === undefined ? current.promptTranslation : promptTranslation,
+		focusText: resolvedFocusText,
+		focusReading: focusReading === undefined ? current.focusReading : focusReading,
+		contextText: resolvedContextText,
+		contextTransliteration:
+			contextTransliteration === undefined
+				? current.contextTransliteration
+				: contextTransliteration,
 		points: points ?? current.points,
 		imageMediaId: media.imageMediaId,
 		audioMediaId: media.audioMediaId,
+		groupId: groupInternalId,
+		groupPosition: resolvedGroupPosition,
 		options: options
 			? toOptionInputs(options)
 			: existingOptions.map((option) => ({
@@ -311,6 +469,7 @@ export function toQuestionListItemDto(item: {
 	stem: string;
 	level: JlptLevel;
 	section: Section;
+	format: QuestionFormat;
 	status: string;
 	points: number;
 	optionCount: number;
@@ -323,6 +482,7 @@ export function toQuestionListItemDto(item: {
 		stem: item.stem,
 		level: item.level,
 		section: item.section,
+		format: item.format,
 		status: item.status,
 		points: item.points,
 		optionCount: item.optionCount,
@@ -347,6 +507,7 @@ export function toQuestionDetailDto(input: {
 	options: QuestionOption[];
 	image: MediaAsset | null;
 	audio: MediaAsset | null;
+	group: QuestionGroup | null;
 	blockers: string[];
 }) {
 	return {
@@ -355,10 +516,18 @@ export function toQuestionDetailDto(input: {
 		explanation: input.question.explanation,
 		level: input.question.level,
 		section: input.question.section,
+		format: input.question.format,
+		promptTranslation: input.question.promptTranslation,
+		focusText: input.question.focusText,
+		focusReading: input.question.focusReading,
+		contextText: input.question.contextText,
+		contextTransliteration: input.question.contextTransliteration,
 		points: input.question.points,
 		status: input.question.status,
 		image: toMediaRefDto(input.image, 'IMAGE'),
 		audio: toMediaRefDto(input.audio, 'AUDIO'),
+		groupId: input.group?.publicId ?? null,
+		groupPosition: input.question.groupPosition,
 		options: input.options.map((option) => ({
 			body: option.body,
 			isCorrect: option.isCorrect,

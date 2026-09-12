@@ -1,6 +1,7 @@
 import { apiProblem } from '$lib/features/admin/api/http.server';
 import type { Database } from '$lib/server/db';
 import { toQuestionDetailDto } from './api.server';
+import { groupPublishBlockers } from './groups-validation';
 import { getQuestion } from './questions.server';
 import { questionPublishBlockers } from './validation';
 
@@ -17,13 +18,34 @@ export async function requireQuestionDetail(db: Database, questionId: string) {
 	return found;
 }
 
+/** The attached group's own readiness, in the shape `questionPublishBlockers` expects. */
+export function questionGroupStatus(found: Awaited<ReturnType<typeof requireQuestionDetail>>) {
+	const { group, groupImage, groupAudio } = found;
+	if (!group) return null;
+
+	return {
+		status: group.status,
+		blockers: groupPublishBlockers(
+			{ format: group.format, body: group.passageText, exampleText: group.exampleText },
+			{ image: groupImage, audio: groupAudio }
+		)
+	};
+}
+
 export function questionDetailDto(found: Awaited<ReturnType<typeof requireQuestionDetail>>) {
-	const { question, options, image, audio } = found;
+	const { question, options, image, audio, group } = found;
+
 	return toQuestionDetailDto({
 		question,
 		options,
 		image,
 		audio,
-		blockers: questionPublishBlockers(question, { image, audio }, options)
+		group,
+		blockers: questionPublishBlockers(
+			question,
+			{ image, audio },
+			options,
+			questionGroupStatus(found)
+		)
 	});
 }

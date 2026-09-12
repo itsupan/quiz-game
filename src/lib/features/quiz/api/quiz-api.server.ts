@@ -1,4 +1,5 @@
 export {
+	abandonOwnedAttempt,
 	createAttempt,
 	getOwnedAttempt,
 	getAttemptQuestion,

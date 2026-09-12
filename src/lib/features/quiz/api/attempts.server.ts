@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import { attempts, quizzes } from '$lib/server/db/schema';
 import {
+	abandonAttempt,
 	enforceDeadline,
 	finalizeAttempt,
 	loadAttempt,
@@ -93,6 +94,46 @@ async function loadOwnedSettledAttempt(
 
 export async function getOwnedAttempt(db: Database, attemptId: string, userId: number, now: Date) {
 	return toAttemptDto(await loadOwnedSettledAttempt(db, attemptId, userId, now), now);
+}
+
+export async function abandonOwnedAttempt(
+	db: Database,
+	attemptId: string,
+	userId: number,
+	now: Date
+) {
+	let view = await loadOwnedSettledAttempt(db, attemptId, userId, now);
+
+	if (view.attempt.status === 'ABANDONED') {
+		return {
+			id: view.attempt.publicId,
+			status: view.attempt.status,
+			links: {
+				quiz: `/api/v1/quizzes/${view.quiz.publicId}`,
+				catalog: '/api/v1/quizzes'
+			}
+		};
+	}
+
+	if (view.attempt.status !== 'IN_PROGRESS') {
+		apiProblem(409, 'attempt_closed', 'Attempt closed', `The attempt is ${view.attempt.status}.`);
+	}
+
+	await abandonAttempt(db, view.attempt.id, now);
+	view = await loadOwnedSettledAttempt(db, attemptId, userId, now);
+
+	if (view.attempt.status !== 'ABANDONED') {
+		apiProblem(409, 'attempt_closed', 'Attempt closed', `The attempt is ${view.attempt.status}.`);
+	}
+
+	return {
+		id: view.attempt.publicId,
+		status: view.attempt.status,
+		links: {
+			quiz: `/api/v1/quizzes/${view.quiz.publicId}`,
+			catalog: '/api/v1/quizzes'
+		}
+	};
 }
 
 export async function getAttemptQuestion(

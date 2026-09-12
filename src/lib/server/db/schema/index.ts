@@ -20,6 +20,7 @@ export * from './audit';
 import type {
 	attemptAnswers,
 	attemptBandScores,
+	attemptQuestionGroups,
 	attemptQuestions,
 	attemptSectionScores,
 	attempts
@@ -75,6 +76,9 @@ export type NewAttempt = typeof attempts.$inferInsert;
 
 export type AttemptQuestion = typeof attemptQuestions.$inferSelect;
 export type NewAttemptQuestion = typeof attemptQuestions.$inferInsert;
+
+export type AttemptQuestionGroup = typeof attemptQuestionGroups.$inferSelect;
+export type NewAttemptQuestionGroup = typeof attemptQuestionGroups.$inferInsert;
 
 export type AttemptAnswer = typeof attemptAnswers.$inferSelect;
 export type NewAttemptAnswer = typeof attemptAnswers.$inferInsert;

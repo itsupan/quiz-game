@@ -23,6 +23,10 @@ export type QuizInput = {
 	level: JlptLevel;
 	selectionMode: SelectionMode;
 	timeLimitSeconds: number | null;
+	/** Lets a practice quiz expose passage translations/transliterations/concept review during the attempt. */
+	showStudyAidsDuringAttempt: boolean;
+	/** Non-negative; frozen onto the attempt and awarded once on successful submission. */
+	xpReward: number;
 };
 
 export type QuizSectionInput = {
@@ -58,7 +62,19 @@ export function drawCountRule(
 	return null;
 }
 
-export function parseQuizForm(data: FormData): ValidationResult<QuizInput> {
+/**
+ * `current` carries the two fields the admin dashboard form does not yet expose
+ * (`showStudyAidsDuringAttempt`, `xpReward`) through unchanged on an edit, rather than
+ * resetting them to their create-time defaults — those are authored through the JSON
+ * API (`parseQuizCreateBody`/`parseQuizPatchBody`) instead.
+ */
+export function parseQuizForm(
+	data: FormData,
+	current: Pick<QuizInput, 'showStudyAidsDuringAttempt' | 'xpReward'> = {
+		showStudyAidsDuringAttempt: false,
+		xpReward: 0
+	}
+): ValidationResult<QuizInput> {
 	const errors: Record<string, string> = {};
 	const title = formText(data, 'title');
 	const description = formText(data, 'description');
@@ -92,7 +108,9 @@ export function parseQuizForm(data: FormData): ValidationResult<QuizInput> {
 			mode: mode as QuizMode,
 			level: level as JlptLevel,
 			selectionMode: selectionMode as SelectionMode,
-			timeLimitSeconds: minutes ? minutes * 60 : null
+			timeLimitSeconds: minutes ? minutes * 60 : null,
+			showStudyAidsDuringAttempt: current.showStudyAidsDuringAttempt,
+			xpReward: current.xpReward
 		}
 	};
 }

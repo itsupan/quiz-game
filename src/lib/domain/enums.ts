@@ -66,5 +66,25 @@ export type UserStatus = (typeof USER_STATUS)[number];
 export const MEDIA_KINDS = ['IMAGE', 'AUDIO'] as const;
 export type MediaKind = (typeof MEDIA_KINDS)[number];
 
+/**
+ * How a question presents itself. `STANDARD` is the original `stem + options` shape;
+ * the rest add the semantic fields a client needs to lay out a focus term, a cloze
+ * sentence, or a question attached to a shared reading/listening group without parsing
+ * one prompt string.
+ */
+export const QUESTION_FORMATS = [
+	'STANDARD',
+	'VOCABULARY_MEANING',
+	'KANJI_READING',
+	'GRAMMAR_CLOZE',
+	'READING_COMPREHENSION',
+	'LISTENING_COMPREHENSION'
+] as const;
+export type QuestionFormat = (typeof QUESTION_FORMATS)[number];
+
+/** What kind of shared stimulus a `question_groups` row is. */
+export const GROUP_FORMATS = ['READING_PASSAGE', 'LISTENING_CLIP', 'CONCEPT_REVIEW'] as const;
+export type GroupFormat = (typeof GROUP_FORMATS)[number];
+
 export const OAUTH_PROVIDERS = ['google'] as const;
 export type OauthProvider = (typeof OAUTH_PROVIDERS)[number];

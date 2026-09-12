@@ -218,6 +218,37 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+  /attempts/{attemptId}/abandonment:
+    parameters:
+      - $ref: '#/components/parameters/AttemptId'
+    put:
+      tags: [Attempts]
+      summary: Exit an attempt without scoring it
+      description: |
+        Transitions an in-progress attempt to ABANDONED. Repeating the request is
+        idempotent. If the deadline has already passed, the server settles the attempt as
+        EXPIRED instead. An abandoned attempt has no result and earns no reward.
+      responses:
+        '200':
+          description: Abandoned attempt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AbandonedAttempt'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
   /attempts/{attemptId}/submission:
     parameters:
       - $ref: '#/components/parameters/AttemptId'
@@ -356,6 +387,20 @@ components:
     AttemptStatus:
       type: string
       enum: [IN_PROGRESS, SUBMITTED, EXPIRED, ABANDONED]
+    QuestionFormat:
+      type: string
+      enum:
+        [
+          STANDARD,
+          VOCABULARY_MEANING,
+          KANJI_READING,
+          GRAMMAR_CLOZE,
+          READING_COMPREHENSION,
+          LISTENING_COMPREHENSION
+        ]
+    GroupFormat:
+      type: string
+      enum: [READING_PASSAGE, LISTENING_CLIP, CONCEPT_REVIEW]
     QuizBase:
       type: object
       required: [id, title, description, level, mode, selectionMode, timeLimitSeconds]
@@ -483,10 +528,12 @@ components:
           section,
           points,
           stem,
+          presentation,
           image,
           audio,
           options,
           selectedOptionNumber,
+          progress,
           canAnswer,
           links
         ]
@@ -506,10 +553,16 @@ components:
           type: integer
         stem:
           type: string
+        presentation:
+          $ref: '#/components/schemas/QuestionPresentation'
         image:
-          type: [object, 'null']
+          oneOf:
+            - $ref: '#/components/schemas/ImageMedia'
+            - type: 'null'
         audio:
-          type: [object, 'null']
+          oneOf:
+            - $ref: '#/components/schemas/AudioMedia'
+            - type: 'null'
         options:
           type: array
           items:
@@ -522,22 +575,65 @@ components:
                 type: string
         selectedOptionNumber:
           type: [integer, 'null']
+        progress:
+          type: object
+          required: [current, total, answered]
+          properties:
+            current:
+              type: integer
+              minimum: 1
+            total:
+              type: integer
+              minimum: 1
+            answered:
+              type: integer
+              minimum: 0
         canAnswer:
           type: boolean
         links:
           type: object
+          required: [attempt, answer, previous, next]
+          properties:
+            attempt:
+              type: string
+            answer:
+              type: string
+            previous:
+              type: [string, 'null']
+            next:
+              type: [string, 'null']
+    AbandonedAttempt:
+      type: object
+      required: [id, status, links]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        status:
+          const: ABANDONED
+        links:
+          type: object
+          required: [quiz, catalog]
+          properties:
+            quiz:
+              type: string
+            catalog:
+              type: string
     ResultEnvelope:
       type: object
       required: [data]
       properties:
         data:
           type: object
-          required: [attempt, quiz, bandScores, questions, links]
+          required: [attempt, quiz, reward, summary, bandScores, questions, links]
           properties:
             attempt:
               type: object
             quiz:
               type: object
+            reward:
+              $ref: '#/components/schemas/ResultReward'
+            summary:
+              $ref: '#/components/schemas/ResultSummary'
             bandScores:
               type: array
               items:
@@ -545,10 +641,245 @@ components:
             questions:
               type: array
               items:
-                type: object
-                description: Includes selected/correct option numbers and review details.
+                $ref: '#/components/schemas/ResultQuestion'
             links:
               type: object
+              required: [attempt, quiz, retry]
+              properties:
+                attempt:
+                  type: string
+                quiz:
+                  type: string
+                retry:
+                  type: string
+    ResultSummary:
+      type: object
+      required: [accuracyPercent, correctCount, incorrectCount, unansweredCount, durationMs]
+      properties:
+        accuracyPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        correctCount:
+          type: integer
+          minimum: 0
+        incorrectCount:
+          type: integer
+          minimum: 0
+        unansweredCount:
+          type: integer
+          minimum: 0
+        durationMs:
+          type: [integer, 'null']
+          minimum: 0
+    ResultReward:
+      type: object
+      required: [xpAwarded]
+      properties:
+        xpAwarded:
+          type: integer
+          minimum: 0
+    Prompt:
+      type: object
+      required: [text, translation]
+      properties:
+        text:
+          type: string
+        translation:
+          type: [string, 'null']
+          description: Null when absent or withheld by the frozen quiz study-aid policy.
+    ImageMedia:
+      type: object
+      required: [id, url, mimeType, width, height, altText]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        url:
+          type: string
+        mimeType:
+          type: [string, 'null']
+        width:
+          type: [integer, 'null']
+        height:
+          type: [integer, 'null']
+        altText:
+          type: [string, 'null']
+    AudioMedia:
+      type: object
+      required: [id, url, mimeType, durationMs]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        url:
+          type: string
+        mimeType:
+          type: [string, 'null']
+        durationMs:
+          type: [integer, 'null']
+        transcript:
+          type: [string, 'null']
+          description: Present only in completed results, never active attempts.
+    ExampleText:
+      type: object
+      required: [text, transliteration, translation]
+      properties:
+        text:
+          type: string
+        transliteration:
+          type: [string, 'null']
+        translation:
+          type: [string, 'null']
+    Stimulus:
+      type: object
+      required: [id, type, title, instruction, body, bodyTranslation, example, image, audio]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        type:
+          $ref: '#/components/schemas/GroupFormat'
+        title:
+          type: [string, 'null']
+        instruction:
+          type: [string, 'null']
+        body:
+          type: [string, 'null']
+        bodyTranslation:
+          type: [string, 'null']
+          description: Null while withheld by the frozen quiz study-aid policy.
+        example:
+          oneOf:
+            - $ref: '#/components/schemas/ExampleText'
+            - type: 'null'
+        image:
+          oneOf:
+            - $ref: '#/components/schemas/ImageMedia'
+            - type: 'null'
+        audio:
+          oneOf:
+            - $ref: '#/components/schemas/AudioMedia'
+            - type: 'null'
+    StandardPresentation:
+      type: object
+      required: [type, prompt]
+      properties:
+        type:
+          const: STANDARD
+        prompt:
+          $ref: '#/components/schemas/Prompt'
+    FocusPresentation:
+      type: object
+      required: [type, prompt, focus]
+      properties:
+        type:
+          enum: [VOCABULARY_MEANING, KANJI_READING]
+        prompt:
+          $ref: '#/components/schemas/Prompt'
+        focus:
+          type: object
+          required: [text, reading]
+          properties:
+            text:
+              type: [string, 'null']
+            reading:
+              type: [string, 'null']
+    GrammarPresentation:
+      type: object
+      required: [type, prompt, context, studyAid]
+      properties:
+        type:
+          const: GRAMMAR_CLOZE
+        prompt:
+          $ref: '#/components/schemas/Prompt'
+        context:
+          type: object
+          required: [text, transliteration]
+          properties:
+            text:
+              type: [string, 'null']
+            transliteration:
+              type: [string, 'null']
+        studyAid:
+          oneOf:
+            - $ref: '#/components/schemas/Stimulus'
+            - type: 'null'
+    GroupPresentation:
+      type: object
+      required: [type, prompt, stimulus]
+      properties:
+        type:
+          enum: [READING_COMPREHENSION, LISTENING_COMPREHENSION]
+        prompt:
+          $ref: '#/components/schemas/Prompt'
+        stimulus:
+          oneOf:
+            - $ref: '#/components/schemas/Stimulus'
+            - type: 'null'
+    QuestionPresentation:
+      oneOf:
+        - $ref: '#/components/schemas/StandardPresentation'
+        - $ref: '#/components/schemas/FocusPresentation'
+        - $ref: '#/components/schemas/GrammarPresentation'
+        - $ref: '#/components/schemas/GroupPresentation'
+      discriminator:
+        propertyName: type
+    ResultQuestion:
+      type: object
+      description: Review representation with answer-key and review-only content.
+      required:
+        [
+          number,
+          section,
+          points,
+          stem,
+          explanation,
+          presentation,
+          image,
+          audio,
+          options,
+          selectedOptionNumber,
+          correctOptionNumber,
+          isCorrect,
+          pointsEarned
+        ]
+      properties:
+        number:
+          type: integer
+        section:
+          $ref: '#/components/schemas/Section'
+        points:
+          type: integer
+        stem:
+          type: string
+        explanation:
+          type: [string, 'null']
+        presentation:
+          $ref: '#/components/schemas/QuestionPresentation'
+        image:
+          oneOf:
+            - $ref: '#/components/schemas/ImageMedia'
+            - type: 'null'
+        audio:
+          oneOf:
+            - $ref: '#/components/schemas/AudioMedia'
+            - type: 'null'
+        options:
+          type: array
+          items:
+            type: object
+            required: [number, body]
+            properties:
+              number:
+                type: integer
+              body:
+                type: string
+        selectedOptionNumber:
+          type: [integer, 'null']
+        correctOptionNumber:
+          type: [integer, 'null']
+        isCorrect:
+          type: boolean
+        pointsEarned:
+          type: integer
     Problem:
       type: object
       required: [type, title, status, detail, instance, code, requestId]

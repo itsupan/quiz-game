@@ -11,8 +11,8 @@ import {
 
 import { users } from './auth';
 import { checkIn, createdAt, publicId, updatedAt } from './columns';
-import { questions, quizzes } from './content';
-import { ATTEMPT_STATUS, SCORING_BANDS, SECTIONS } from './enums';
+import { questionGroups, questions, quizzes } from './content';
+import { ATTEMPT_STATUS, GROUP_FORMATS, QUESTION_FORMATS, SCORING_BANDS, SECTIONS } from './enums';
 
 /**
  * One sitting of a quiz.
@@ -58,11 +58,22 @@ export const attempts = sqliteTable(
 		 */
 		scaledTotalMax: integer('scaled_total_max'),
 		passMarkTotal: integer('pass_mark_total'),
+		/** Frozen quiz policy: whether translations and concept notes may appear while open. */
+		showStudyAidsDuringAttempt: integer('show_study_aids_during_attempt', {
+			mode: 'boolean'
+		})
+			.notNull()
+			.default(false),
+		/** Frozen reward configuration and the amount actually granted at completion. */
+		xpReward: integer('xp_reward').notNull().default(0),
+		xpAwarded: integer('xp_awarded').notNull().default(0),
 		createdAt: createdAt(),
 		updatedAt: updatedAt()
 	},
 	(table) => [
 		check('attempts_status_check', checkIn(table.status, ATTEMPT_STATUS)),
+		check('attempts_xp_reward_check', sql`${table.xpReward} >= 0`),
+		check('attempts_xp_awarded_check', sql`${table.xpAwarded} >= 0`),
 		/**
 		 * The leaderboard index. Its column order *is* the documented tie-breaker chain —
 		 * highest score, then shortest time, then earliest completion — and the partial
@@ -83,6 +94,49 @@ export const attempts = sqliteTable(
 		index('attempts_guest_purge_idx')
 			.on(table.status, table.startedAt)
 			.where(sql`${table.userId} is null`)
+	]
+);
+
+/**
+ * An immutable copy of a shared reading, listening, or concept stimulus.
+ *
+ * The source ids are retained for audit only. Attempt rendering joins this table by the
+ * copied public id and never reads the live question group or media rows.
+ */
+export const attemptQuestionGroups = sqliteTable(
+	'attempt_question_groups',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		attemptId: integer('attempt_id')
+			.notNull()
+			.references(() => attempts.id, { onDelete: 'cascade' }),
+		sourceGroupId: integer('source_group_id')
+			.notNull()
+			.references(() => questionGroups.id, { onDelete: 'restrict' }),
+		publicId: text('public_id').notNull(),
+		format: text('format', { enum: GROUP_FORMATS }).notNull(),
+		title: text('title'),
+		instruction: text('instruction'),
+		passageText: text('passage_text'),
+		bodyTranslation: text('body_translation'),
+		exampleText: text('example_text'),
+		exampleTransliteration: text('example_transliteration'),
+		exampleTranslation: text('example_translation'),
+		imagePublicId: text('image_public_id'),
+		imageMimeType: text('image_mime_type'),
+		imageWidth: integer('image_width'),
+		imageHeight: integer('image_height'),
+		imageAltText: text('image_alt_text'),
+		audioPublicId: text('audio_public_id'),
+		audioMimeType: text('audio_mime_type'),
+		audioDurationMs: integer('audio_duration_ms'),
+		audioTranscript: text('audio_transcript'),
+		createdAt: createdAt()
+	},
+	(table) => [
+		check('attempt_question_groups_format_check', checkIn(table.format, GROUP_FORMATS)),
+		uniqueIndex('attempt_question_groups_attempt_public_idx').on(table.attemptId, table.publicId),
+		index('attempt_question_groups_source_idx').on(table.sourceGroupId)
 	]
 );
 
@@ -110,26 +164,44 @@ export const attemptQuestions = sqliteTable(
 			.notNull()
 			.references(() => questions.id, { onDelete: 'restrict' }),
 		section: text('section', { enum: SECTIONS }).notNull(),
+		groupPublicId: text('group_public_id'),
 		position: integer('position').notNull(),
 		points: integer('points').notNull(),
 		/** Which scoring band this question's points fed, at the moment it was served. */
 		bandCode: text('band_code', { enum: SCORING_BANDS }),
 		stem: text('stem'),
 		explanation: text('explanation'),
+		format: text('format', { enum: QUESTION_FORMATS }).notNull().default('STANDARD'),
+		promptTranslation: text('prompt_translation'),
+		focusText: text('focus_text'),
+		focusReading: text('focus_reading'),
+		contextText: text('context_text'),
+		contextTransliteration: text('context_transliteration'),
 		imagePublicId: text('image_public_id'),
+		imageMimeType: text('image_mime_type'),
+		imageWidth: integer('image_width'),
+		imageHeight: integer('image_height'),
 		imageAltText: text('image_alt_text'),
 		audioPublicId: text('audio_public_id'),
+		audioMimeType: text('audio_mime_type'),
+		audioDurationMs: integer('audio_duration_ms'),
 		audioTranscript: text('audio_transcript'),
 		createdAt: createdAt()
 	},
 	(table) => [
 		check('attempt_questions_section_check', checkIn(table.section, SECTIONS)),
 		check('attempt_questions_band_check', checkIn(table.bandCode, SCORING_BANDS)),
+		check('attempt_questions_format_check', checkIn(table.format, QUESTION_FORMATS)),
 		uniqueIndex('attempt_questions_attempt_question_idx').on(table.attemptId, table.questionId),
 		uniqueIndex('attempt_questions_attempt_position_idx').on(table.attemptId, table.position),
 		// Both unique indexes lead with attempt_id, so nothing indexes question_id and the
 		// RESTRICT check on deleting a question would scan every served question ever.
 		index('attempt_questions_question_idx').on(table.questionId),
+		foreignKey({
+			name: 'attempt_questions_group_snapshot_fk',
+			columns: [table.attemptId, table.groupPublicId],
+			foreignColumns: [attemptQuestionGroups.attemptId, attemptQuestionGroups.publicId]
+		}).onDelete('restrict'),
 		/** Parent key for attempt_answers' composite FK. */
 		uniqueIndex('attempt_questions_id_question_idx').on(table.id, table.questionId)
 	]

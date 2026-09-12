@@ -13,8 +13,10 @@ import { users } from './auth';
 import { checkIn, createdAt, publicId, updatedAt } from './columns';
 import {
 	CONTENT_STATUS,
+	GROUP_FORMATS,
 	JLPT_LEVELS,
 	MEDIA_KINDS,
+	QUESTION_FORMATS,
 	QUIZ_MODES,
 	SCORING_BANDS,
 	SECTIONS,
@@ -73,9 +75,16 @@ export const questionGroups = sqliteTable(
 		publicId: publicId(),
 		level: text('level', { enum: JLPT_LEVELS }).notNull(),
 		section: text('section', { enum: SECTIONS }).notNull(),
+		format: text('format', { enum: GROUP_FORMATS }).notNull(),
 		title: text('title'),
 		passageText: text('passage_text'),
+		/** Optional translation of `passageText`, withheld unless the quiz's study-aid policy allows it. */
+		bodyTranslation: text('body_translation'),
 		instruction: text('instruction'),
+		/** Concept-review support: a worked example sentence, its reading, and translation. */
+		exampleText: text('example_text'),
+		exampleTransliteration: text('example_transliteration'),
+		exampleTranslation: text('example_translation'),
 		audioMediaId: integer('audio_media_id').references(() => mediaAssets.id, {
 			onDelete: 'restrict'
 		}),
@@ -90,6 +99,7 @@ export const questionGroups = sqliteTable(
 	(table) => [
 		check('question_groups_level_check', checkIn(table.level, JLPT_LEVELS)),
 		check('question_groups_section_check', checkIn(table.section, SECTIONS)),
+		check('question_groups_format_check', checkIn(table.format, GROUP_FORMATS)),
 		check('question_groups_status_check', checkIn(table.status, CONTENT_STATUS)),
 		index('question_groups_level_section_status_idx').on(table.level, table.section, table.status),
 		index('question_groups_audio_media_idx').on(table.audioMediaId),
@@ -114,9 +124,18 @@ export const questions = sqliteTable(
 		groupPosition: integer('group_position'),
 		level: text('level', { enum: JLPT_LEVELS }).notNull(),
 		section: text('section', { enum: SECTIONS }).notNull(),
+		format: text('format', { enum: QUESTION_FORMATS }).notNull().default('STANDARD'),
 		stem: text('stem').notNull(),
 		/** Shown on the result page when reviewing an incorrect answer. */
 		explanation: text('explanation'),
+		/** Translation of `stem`, withheld unless the quiz's study-aid policy allows it. */
+		promptTranslation: text('prompt_translation'),
+		/** Vocabulary/kanji-reading formats: the large focus term and its optional reading. */
+		focusText: text('focus_text'),
+		focusReading: text('focus_reading'),
+		/** Grammar-cloze format: the sentence containing one `___` blank, and its transliteration. */
+		contextText: text('context_text'),
+		contextTransliteration: text('context_transliteration'),
 		points: integer('points').notNull().default(1),
 		imageMediaId: integer('image_media_id').references(() => mediaAssets.id, {
 			onDelete: 'restrict'
@@ -132,6 +151,7 @@ export const questions = sqliteTable(
 	(table) => [
 		check('questions_level_check', checkIn(table.level, JLPT_LEVELS)),
 		check('questions_section_check', checkIn(table.section, SECTIONS)),
+		check('questions_format_check', checkIn(table.format, QUESTION_FORMATS)),
 		check('questions_status_check', checkIn(table.status, CONTENT_STATUS)),
 		// The draw index for RANDOM quizzes: pick published questions by level and section.
 		index('questions_level_section_status_idx').on(table.level, table.section, table.status),
@@ -196,6 +216,12 @@ export const quizzes = sqliteTable(
 		/** 180 for a JLPT paper. Null for quizzes that are not scaled-scored. */
 		scaledTotalMax: integer('scaled_total_max'),
 		passMarkTotal: integer('pass_mark_total'),
+		/** Lets a practice quiz expose passage translations/transliterations/concept review; frozen onto the attempt. */
+		showStudyAidsDuringAttempt: integer('show_study_aids_during_attempt', { mode: 'boolean' })
+			.notNull()
+			.default(false),
+		/** Frozen onto the attempt and awarded once on successful submission. */
+		xpReward: integer('xp_reward').notNull().default(0),
 		status: text('status', { enum: CONTENT_STATUS }).notNull().default('DRAFT'),
 		createdBy: integer('created_by').references(() => users.id, { onDelete: 'restrict' }),
 		publishedAt: integer('published_at', { mode: 'timestamp' }),
@@ -207,6 +233,7 @@ export const quizzes = sqliteTable(
 		check('quizzes_level_check', checkIn(table.level, JLPT_LEVELS)),
 		check('quizzes_selection_mode_check', checkIn(table.selectionMode, SELECTION_MODES)),
 		check('quizzes_status_check', checkIn(table.status, CONTENT_STATUS)),
+		check('quizzes_xp_reward_check', sql`${table.xpReward} >= 0`),
 		// The homepage lists published quizzes filtered by level and mode.
 		index('quizzes_status_level_mode_idx').on(table.status, table.level, table.mode),
 		index('quizzes_created_by_idx').on(table.createdBy)

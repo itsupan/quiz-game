@@ -157,8 +157,16 @@ describe('parseQuestionPatchBody', () => {
 			explanation: 'old',
 			level: 'N4',
 			section: 'VOCAB_KANJI',
-			points: 1
+			format: 'STANDARD',
+			promptTranslation: null,
+			focusText: null,
+			focusReading: null,
+			contextText: null,
+			contextTransliteration: null,
+			points: 1,
+			groupPosition: null
 		} as never,
+		null,
 		null,
 		null
 	);
