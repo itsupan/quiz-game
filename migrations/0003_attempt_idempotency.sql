@@ -1,0 +1,2 @@
+ALTER TABLE `attempts` ADD `idempotency_key` text;--> statement-breakpoint
+CREATE UNIQUE INDEX `attempts_user_idempotency_idx` ON `attempts` (`user_id`,`idempotency_key`) WHERE "attempts"."idempotency_key" is not null;

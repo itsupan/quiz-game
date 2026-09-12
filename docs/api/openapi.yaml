@@ -1,0 +1,580 @@
+openapi: 3.1.0
+info:
+  title: Quiz Game Learner API
+  version: 1.0.0
+  description: |
+    Same-origin JSON API for authenticated learner quiz sessions. The server clock and
+    returned deadlines are authoritative. Correct answers and review-only content are
+    withheld until an attempt is submitted or expires.
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: Quizzes
+  - name: Attempts
+paths:
+  /quizzes:
+    get:
+      tags: [Quizzes]
+      summary: List published quizzes
+      parameters:
+        - $ref: '#/components/parameters/Level'
+        - $ref: '#/components/parameters/Mode'
+        - $ref: '#/components/parameters/Section'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Published quiz page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuizSummary'
+                  page:
+                    type: object
+                    required: [nextCursor]
+                    properties:
+                      nextCursor:
+                        oneOf:
+                          - $ref: '#/components/schemas/PublicId'
+                          - type: 'null'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /quizzes/{quizId}:
+    parameters:
+      - $ref: '#/components/parameters/QuizId'
+    get:
+      tags: [Quizzes]
+      summary: Load a published quiz overview
+      responses:
+        '200':
+          description: Published quiz with its ordered sections
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/QuizOverview'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /quizzes/{quizId}/attempts:
+    parameters:
+      - $ref: '#/components/parameters/QuizId'
+    post:
+      tags: [Attempts]
+      summary: Start a quiz attempt
+      description: |
+        Idempotency-Key is scoped to the authenticated learner. Reusing it for the same
+        quiz returns the original attempt; reusing it for another quiz returns 409.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Attempt created; Location identifies the attempt resource
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartedAttemptEnvelope'
+        '200':
+          description: A retry returning the previously created attempt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartedAttemptEnvelope'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /attempts/{attemptId}:
+    parameters:
+      - $ref: '#/components/parameters/AttemptId'
+    get:
+      tags: [Attempts]
+      summary: Load attempt state and progress
+      responses:
+        '200':
+          description: Attempt metadata with ordered question links and authoritative deadlines
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Attempt'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /attempts/{attemptId}/questions/{questionNumber}:
+    parameters:
+      - $ref: '#/components/parameters/AttemptId'
+      - $ref: '#/components/parameters/QuestionNumber'
+    get:
+      tags: [Attempts]
+      summary: Load one served question
+      description: Does not return the answer key, correctness, explanation, or transcript.
+      responses:
+        '200':
+          description: Served question
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AttemptQuestion'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /attempts/{attemptId}/answers/{questionNumber}:
+    parameters:
+      - $ref: '#/components/parameters/AttemptId'
+      - $ref: '#/components/parameters/QuestionNumber'
+    put:
+      tags: [Attempts]
+      summary: Save, replace, or clear an answer
+      description: The operation is idempotent. Null explicitly clears the saved selection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [selectedOptionNumber]
+              properties:
+                selectedOptionNumber:
+                  oneOf:
+                    - type: integer
+                      minimum: 1
+                    - type: 'null'
+            examples:
+              select:
+                value: { selectedOptionNumber: 2 }
+              clear:
+                value: { selectedOptionNumber: null }
+      responses:
+        '200':
+          description: Updated question state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AttemptQuestion'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /attempts/{attemptId}/submission:
+    parameters:
+      - $ref: '#/components/parameters/AttemptId'
+    put:
+      tags: [Attempts]
+      summary: Submit and score an attempt
+      description: Repeating this request returns the same terminal result without rescoring.
+      responses:
+        '200':
+          description: Completed result; Location identifies the result resource
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultEnvelope'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /attempts/{attemptId}/result:
+    parameters:
+      - $ref: '#/components/parameters/AttemptId'
+    get:
+      tags: [Attempts]
+      summary: Load a completed result
+      responses:
+        '200':
+          description: Score and answer review for a submitted or expired attempt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultEnvelope'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Existing same-origin Quiz Game session cookie.
+  parameters:
+    QuizId:
+      name: quizId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/PublicId'
+    AttemptId:
+      name: attemptId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/PublicId'
+    QuestionNumber:
+      name: questionNumber
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    Level:
+      name: level
+      in: query
+      schema:
+        $ref: '#/components/schemas/Level'
+    Mode:
+      name: mode
+      in: query
+      schema:
+        $ref: '#/components/schemas/Mode'
+    Section:
+      name: section
+      in: query
+      schema:
+        $ref: '#/components/schemas/Section'
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        $ref: '#/components/schemas/PublicId'
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
+  responses:
+    Problem:
+      description: Machine-readable API error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    PublicId:
+      type: string
+      pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+      example: 01JSEEDQZN4EXAM00000000000
+    Level:
+      type: string
+      enum: [N5, N4, N3, N2, N1]
+    Mode:
+      type: string
+      enum: [JLPT_PRACTICE, MOCK_TEST, FULL_EXAM]
+    Section:
+      type: string
+      enum: [VOCAB_KANJI, GRAMMAR_READING, LISTENING]
+    AttemptStatus:
+      type: string
+      enum: [IN_PROGRESS, SUBMITTED, EXPIRED, ABANDONED]
+    QuizBase:
+      type: object
+      required: [id, title, description, level, mode, selectionMode, timeLimitSeconds]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        title:
+          type: string
+        description:
+          type: [string, 'null']
+        level:
+          $ref: '#/components/schemas/Level'
+        mode:
+          $ref: '#/components/schemas/Mode'
+        selectionMode:
+          type: string
+          enum: [FIXED, RANDOM]
+        timeLimitSeconds:
+          type: [integer, 'null']
+    QuizSummary:
+      allOf:
+        - $ref: '#/components/schemas/QuizBase'
+        - type: object
+          required: [sections]
+          properties:
+            sections:
+              type: array
+              items:
+                $ref: '#/components/schemas/Section'
+    QuizOverview:
+      allOf:
+        - $ref: '#/components/schemas/QuizBase'
+        - type: object
+          required: [sections]
+          properties:
+            sections:
+              type: array
+              items:
+                type: object
+                required: [section, position, timeLimitSeconds, questionCount]
+                properties:
+                  section:
+                    $ref: '#/components/schemas/Section'
+                  position:
+                    type: integer
+                  timeLimitSeconds:
+                    type: [integer, 'null']
+                  questionCount:
+                    type: integer
+    StartedAttemptEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [id, status, links]
+          properties:
+            id:
+              $ref: '#/components/schemas/PublicId'
+            status:
+              const: IN_PROGRESS
+            links:
+              type: object
+    Attempt:
+      type: object
+      required:
+        [
+          id,
+          status,
+          serverTime,
+          startedAt,
+          attemptExpiresAt,
+          activeSection,
+          sectionExpiresAt,
+          quiz,
+          progress,
+          sections,
+          questions,
+          links
+        ]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        status:
+          $ref: '#/components/schemas/AttemptStatus'
+        serverTime:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        attemptExpiresAt:
+          type: [string, 'null']
+          format: date-time
+        activeSection:
+          oneOf:
+            - $ref: '#/components/schemas/Section'
+            - type: 'null'
+        sectionExpiresAt:
+          type: [string, 'null']
+          format: date-time
+        quiz:
+          type: object
+        progress:
+          type: object
+        sections:
+          type: array
+          items:
+            type: object
+        questions:
+          type: array
+          items:
+            type: object
+        links:
+          type: object
+    AttemptQuestion:
+      type: object
+      description: In-progress representation; intentionally has no answer-key fields.
+      required:
+        [
+          attemptId,
+          attemptStatus,
+          serverTime,
+          number,
+          section,
+          points,
+          stem,
+          image,
+          audio,
+          options,
+          selectedOptionNumber,
+          canAnswer,
+          links
+        ]
+      properties:
+        attemptId:
+          $ref: '#/components/schemas/PublicId'
+        attemptStatus:
+          $ref: '#/components/schemas/AttemptStatus'
+        serverTime:
+          type: string
+          format: date-time
+        number:
+          type: integer
+        section:
+          $ref: '#/components/schemas/Section'
+        points:
+          type: integer
+        stem:
+          type: string
+        image:
+          type: [object, 'null']
+        audio:
+          type: [object, 'null']
+        options:
+          type: array
+          items:
+            type: object
+            required: [number, body]
+            properties:
+              number:
+                type: integer
+              body:
+                type: string
+        selectedOptionNumber:
+          type: [integer, 'null']
+        canAnswer:
+          type: boolean
+        links:
+          type: object
+    ResultEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [attempt, quiz, bandScores, questions, links]
+          properties:
+            attempt:
+              type: object
+            quiz:
+              type: object
+            bandScores:
+              type: array
+              items:
+                type: object
+            questions:
+              type: array
+              items:
+                type: object
+                description: Includes selected/correct option numbers and review details.
+            links:
+              type: object
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, code, requestId]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+        requestId:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string

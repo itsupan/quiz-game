@@ -22,6 +22,27 @@
       "when": 1789017037786,
       "tag": "0002_add_password_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789224443285,
+      "tag": "0003_attempt_idempotency",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789226398870,
+      "tag": "0004_freeze_attempt_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789228775371,
+      "tag": "0005_attempt_revision",
+      "breakpoints": true
     }
   ]
 }

@@ -28,11 +28,14 @@ import * as schema from './schema';
  */
 export type TestDatabase = Database;
 
-const MIGRATIONS = [
+export const TEST_MIGRATIONS = [
 	'migrations/0000_init.sql',
 	'migrations/0001_schema.sql',
-	'migrations/0002_add_password_hash.sql'
-];
+	'migrations/0002_add_password_hash.sql',
+	'migrations/0003_attempt_idempotency.sql',
+	'migrations/0004_freeze_attempt_snapshots.sql',
+	'migrations/0005_attempt_revision.sql'
+] as const;
 
 /**
  * Splits a drizzle-kit migration into executable statements.
@@ -55,6 +58,17 @@ function statements(file: string): string[] {
 		.filter((chunk) => chunk.length > 0);
 }
 
+export function applyTestMigrations(
+	sqlite: DatabaseSync,
+	files: readonly string[] = TEST_MIGRATIONS
+): void {
+	for (const file of files) {
+		for (const statement of statements(file)) {
+			sqlite.exec(statement);
+		}
+	}
+}
+
 export function createTestDatabase() {
 	const sqlite = new DatabaseSync(':memory:');
 
@@ -62,11 +76,7 @@ export function createTestDatabase() {
 	// interesting constraint in this schema is a foreign key.
 	sqlite.exec('PRAGMA foreign_keys = ON');
 
-	for (const file of MIGRATIONS) {
-		for (const statement of statements(file)) {
-			sqlite.exec(statement);
-		}
-	}
+	applyTestMigrations(sqlite);
 
 	const execute: RemoteCallback = async (sql, params, method) => {
 		const statement = sqlite.prepare(sql);

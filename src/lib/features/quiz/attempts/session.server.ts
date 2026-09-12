@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 
 import type { WriteResult } from '$lib/domain/write-result';
 import type { Database } from '$lib/server/db';
@@ -6,12 +6,11 @@ import {
 	attemptAnswers,
 	attemptQuestions,
 	attempts,
-	questions,
-	quizzes,
-	quizSections
+	attemptSections,
+	quizzes
 } from '$lib/server/db/schema';
 import { isExpired, sectionDeadlines, sectionOpen } from '../timing';
-import { audioAsset, imageAsset, loadPublicOptions } from './questions.server';
+import { loadFrozenOptions } from './questions.server';
 import type { AttemptView } from './types.server';
 
 export async function loadAttempt(
@@ -40,14 +39,16 @@ export async function loadAttempt(
 
 	if (!row) return null;
 
+	// Frozen at start time: what this attempt's sections actually looked like then, not
+	// whatever `quiz_sections` says now.
 	const sections = await db
 		.select({
-			section: quizSections.section,
-			position: quizSections.position,
-			timeLimitSeconds: quizSections.timeLimitSeconds
+			section: attemptSections.section,
+			position: attemptSections.position,
+			timeLimitSeconds: attemptSections.timeLimitSeconds
 		})
-		.from(quizSections)
-		.where(eq(quizSections.quizId, row.quizId));
+		.from(attemptSections)
+		.where(eq(attemptSections.attemptId, row.attemptId));
 
 	const served = await db
 		.select({
@@ -56,24 +57,18 @@ export async function loadAttempt(
 			section: attemptQuestions.section,
 			position: attemptQuestions.position,
 			points: attemptQuestions.points,
-			stem: questions.stem,
-			imagePublicId: imageAsset.publicId,
-			imageAltText: imageAsset.altText,
-			audioPublicId: audioAsset.publicId,
+			stem: attemptQuestions.stem,
+			imagePublicId: attemptQuestions.imagePublicId,
+			imageAltText: attemptQuestions.imageAltText,
+			audioPublicId: attemptQuestions.audioPublicId,
 			selectedOptionId: attemptAnswers.selectedOptionId
 		})
 		.from(attemptQuestions)
-		.innerJoin(questions, eq(questions.id, attemptQuestions.questionId))
-		.leftJoin(imageAsset, eq(imageAsset.id, questions.imageMediaId))
-		.leftJoin(audioAsset, eq(audioAsset.id, questions.audioMediaId))
 		.leftJoin(attemptAnswers, eq(attemptAnswers.attemptQuestionId, attemptQuestions.id))
 		.where(eq(attemptQuestions.attemptId, row.attemptId))
 		.orderBy(attemptQuestions.position);
 
-	const options = await loadPublicOptions(
-		db,
-		served.map((entry) => entry.questionId)
-	);
+	const options = await loadFrozenOptions(db, row.attemptId);
 
 	return {
 		attempt: {
@@ -99,12 +94,12 @@ export async function loadAttempt(
 			section: entry.section,
 			position: entry.position,
 			points: entry.points,
-			stem: entry.stem,
+			stem: entry.stem ?? '',
 			image: entry.imagePublicId
 				? { publicId: entry.imagePublicId, altText: entry.imageAltText }
 				: null,
 			audio: entry.audioPublicId ? { publicId: entry.audioPublicId, transcript: null } : null,
-			options: options.get(entry.questionId) ?? [],
+			options: options.get(entry.position) ?? [],
 			selectedOptionId: entry.selectedOptionId
 		}))
 	};
@@ -138,19 +133,43 @@ export async function saveAnswer(
 		return { ok: false, message: 'That is not one of this question’s options.' };
 	}
 
-	await db
-		.insert(attemptAnswers)
-		.values({
-			attemptId: view.attempt.id,
-			attemptQuestionId,
-			questionId: served.questionId,
-			selectedOptionId,
-			answeredAt: now
+	const attemptStillOpen = and(
+		eq(attempts.id, view.attempt.id),
+		eq(attempts.status, 'IN_PROGRESS'),
+		or(isNull(attempts.expiresAt), gt(attempts.expiresAt, now))
+	);
+	const answerCandidate = db
+		.select({
+			id: sql<number | null>`null`.as('id'),
+			attemptId: sql<number>`${view.attempt.id}`.as('attempt_id'),
+			attemptQuestionId: sql<number>`${attemptQuestionId}`.as('attempt_question_id'),
+			questionId: sql<number>`${served.questionId}`.as('question_id'),
+			selectedOptionId: sql<number | null>`${selectedOptionId}`.as('selected_option_id'),
+			isCorrect: sql<boolean | null>`null`.as('is_correct'),
+			pointsEarned: sql<number | null>`null`.as('points_earned'),
+			answeredAt: sql<Date>`${Math.floor(now.getTime() / 1000)}`.as('answered_at'),
+			createdAt: sql<Date>`(unixepoch())`.as('created_at'),
+			updatedAt: sql<Date>`(unixepoch())`.as('updated_at')
 		})
+		.from(attempts)
+		.where(attemptStillOpen);
+	const answerWrite = db
+		.insert(attemptAnswers)
+		.select(answerCandidate)
 		.onConflictDoUpdate({
 			target: attemptAnswers.attemptQuestionId,
-			set: { selectedOptionId, answeredAt: now }
-		});
+			set: { selectedOptionId, answeredAt: now, updatedAt: now }
+		})
+		.returning({ id: attemptAnswers.id });
+	const bumpRevision = db
+		.update(attempts)
+		.set({ revision: sql`${attempts.revision} + 1` })
+		.where(attemptStillOpen);
+	const [written] = await db.batch([answerWrite, bumpRevision]);
+
+	if (written.length === 0) {
+		return { ok: false, message: 'This attempt is no longer open.' };
+	}
 
 	return { ok: true, value: undefined };
 }
