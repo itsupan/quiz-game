@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MAX_BYTES, describeUpload } from './media';
+import { MAX_BYTES, describeUpload } from '$lib/features/admin/media/media';
 
 /** A stand-in for the File a multipart form yields, with only what the code reads. */
 const file = (name: string, type: string, size = 1024) => ({ name, type, size }) as unknown as File;
