@@ -1,6 +1,12 @@
 import { error, fail } from '@sveltejs/kit';
 import { recordAudit } from '$lib/features/admin/audit.server';
-import { countAdmins, getUser, listUsers, updateUserRole, updateUserStatus } from '$lib/features/admin/users/users.server';
+import {
+	countAdmins,
+	getUser,
+	listUsers,
+	updateUserRole,
+	updateUserStatus
+} from '$lib/features/admin/users/users.server';
 import { USER_ROLES, USER_STATUS } from '$lib/domain/enums';
 import type { UserRole, UserStatus } from '$lib/domain/enums';
 import type { Actions, PageServerLoad } from './$types';
@@ -37,7 +43,9 @@ export const actions: Actions = {
 		if (targetUser.id === locals.user?.id && newRole === 'USER') {
 			const adminCount = await countAdmins(locals.db);
 			if (adminCount <= 1) {
-				return fail(400, { message: 'You are the last administrator and cannot remove your own admin role.' });
+				return fail(400, {
+					message: 'You are the last administrator and cannot remove your own admin role.'
+				});
 			}
 		}
 

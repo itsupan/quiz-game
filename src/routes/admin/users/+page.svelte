@@ -31,10 +31,15 @@
 {/if}
 
 <FilterBar>
-	<label class="flex-1 max-w-sm">
+	<label class="max-w-sm flex-1">
 		<span class="visually-hidden">Search</span>
 		<!-- Using value from data.filters directly to keep the input populated -->
-		<input type="search" name="search" placeholder="Search name or email..." value={data.filters.search ?? ''} />
+		<input
+			type="search"
+			name="search"
+			placeholder="Search name or email..."
+			value={data.filters.search ?? ''}
+		/>
 	</label>
 	<Button type="submit" variant="secondary" size="sm">Search</Button>
 </FilterBar>
@@ -68,7 +73,7 @@
 									name="role"
 									value={user.role}
 									onchange={(e) => e.currentTarget.form?.requestSubmit()}
-									class="py-1 px-2 text-sm border-line rounded"
+									class="rounded border-line px-2 py-1 text-sm"
 								>
 									{#each USER_ROLES as role (role)}
 										<option value={role}>{role}</option>
@@ -83,7 +88,7 @@
 									name="status"
 									value={user.status}
 									onchange={(e) => e.currentTarget.form?.requestSubmit()}
-									class="py-1 px-2 text-sm border-line rounded"
+									class="rounded border-line px-2 py-1 text-sm"
 								>
 									{#each USER_STATUS as status (status)}
 										<option value={status}>{status}</option>

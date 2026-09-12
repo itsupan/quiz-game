@@ -12,14 +12,11 @@ export const PAGE_SIZE = 25;
 
 export async function listUsers(db: Database, filters: UserFilters = {}) {
 	const page = Math.max(1, filters.page ?? 1);
-	
+
 	let where;
 	if (filters.search) {
 		const searchPattern = `%${filters.search}%`;
-		where = or(
-			like(users.displayName, searchPattern),
-			like(users.email, searchPattern)
-		);
+		where = or(like(users.displayName, searchPattern), like(users.email, searchPattern));
 	}
 
 	const items = await db
@@ -45,10 +42,7 @@ export async function listUsers(db: Database, filters: UserFilters = {}) {
 }
 
 export async function getUser(db: Database, publicId: string) {
-	const [user] = await db
-		.select()
-		.from(users)
-		.where(eq(users.publicId, publicId));
+	const [user] = await db.select().from(users).where(eq(users.publicId, publicId));
 	return user || null;
 }
 
