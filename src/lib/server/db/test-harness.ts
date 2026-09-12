@@ -31,7 +31,8 @@ export type TestDatabase = Database;
 const MIGRATIONS = [
 	'migrations/0000_init.sql',
 	'migrations/0001_schema.sql',
-	'migrations/0002_add_password_hash.sql'
+	'migrations/0002_add_password_hash.sql',
+	'migrations/0003_attempt_idempotency.sql'
 ];
 
 /**

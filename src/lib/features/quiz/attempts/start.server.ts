@@ -74,7 +74,8 @@ export async function startAttempt(
 	quiz: Pick<Quiz, 'id' | 'level' | 'selectionMode' | 'timeLimitSeconds'>,
 	sections: Pick<QuizSection, 'section' | 'position' | 'drawCount'>[],
 	userId: number,
-	now: Date
+	now: Date,
+	idempotencyKey: string | null = null
 ): Promise<WriteResult<string>> {
 	const servedResult =
 		quiz.selectionMode === 'FIXED'
@@ -91,6 +92,7 @@ export async function startAttempt(
 		.values({
 			quizId: quiz.id,
 			userId,
+			idempotencyKey,
 			status: 'IN_PROGRESS',
 			startedAt: now,
 			expiresAt: attemptDeadline(now, quiz.timeLimitSeconds)
@@ -124,7 +126,8 @@ export async function startPublishedAttempt(
 	db: Database,
 	publicId: string,
 	userId: number,
-	now: Date
+	now: Date,
+	idempotencyKey: string | null = null
 ): Promise<WriteResult<string> | null> {
 	const [quiz] = await db.select().from(quizzes).where(eq(quizzes.publicId, publicId));
 	if (!quiz || quiz.status !== 'PUBLISHED') return null;
@@ -138,5 +141,5 @@ export async function startPublishedAttempt(
 		.from(quizSections)
 		.where(eq(quizSections.quizId, quiz.id));
 
-	return startAttempt(db, quiz, sections, userId, now);
+	return startAttempt(db, quiz, sections, userId, now, idempotencyKey);
 }

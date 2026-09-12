@@ -22,6 +22,13 @@
       "when": 1789017037786,
       "tag": "0002_add_password_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789224443285,
+      "tag": "0003_attempt_idempotency",
+      "breakpoints": true
     }
   ]
 }

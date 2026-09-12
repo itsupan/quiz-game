@@ -35,6 +35,8 @@ export const attempts = sqliteTable(
 			.references(() => quizzes.id, { onDelete: 'restrict' }),
 		/** Null for a signed-out visitor: they can play, but nothing is kept or ranked. */
 		userId: integer('user_id').references(() => users.id, { onDelete: 'restrict' }),
+		/** Makes retried API start requests return the same sitting instead of creating another. */
+		idempotencyKey: text('idempotency_key'),
 		status: text('status', { enum: ATTEMPT_STATUS }).notNull().default('IN_PROGRESS'),
 		startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
 		expiresAt: integer('expires_at', { mode: 'timestamp' }),
@@ -63,6 +65,9 @@ export const attempts = sqliteTable(
 			.where(sql`${table.status} = 'SUBMITTED' and ${table.userId} is not null`),
 		/** "My history". */
 		index('attempts_user_submitted_idx').on(table.userId, sql`${table.submittedAt} desc`),
+		uniqueIndex('attempts_user_idempotency_idx')
+			.on(table.userId, table.idempotencyKey)
+			.where(sql`${table.idempotencyKey} is not null`),
 		/** Finds attempts that ran out of time so the server can score and close them. */
 		index('attempts_status_expires_idx').on(table.status, table.expiresAt),
 		/** Drives the guest purge. */
