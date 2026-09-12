@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ADMIN_SESSION, LEARNER_SESSION, signIn } from '../../../../e2e/sessions';
+import { ADMIN_SESSION, LEARNER_SESSION, signIn } from './sessions';
 
 test.describe('learner dashboard authorization guard', () => {
 	test('unauthorized GET /home redirects to /login with redirectTo', async ({ page }) => {

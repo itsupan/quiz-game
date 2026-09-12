@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
-import { ADMIN_SESSION, LEARNER_SESSION, signIn } from '../../../e2e/sessions';
+import { ADMIN_SESSION, LEARNER_SESSION, signIn } from './sessions';
 
 /**
  * The dashboard end to end, against a real worker and a real D1 database.
