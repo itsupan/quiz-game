@@ -62,6 +62,13 @@ describe('upsertGoogleUser', () => {
 		});
 	});
 
+	it('stores and matches Google addresses in canonical lowercase', async () => {
+		const user = await upsertGoogleUser(db, profile({ email: 'Learner@Example.COM' }));
+
+		expect(user.email).toBe('learner@example.com');
+		expect(await db.select().from(users)).toHaveLength(1);
+	});
+
 	it('creates no second record however often the same person signs in', async () => {
 		const first = await upsertGoogleUser(db, profile());
 		const second = await upsertGoogleUser(db, profile());
@@ -145,6 +152,18 @@ describe('upsertGoogleUser', () => {
 });
 
 describe('adopting an account by email', () => {
+	it('refuses to merge a Google identity into a password account by email alone', async () => {
+		await db.insert(users).values({
+			email: 'learner@example.com',
+			displayName: 'password account',
+			passwordHash: 'pbkdf2:sha256:600000:salt:hash'
+		});
+
+		await expect(upsertGoogleUser(db, profile())).rejects.toThrow(/password sign-in/i);
+		expect(await db.select().from(users)).toHaveLength(1);
+		expect(await db.select().from(oauthAccounts)).toHaveLength(0);
+	});
+
 	it('refuses when that account is already a different Google identity', async () => {
 		// REGRESSION. A Workspace address can be deleted and re-created; the replacement
 		// verifies the same email but gets a new `sub`. Without this check the stranger is
@@ -166,7 +185,7 @@ describe('adopting an account by email', () => {
 		// `users.email` is unique, so a second row would simply fail to insert.
 		const [seeded] = await db
 			.insert(users)
-			.values({ email: 'learner@example.com', displayName: 'seeded', role: 'ADMIN' })
+			.values({ email: 'Learner@Example.COM', displayName: 'seeded', role: 'ADMIN' })
 			.returning();
 
 		const user = await upsertGoogleUser(db, profile());

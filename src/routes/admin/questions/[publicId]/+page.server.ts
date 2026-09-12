@@ -80,23 +80,11 @@ export const actions: Actions = {
 	},
 
 	publish: async ({ locals, params }) => {
-		const { question, image, audio } = await load404(locals, params.publicId);
-		const blockers = questionPublishBlockers(question, { image, audio });
+		const { question, options, image, audio } = await load404(locals, params.publicId);
+		const blockers = questionPublishBlockers(question, { image, audio }, options);
 
 		if (blockers.length > 0) {
 			return fail(400, { message: blockers.join(' ') });
-		}
-
-		// "At least one answer key" is the half of the rule SQLite cannot express: a
-		// partial unique index forbids a second key but cannot require a first.
-		const options = (await getQuestion(locals.db, params.publicId))?.options ?? [];
-
-		if (!options.some((option) => option.isCorrect)) {
-			return fail(400, { message: 'Mark one option as the correct answer before publishing.' });
-		}
-
-		if (options.length < 2) {
-			return fail(400, { message: 'A published question needs at least two options.' });
 		}
 
 		await setQuestionStatus(locals.db, question.id, 'PUBLISHED');

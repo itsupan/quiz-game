@@ -17,6 +17,8 @@ export type QuestionFilters = {
 	section?: Section;
 	status?: ContentStatus;
 	page?: number;
+	/** Defaults to `PAGE_SIZE`. The admin dashboard never overrides this; the JSON API does. */
+	limit?: number;
 };
 
 export const PAGE_SIZE = 25;
@@ -33,6 +35,7 @@ export const PAGE_SIZE = 25;
  */
 export async function listQuestions(db: Database, filters: QuestionFilters = {}) {
 	const page = Math.max(1, filters.page ?? 1);
+	const limit = filters.limit ?? PAGE_SIZE;
 
 	const where = and(
 		filters.level ? eq(questions.level, filters.level) : undefined,
@@ -59,8 +62,8 @@ export async function listQuestions(db: Database, filters: QuestionFilters = {})
 		.where(where)
 		.groupBy(questions.id)
 		.orderBy(desc(questions.updatedAt))
-		.limit(PAGE_SIZE)
-		.offset((page - 1) * PAGE_SIZE);
+		.limit(limit)
+		.offset((page - 1) * limit);
 
 	const [{ total }] = await db.select({ total: count() }).from(questions).where(where);
 
@@ -68,7 +71,7 @@ export async function listQuestions(db: Database, filters: QuestionFilters = {})
 		items: rows.map(({ answerKeys, ...row }) => ({ ...row, hasAnswerKey: answerKeys > 0 })),
 		total,
 		page,
-		pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE))
+		pageCount: Math.max(1, Math.ceil(total / limit))
 	};
 }
 
@@ -79,6 +82,22 @@ export async function listQuestions(db: Database, filters: QuestionFilters = {})
  * leaves an `/admin` response — the learner-facing projection is
  * `publicQuestionOptionColumns`, which has no such column to leak.
  */
+/** A light lookup for callers that only need to resolve a public id, such as attaching a question to a quiz. */
+export async function getQuestionRefByPublicId(db: Database, publicId: string) {
+	const [question] = await db
+		.select({
+			id: questions.id,
+			publicId: questions.publicId,
+			level: questions.level,
+			section: questions.section,
+			status: questions.status
+		})
+		.from(questions)
+		.where(eq(questions.publicId, publicId));
+
+	return question ?? null;
+}
+
 export async function getQuestion(db: Database, publicId: string) {
 	const [question] = await db.select().from(questions).where(eq(questions.publicId, publicId));
 

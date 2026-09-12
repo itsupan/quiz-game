@@ -63,6 +63,24 @@ export function quizPublishBlockers(
 	return blockers;
 }
 
+/**
+ * Assembles a quiz's publish blockers end to end: counts the bank and the paper, then
+ * runs the pure rule. The admin page load, the publish action, and the admin API all need
+ * exactly this, so it lives here once rather than being reassembled at each call site.
+ */
+export async function quizPublishBlockersFor(
+	db: Database,
+	quiz: Pick<Quiz, 'id' | 'level' | 'selectionMode' | 'timeLimitSeconds'>,
+	sections: Pick<QuizSection, 'id' | 'section' | 'position' | 'drawCount' | 'timeLimitSeconds'>[]
+): Promise<string[]> {
+	const counts = await sectionPublishCounts(db, quiz, sections);
+
+	return quizPublishBlockers(
+		quiz,
+		sections.map((section) => ({ ...section, ...counts[section.id] }))
+	);
+}
+
 export async function sectionPublishCounts(
 	db: Database,
 	quiz: Pick<Quiz, 'id' | 'level'>,

@@ -1,10 +1,14 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { SignInError } from './errors';
-import { hashPassword, validatePasswordStrength, verifyPassword } from './password';
+import {
+	hashPassword,
+	passwordNeedsRehash,
+	validatePasswordStrength,
+	verifyPassword
+} from './password';
 import type { AuthUser } from './types';
-import { isBootstrapAdmin } from './user';
 
 const SELECTED = {
 	id: users.id,
@@ -28,11 +32,7 @@ export type LoginInput = {
 	password: string;
 };
 
-export async function registerUser(
-	db: Database,
-	input: RegisterInput,
-	bootstrapEmails?: string
-): Promise<AuthUser> {
+export async function registerUser(db: Database, input: RegisterInput): Promise<AuthUser> {
 	const email = input.email?.trim().toLowerCase();
 	const displayName = input.displayName?.trim();
 	const password = input.password;
@@ -53,7 +53,7 @@ export async function registerUser(
 	const [existing] = await db
 		.select({ id: users.id })
 		.from(users)
-		.where(eq(users.email, email))
+		.where(sql`lower(${users.email}) = ${email}`)
 		.limit(1);
 
 	if (existing) {
@@ -61,15 +61,16 @@ export async function registerUser(
 	}
 
 	const passwordHash = await hashPassword(password);
-	const shouldBootstrap = isBootstrapAdmin(email, bootstrapEmails);
-
 	const [created] = await db
 		.insert(users)
 		.values({
 			email,
 			displayName,
 			passwordHash,
-			role: shouldBootstrap ? 'ADMIN' : 'USER',
+			// This address has not been verified. Admin bootstrap is restricted to the
+			// verified Google flow; trusting a public signup field would let anybody claim
+			// an allowlisted administrator address.
+			role: 'USER',
 			status: 'ACTIVE',
 			lastLoginAt: new Date()
 		})
@@ -97,7 +98,7 @@ export async function loginUser(db: Database, input: LoginInput): Promise<AuthUs
 			status: users.status
 		})
 		.from(users)
-		.where(eq(users.email, email))
+		.where(sql`lower(${users.email}) = ${email}`)
 		.limit(1);
 
 	if (!found) {
@@ -119,7 +120,15 @@ export async function loginUser(db: Database, input: LoginInput): Promise<AuthUs
 		throw new SignInError('This account has been suspended.');
 	}
 
-	await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, found.id));
+	await db
+		.update(users)
+		.set({
+			lastLoginAt: new Date(),
+			...(passwordNeedsRehash(found.passwordHash)
+				? { passwordHash: await hashPassword(password) }
+				: {})
+		})
+		.where(eq(users.id, found.id));
 
 	return {
 		id: found.id,

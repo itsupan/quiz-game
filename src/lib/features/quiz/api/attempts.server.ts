@@ -17,7 +17,11 @@ import { toAttemptDto, toQuestionDto, toResultDto } from './dto';
 
 async function findIdempotentAttempt(db: Database, userId: number, key: string) {
 	const [existing] = await db
-		.select({ attemptId: attempts.publicId, quizId: quizzes.publicId })
+		.select({
+			attemptId: attempts.publicId,
+			quizId: quizzes.publicId,
+			status: attempts.status
+		})
 		.from(attempts)
 		.innerJoin(quizzes, eq(quizzes.id, attempts.quizId))
 		.where(and(eq(attempts.userId, userId), eq(attempts.idempotencyKey, key)));
@@ -43,7 +47,7 @@ export async function createAttempt(
 			);
 		}
 
-		return { attemptId: existing.attemptId, created: false };
+		return { attemptId: existing.attemptId, status: existing.status, created: false };
 	}
 
 	try {
@@ -55,10 +59,12 @@ export async function createAttempt(
 			apiProblem(409, 'quiz_unavailable', 'Quiz unavailable', written.message);
 		}
 
-		return { attemptId: written.value, created: true };
+		return { attemptId: written.value, status: 'IN_PROGRESS' as const, created: true };
 	} catch (cause) {
 		const replay = await findIdempotentAttempt(db, userId, idempotencyKey);
-		if (replay?.quizId === quizId) return { attemptId: replay.attemptId, created: false };
+		if (replay?.quizId === quizId) {
+			return { attemptId: replay.attemptId, status: replay.status, created: false };
+		}
 		throw cause;
 	}
 }

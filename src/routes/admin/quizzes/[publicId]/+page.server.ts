@@ -8,8 +8,7 @@ import {
 	getQuiz,
 	listAttachableQuestions,
 	listAttachedQuestions,
-	quizPublishBlockers,
-	sectionPublishCounts,
+	quizPublishBlockersFor,
 	setQuizStatus,
 	updateQuiz,
 	upsertSection
@@ -31,17 +30,12 @@ async function load404(locals: App.Locals, publicId: string) {
  * The publish gate's input, assembled once so the load and the publish action can never
  * disagree about whether a quiz is ready.
  */
-async function blockersFor(
+function blockersFor(
 	locals: App.Locals,
 	quiz: Awaited<ReturnType<typeof load404>>['quiz'],
 	sections: Awaited<ReturnType<typeof load404>>['sections']
 ) {
-	const counts = await sectionPublishCounts(locals.db, quiz, sections);
-
-	return quizPublishBlockers(
-		quiz,
-		sections.map((section) => ({ ...section, ...counts[section.id] }))
-	);
+	return quizPublishBlockersFor(locals.db, quiz, sections);
 }
 
 export const load: PageServerLoad = async ({ locals, params }) => {

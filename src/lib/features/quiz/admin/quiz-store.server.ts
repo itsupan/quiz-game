@@ -23,12 +23,15 @@ export type QuizFilters = {
 	level?: JlptLevel;
 	mode?: QuizMode;
 	page?: number;
+	/** Defaults to `PAGE_SIZE`. The admin dashboard never overrides this; the JSON API does. */
+	limit?: number;
 };
 
 export const PAGE_SIZE = 25;
 
 export async function listQuizzes(db: Database, filters: QuizFilters = {}) {
 	const page = Math.max(1, filters.page ?? 1);
+	const limit = filters.limit ?? PAGE_SIZE;
 	const where = and(
 		filters.status ? eq(quizzes.status, filters.status) : undefined,
 		filters.level ? eq(quizzes.level, filters.level) : undefined,
@@ -51,11 +54,11 @@ export async function listQuizzes(db: Database, filters: QuizFilters = {}) {
 		.from(quizzes)
 		.where(where)
 		.orderBy(desc(quizzes.updatedAt))
-		.limit(PAGE_SIZE)
-		.offset((page - 1) * PAGE_SIZE);
+		.limit(limit)
+		.offset((page - 1) * limit);
 	const [{ total }] = await db.select({ total: count() }).from(quizzes).where(where);
 
-	return { items, total, page, pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
+	return { items, total, page, pageCount: Math.max(1, Math.ceil(total / limit)) };
 }
 
 export async function getQuiz(db: Database, publicId: string) {

@@ -1,5 +1,7 @@
+import { error } from '@sveltejs/kit';
 import { count, desc, eq, or } from 'drizzle-orm';
 
+import type { MediaKind } from '$lib/domain/enums';
 import type { Database } from '$lib/server/db';
 import { isForeignKeyFailure } from '$lib/server/db/errors';
 import { mediaAssets, questionGroups, questions } from '$lib/server/db/schema';
@@ -10,23 +12,49 @@ import type { WriteResult } from '$lib/domain/write-result';
 /** Everything R2 needs from the platform, so callers pass one object rather than four. */
 export type MediaBucket = R2Bucket;
 
+/** The R2 binding, or a clear failure. Missing bindings are silent in named envs. */
+export function requireMediaBucket(platform: App.Platform | undefined): MediaBucket {
+	const media = platform?.env?.MEDIA;
+
+	if (!media) {
+		error(
+			500,
+			'The R2 binding `MEDIA` is unavailable. Check the r2_buckets entry in wrangler.jsonc — bindings are not inherited by named environments.'
+		);
+	}
+
+	return media;
+}
+
 export const PAGE_SIZE = 24;
 
-export async function listMedia(db: Database, page = 1) {
+export type MediaFilters = {
+	page?: number;
+	kind?: MediaKind;
+	/** Defaults to `PAGE_SIZE`. The admin dashboard never overrides this; the JSON API does. */
+	limit?: number;
+};
+
+export async function listMedia(db: Database, filters: MediaFilters = {}) {
+	const page = Math.max(1, filters.page ?? 1);
+	const limit = filters.limit ?? PAGE_SIZE;
+	const where = filters.kind ? eq(mediaAssets.kind, filters.kind) : undefined;
+
 	const items = await db
 		.select()
 		.from(mediaAssets)
+		.where(where)
 		.orderBy(desc(mediaAssets.createdAt))
-		.limit(PAGE_SIZE)
-		.offset((Math.max(1, page) - 1) * PAGE_SIZE);
+		.limit(limit)
+		.offset((page - 1) * limit);
 
-	const [{ total }] = await db.select({ total: count() }).from(mediaAssets);
+	const [{ total }] = await db.select({ total: count() }).from(mediaAssets).where(where);
 
 	return {
 		items,
 		total,
-		page: Math.max(1, page),
-		pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE))
+		page,
+		pageCount: Math.max(1, Math.ceil(total / limit))
 	};
 }
 

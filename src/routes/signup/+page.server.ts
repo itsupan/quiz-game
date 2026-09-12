@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, locals, cookies, platform, url }) => {
+	default: async ({ request, locals, cookies, url }) => {
 		const data = await request.formData();
 		const name = String(data.get('name') ?? '');
 		const email = String(data.get('email') ?? '');
@@ -27,15 +27,10 @@ export const actions: Actions = {
 		const rawTarget =
 			(data.get('redirectTo') as string | null) ?? url.searchParams.get('redirectTo');
 
-		const bootstrapEmails = platform?.env?.BOOTSTRAP_ADMIN_EMAILS;
 		let destination: string;
 
 		try {
-			const user = await registerUser(
-				locals.db,
-				{ email, password, displayName: name },
-				bootstrapEmails
-			);
+			const user = await registerUser(locals.db, { email, password, displayName: name });
 			const session = await createSession(locals.db, user.id);
 			setSessionCookie(cookies, session.token, session.expiresAt);
 			destination = getDestination(rawTarget, user.role);

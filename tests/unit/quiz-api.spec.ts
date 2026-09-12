@@ -145,9 +145,27 @@ describe('quiz API application facade', () => {
 			.from(attempts)
 			.where(eq(attempts.userId, learnerId));
 
-		expect(first.created).toBe(true);
-		expect(second).toEqual({ attemptId: first.attemptId, created: false });
+		expect(first).toMatchObject({ status: 'IN_PROGRESS', created: true });
+		expect(second).toEqual({
+			attemptId: first.attemptId,
+			status: 'IN_PROGRESS',
+			created: false
+		});
 		expect(rows).toHaveLength(1);
+	});
+
+	it('reports the current status when replaying a completed start request', async () => {
+		const key = 'completed-retry-key';
+		const first = await createAttempt(db, quizPublicId, learnerId, key, START);
+		await submitAttempt(db, first.attemptId, learnerId, after(10));
+
+		const replay = await createAttempt(db, quizPublicId, learnerId, key, after(20));
+
+		expect(replay).toEqual({
+			attemptId: first.attemptId,
+			status: 'SUBMITTED',
+			created: false
+		});
 	});
 
 	it('hides another learner’s attempt from every attempt operation', async () => {

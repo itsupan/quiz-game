@@ -19,8 +19,9 @@ test.describe('quiz API v1', () => {
 		const overviewResponse = await page.request.get(`/api/v1/quizzes/${quizId}`);
 		expect(overviewResponse.status()).toBe(200);
 
+		const idempotencyKey = `playwright-${crypto.randomUUID()}`;
 		const startResponse = await page.request.post(`/api/v1/quizzes/${quizId}/attempts`, {
-			headers: { 'idempotency-key': `playwright-${crypto.randomUUID()}` }
+			headers: { 'idempotency-key': idempotencyKey }
 		});
 		expect(startResponse.status()).toBe(201);
 		const started = (await startResponse.json()) as { data: { id: string } };
@@ -44,6 +45,14 @@ test.describe('quiz API v1', () => {
 		};
 		expect(result.data.attempt.status).toBe('SUBMITTED');
 		expect(result.data.questions[0].correctOptionNumber).toBe(1);
+
+		const replayResponse = await page.request.post(`/api/v1/quizzes/${quizId}/attempts`, {
+			headers: { 'idempotency-key': idempotencyKey }
+		});
+		expect(replayResponse.status()).toBe(200);
+		await expect(replayResponse.json()).resolves.toMatchObject({
+			data: { id: started.data.id, status: 'SUBMITTED' }
+		});
 	});
 
 	test('uses JSON errors for authentication and malformed input', async ({ page, browser }) => {
