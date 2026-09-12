@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "35adcf6c-1d7a-4959-be7d-529d56463cf4",
+  "id": "751f9716-cddf-40bd-bf53-407365ae83ad",
   "prevId": "80b543a5-7dc8-432b-b97c-0777629d0af2",
   "tables": {
     "oauth_accounts": {
@@ -198,13 +198,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "jlpt_level": {
-          "name": "jlpt_level",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "role": {
           "name": "role",
           "type": "text",
@@ -280,13 +273,6 @@
             "status"
           ],
           "isUnique": false
-        },
-        "users_jlpt_level_idx": {
-          "name": "users_jlpt_level_idx",
-          "columns": [
-            "jlpt_level"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -300,10 +286,6 @@
         "users_status_check": {
           "name": "users_status_check",
           "value": "\"users\".\"status\" in ('ACTIVE', 'SUSPENDED')"
-        },
-        "users_jlpt_level_check": {
-          "name": "users_jlpt_level_check",
-          "value": "\"users\".\"jlpt_level\" in ('N5', 'N4', 'N3', 'N2', 'N1')"
         }
       }
     },
@@ -1523,6 +1505,14 @@
           "autoincrement": false,
           "default": "'FIXED'"
         },
+        "icon": {
+          "name": "icon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'book'"
+        },
         "time_limit_seconds": {
           "name": "time_limit_seconds",
           "type": "integer",
@@ -1653,6 +1643,10 @@
         "quizzes_selection_mode_check": {
           "name": "quizzes_selection_mode_check",
           "value": "\"quizzes\".\"selection_mode\" in ('FIXED', 'RANDOM')"
+        },
+        "quizzes_icon_check": {
+          "name": "quizzes_icon_check",
+          "value": "\"quizzes\".\"icon\" in ('book', 'flask', 'calculator', 'headphones', 'microphone', 'brain', 'pencil', 'graduation-cap', 'trophy')"
         },
         "quizzes_status_check": {
           "name": "quizzes_status_check",

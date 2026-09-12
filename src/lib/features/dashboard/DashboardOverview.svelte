@@ -17,10 +17,9 @@
 		<span class="inline-block h-8 w-1.5 bg-brand-red" aria-hidden="true"></span>
 		<h2
 			id="overview-heading"
-			class="flex items-center gap-2 text-2xl font-black tracking-tight uppercase sm:text-3xl"
+			class="text-2xl font-black tracking-tight text-ink uppercase sm:text-3xl"
 		>
-			<span class="text-brand-red">01</span>
-			<span class="text-ink">/ OVERVIEW</span>
+			Overview
 		</h2>
 	</div>
 

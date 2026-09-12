@@ -14,6 +14,7 @@ const admin: AuthUser = {
 	publicId: '01JSEEDACCTADMN00000000000',
 	email: 'admin@example.com',
 	displayName: 'Admin',
+	avatarUrl: null,
 	role: 'ADMIN',
 	status: 'ACTIVE'
 };
@@ -23,6 +24,7 @@ const learner: AuthUser = {
 	publicId: '01JSEEDACCTSTDNT0000000000',
 	email: 'learner@example.com',
 	displayName: 'Learner',
+	avatarUrl: null,
 	role: 'USER',
 	status: 'ACTIVE'
 };

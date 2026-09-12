@@ -4,6 +4,46 @@ import { getAssetByPublicId } from '$lib/features/media/media.server';
 import type { RequestHandler } from './$types';
 
 /**
+ * `bucket.get()` accepts a live `Headers` object for `onlyIf`/`range`, and it works
+ * against a real deployed Worker. Under `vite dev`, though, that call crosses an RPC
+ * boundary into a sandboxed runtime that serializes every argument with `devalue`,
+ * which throws on anything that is not a plain object — a `Headers` instance included.
+ * Converting to plain `R2Conditional`/`R2Range` objects up front sidesteps that boundary
+ * entirely, in dev and in production alike.
+ */
+function toR2Conditional(headers: Headers): R2Conditional {
+	const ifModifiedSince = headers.get('if-modified-since');
+	const ifUnmodifiedSince = headers.get('if-unmodified-since');
+
+	return {
+		etagMatches: headers.get('if-match') ?? undefined,
+		etagDoesNotMatch: headers.get('if-none-match') ?? undefined,
+		uploadedAfter: ifModifiedSince ? new Date(ifModifiedSince) : undefined,
+		uploadedBefore: ifUnmodifiedSince ? new Date(ifUnmodifiedSince) : undefined
+	};
+}
+
+/** Only the two forms an `<audio>` element's own range requests ever take. */
+function toR2Range(headers: Headers): R2Range | undefined {
+	const match = /^bytes=(\d*)-(\d*)$/.exec(headers.get('range') ?? '');
+	if (!match) return undefined;
+
+	const [, startText, endText] = match;
+
+	if (startText === '') {
+		const suffix = Number(endText);
+		return Number.isFinite(suffix) ? { suffix } : undefined;
+	}
+
+	const offset = Number(startText);
+	if (!Number.isFinite(offset)) return undefined;
+	if (endText === '') return { offset };
+
+	const end = Number(endText);
+	return Number.isFinite(end) ? { offset, length: end - offset + 1 } : { offset };
+}
+
+/**
  * Serves an uploaded file from R2.
  *
  * Public, because a learner taking a listening exam has to be able to load the audio,
@@ -35,8 +75,8 @@ export const GET: RequestHandler = async ({ locals, params, platform, request, s
 	// all unless the server answers a range request with a 206, so without this the
 	// multi-megabyte JLPT audio this route exists to serve simply does not play.
 	const object = await bucket.get(asset.r2Key, {
-		onlyIf: request.headers,
-		range: wantsRange ? request.headers : undefined
+		onlyIf: toR2Conditional(request.headers),
+		range: wantsRange ? toR2Range(request.headers) : undefined
 	});
 
 	if (!object) {

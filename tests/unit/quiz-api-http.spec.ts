@@ -15,6 +15,7 @@ const learner: AuthUser = {
 	publicId: '01JSEEDACCTUSER0000000000',
 	email: 'learner@example.com',
 	displayName: 'Learner',
+	avatarUrl: null,
 	role: 'USER',
 	status: 'ACTIVE'
 };

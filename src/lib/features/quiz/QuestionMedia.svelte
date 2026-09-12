@@ -57,6 +57,12 @@
 		audioEl?.load();
 	}
 
+	function replay() {
+		if (!audioEl) return;
+		audioEl.currentTime = 0;
+		audioEl.play().catch(() => {});
+	}
+
 	function formatTime(seconds: number) {
 		if (isNaN(seconds)) return '00:00';
 		const m = Math.floor(seconds / 60);
@@ -142,6 +148,10 @@
 				>
 			</div>
 		</div>
+
+		<Button type="button" variant="ghost" size="sm" onclick={replay} class="mt-2">
+			Replay from the start
+		</Button>
 
 		<!-- Hidden Native Audio Element -->
 		<audio

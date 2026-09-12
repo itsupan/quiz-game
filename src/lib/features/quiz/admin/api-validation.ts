@@ -1,5 +1,6 @@
 import {
 	JLPT_LEVELS,
+	QUIZ_ICONS,
 	QUIZ_MODES,
 	SECTIONS,
 	SELECTION_MODES,
@@ -19,6 +20,7 @@ export const QUIZ_BODY_FIELDS = [
 	'mode',
 	'level',
 	'selectionMode',
+	'icon',
 	'timeLimitSeconds',
 	'showStudyAidsDuringAttempt',
 	'xpReward'
@@ -163,6 +165,7 @@ export function parseQuizCreateBody(body: Record<string, unknown>): QuizInput {
 	const mode = readEnum(body, 'mode', QUIZ_MODES, errors);
 	const level = readEnum(body, 'level', JLPT_LEVELS, errors);
 	const selectionMode = readEnum(body, 'selectionMode', SELECTION_MODES, errors);
+	const icon = readEnum(body, 'icon', QUIZ_ICONS, errors);
 	const timeLimitSeconds = readTimeLimitSeconds(body, errors);
 	const showStudyAidsDuringAttempt = readBoolean(body, 'showStudyAidsDuringAttempt', errors);
 	const xpReward = readNonNegativeInteger(body, 'xpReward', errors);
@@ -185,6 +188,7 @@ export function parseQuizCreateBody(body: Record<string, unknown>): QuizInput {
 		mode: mode as QuizMode,
 		level: level as JlptLevel,
 		selectionMode: selectionMode as SelectionMode,
+		icon: icon ?? 'book',
 		timeLimitSeconds: resolvedTimeLimit,
 		showStudyAidsDuringAttempt: showStudyAidsDuringAttempt ?? false,
 		xpReward: xpReward ?? 0
@@ -205,6 +209,7 @@ export function parseQuizPatchBody(current: QuizInput, body: Record<string, unkn
 	const mode = readEnum(body, 'mode', QUIZ_MODES, errors);
 	const level = readEnum(body, 'level', JLPT_LEVELS, errors);
 	const selectionMode = readEnum(body, 'selectionMode', SELECTION_MODES, errors);
+	const icon = readEnum(body, 'icon', QUIZ_ICONS, errors);
 	const timeLimitSeconds = readTimeLimitSeconds(body, errors);
 	const showStudyAidsDuringAttempt = readBoolean(body, 'showStudyAidsDuringAttempt', errors);
 	const xpReward = readNonNegativeInteger(body, 'xpReward', errors);
@@ -217,6 +222,7 @@ export function parseQuizPatchBody(current: QuizInput, body: Record<string, unkn
 		mode: mode ?? current.mode,
 		level: level ?? current.level,
 		selectionMode: selectionMode ?? current.selectionMode,
+		icon: icon ?? current.icon,
 		timeLimitSeconds: timeLimitSeconds === undefined ? current.timeLimitSeconds : timeLimitSeconds,
 		showStudyAidsDuringAttempt: showStudyAidsDuringAttempt ?? current.showStudyAidsDuringAttempt,
 		xpReward: xpReward ?? current.xpReward

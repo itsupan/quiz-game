@@ -13,6 +13,7 @@ async function listPublishedQuizzes(db: Database): Promise<DashboardQuiz[]> {
 			description: quizzes.description,
 			level: quizzes.level,
 			mode: quizzes.mode,
+			icon: quizzes.icon,
 			timeLimitSeconds: quizzes.timeLimitSeconds,
 			createdAt: quizzes.createdAt
 		})
@@ -46,6 +47,7 @@ async function listPublishedQuizzes(db: Database): Promise<DashboardQuiz[]> {
 		description: quiz.description,
 		level: quiz.level,
 		mode: quiz.mode,
+		icon: quiz.icon,
 		timeLimitSeconds: quiz.timeLimitSeconds,
 		sections: sectionsByQuiz.get(quiz.id) ?? [],
 		createdAt: quiz.createdAt.toISOString()

@@ -43,25 +43,19 @@
 	<title>Analytics | QuizGame</title>
 </svelte:head>
 
-<div class="mx-auto max-w-5xl pb-16">
+<div class="mx-auto pb-16">
 	<!-- Header -->
 	<div class="mb-12 border-b border-ink pb-6">
 		<div class="flex flex-col justify-between md:flex-row md:items-end">
-			<div class="flex items-start gap-4 md:gap-6">
-				<div class="h-20 w-12 bg-brand-red md:h-24 md:w-14"></div>
-				<div class="flex flex-col md:flex-row md:items-start md:gap-4">
-					<div class="flex items-baseline gap-2">
-						<span class="text-6xl font-black tracking-tighter text-ink md:text-7xl">04</span>
-						<span class="text-4xl font-black text-stone-400 md:text-5xl">/</span>
-					</div>
-					<div class="mt-2 flex flex-col justify-end md:mt-0 md:h-full md:pb-2">
-						<span class="text-[10px] font-bold tracking-widest text-stone-500 uppercase"
-							>Seiseki Bunseki</span
-						>
-						<h1 class="text-3xl font-black tracking-tight text-ink uppercase md:text-4xl">
-							Performance
-						</h1>
-					</div>
+			<div class="flex items-center gap-4">
+				<span class="h-10 w-1.5 bg-brand-red" aria-hidden="true"></span>
+				<div class="flex flex-col">
+					<span class="text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+						>Seiseki Bunseki</span
+					>
+					<h1 class="text-3xl font-black tracking-tight text-ink uppercase md:text-4xl">
+						Performance
+					</h1>
 				</div>
 			</div>
 			<div class="mt-4 max-w-xs text-xs font-bold text-stone-500 md:mt-0 md:text-right">

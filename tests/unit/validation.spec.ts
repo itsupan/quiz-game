@@ -49,6 +49,7 @@ function quizForm(overrides: Record<string, string> = {}) {
 	data.set('mode', 'FULL_EXAM');
 	data.set('level', 'N4');
 	data.set('selectionMode', 'FIXED');
+	data.set('icon', 'book');
 	data.set('timeLimitMinutes', '115');
 
 	for (const [key, value] of Object.entries(overrides)) {

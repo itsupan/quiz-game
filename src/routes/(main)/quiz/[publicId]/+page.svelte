@@ -48,28 +48,44 @@
 		{/if}
 
 		<h2 class="mt-6 text-sm font-bold tracking-widest uppercase">Sections</h2>
-		<table class="mt-2 w-full">
-			<thead>
-				<tr>
-					<th scope="col" class="text-left">Section</th>
-					<th scope="col" class="text-left">Questions</th>
-					<th scope="col" class="text-left">Time limit</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each data.quiz.sections as section (section.position)}
+		<div class="mt-2 overflow-x-auto border-2 border-ink bg-white">
+			<table class="w-full min-w-[420px] text-left">
+				<thead class="bg-stone-50">
 					<tr>
-						<th scope="row" class="text-left font-normal">{section.section}</th>
-						<td>{section.questionCount}</td>
-						<td
-							>{section.timeLimitSeconds === null
-								? '—'
-								: `${minutes(section.timeLimitSeconds)} min`}</td
+						<th
+							scope="col"
+							class="border-b border-ink px-4 py-3 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+							>Section</th
+						>
+						<th
+							scope="col"
+							class="border-b border-ink px-4 py-3 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+							>Questions</th
+						>
+						<th
+							scope="col"
+							class="border-b border-ink px-4 py-3 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+							>Time limit</th
 						>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
+				</thead>
+				<tbody class="divide-y divide-line">
+					{#each data.quiz.sections as section (section.position)}
+						<tr>
+							<th scope="row" class="px-4 py-3 text-sm font-bold text-ink">
+								{section.section.replace('_', ' ')}
+							</th>
+							<td class="px-4 py-3 text-sm text-ink">{section.questionCount}</td>
+							<td class="px-4 py-3 text-sm text-ink">
+								{section.timeLimitSeconds === null
+									? '—'
+									: `${minutes(section.timeLimitSeconds)} min`}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
 
 		<p class="mt-4 text-sm text-muted">
 			{totalQuestions} question{totalQuestions === 1 ? '' : 's'} total.

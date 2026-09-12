@@ -24,8 +24,8 @@ test.describe('taking a quiz', () => {
 
 		// The three sections, in the paper's own order, each with its own limit.
 		const rows = page.getByRole('row');
-		await expect(rows.filter({ hasText: 'VOCAB_KANJI' })).toContainText('25 min');
-		await expect(rows.filter({ hasText: 'GRAMMAR_READING' })).toContainText('55 min');
+		await expect(rows.filter({ hasText: 'VOCAB KANJI' })).toContainText('25 min');
+		await expect(rows.filter({ hasText: 'GRAMMAR READING' })).toContainText('55 min');
 		await expect(rows.filter({ hasText: 'LISTENING' })).toContainText('35 min');
 
 		await expect(page.getByText(/cannot be paused/i)).toBeVisible();
@@ -95,8 +95,10 @@ test.describe('taking a quiz', () => {
 		// Q5: the listening question. Audio renders, replay works, and — the acceptance
 		// criterion this exists for — the transcript is nowhere in the page while the
 		// attempt is still open.
+		// The native <audio> element stays visually hidden behind the custom player built
+		// around it — present and playable, never shown directly.
 		const audio = page.locator('audio');
-		await expect(audio).toBeVisible();
+		await expect(audio).toBeAttached();
 		await expect(page.getByRole('button', { name: 'Replay from the start' })).toBeVisible();
 		expect(await page.content()).not.toContain('会議を終わります');
 
@@ -117,7 +119,7 @@ test.describe('taking a quiz', () => {
 		await dialog.getByRole('button', { name: 'Submit attempt' }).click();
 
 		await expect(page).toHaveURL(/\/result$/);
-		await expect(page.getByText('3 / 5 correct (3 of 5)')).toBeVisible();
+		await expect(page.getByText('3 of 5 correct')).toBeVisible();
 		await expect(page.getByText(/estimate, not an exam result/i)).toBeVisible();
 
 		// Review: the transcript is now available, behind its own <details> disclosure —

@@ -2,8 +2,10 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import AuthField from './AuthField.svelte';
 	import Button from './Button.svelte';
+	import { toast } from './toast-store.svelte';
 
 	type FormState = {
 		error?: string;
@@ -23,6 +25,26 @@
 	const googleHref = $derived(
 		`/auth/google${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`
 	);
+
+	/**
+	 * A wrong password fails right here, so its toast can fire immediately. A correct one
+	 * redirects, and the callback below runs and returns before the browser navigates — so
+	 * the success toast is queued for the page the redirect lands on instead.
+	 */
+	const handleSubmit: SubmitFunction = () => {
+		return async ({ result, update }) => {
+			if (result.type === 'failure') {
+				const data = result.data as { error?: string } | undefined;
+				toast.error(data?.error ?? 'Something went wrong. Please try again.');
+			} else if (result.type === 'error') {
+				toast.error('Something went wrong. Please try again.');
+			} else if (result.type === 'redirect') {
+				toast.queueSuccess(isLogin ? 'Welcome back!' : 'Account created. Welcome!');
+			}
+
+			await update();
+		};
+	};
 </script>
 
 <svelte:head>
@@ -80,7 +102,7 @@
 			aria-hidden="true"
 		></span>
 
-		<form class="w-full max-w-[40rem]" method="POST" use:enhance>
+		<form class="w-full max-w-[40rem]" method="POST" use:enhance={handleSubmit}>
 			{#if redirectTo}
 				<input type="hidden" name="redirectTo" value={redirectTo} />
 			{/if}

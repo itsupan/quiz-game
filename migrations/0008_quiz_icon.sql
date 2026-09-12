@@ -1,0 +1,1 @@
+ALTER TABLE `quizzes` ADD `icon` text DEFAULT 'book' NOT NULL CONSTRAINT "quizzes_icon_check" CHECK(`icon` in ('book', 'flask', 'calculator', 'headphones', 'microphone', 'brain', 'pencil', 'graduation-cap', 'trophy'));

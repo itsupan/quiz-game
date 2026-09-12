@@ -17,6 +17,7 @@ import {
 	JLPT_LEVELS,
 	MEDIA_KINDS,
 	QUESTION_FORMATS,
+	QUIZ_ICONS,
 	QUIZ_MODES,
 	SCORING_BANDS,
 	SECTIONS,
@@ -211,6 +212,8 @@ export const quizzes = sqliteTable(
 		mode: text('mode', { enum: QUIZ_MODES }).notNull(),
 		level: text('level', { enum: JLPT_LEVELS }).notNull(),
 		selectionMode: text('selection_mode', { enum: SELECTION_MODES }).notNull().default('FIXED'),
+		/** The dashboard card icon, e.g. `book` renders as the Flaticon `fi-rs-book` glyph. */
+		icon: text('icon', { enum: QUIZ_ICONS }).notNull().default('book'),
 		/** Null means untimed. The server, not the client, owns the deadline. */
 		timeLimitSeconds: integer('time_limit_seconds'),
 		/** 180 for a JLPT paper. Null for quizzes that are not scaled-scored. */
@@ -232,6 +235,7 @@ export const quizzes = sqliteTable(
 		check('quizzes_mode_check', checkIn(table.mode, QUIZ_MODES)),
 		check('quizzes_level_check', checkIn(table.level, JLPT_LEVELS)),
 		check('quizzes_selection_mode_check', checkIn(table.selectionMode, SELECTION_MODES)),
+		check('quizzes_icon_check', checkIn(table.icon, QUIZ_ICONS)),
 		check('quizzes_status_check', checkIn(table.status, CONTENT_STATUS)),
 		check('quizzes_xp_reward_check', sql`${table.xpReward} >= 0`),
 		// The homepage lists published quizzes filtered by level and mode.

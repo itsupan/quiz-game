@@ -14,6 +14,7 @@ export type QuizListItem = Pick<
 	| 'mode'
 	| 'level'
 	| 'selectionMode'
+	| 'icon'
 	| 'status'
 	| 'timeLimitSeconds'
 	| 'createdAt'
@@ -85,6 +86,7 @@ export async function listQuizzes(db: Database, filters: QuizFilters = {}) {
 			mode: quizzes.mode,
 			level: quizzes.level,
 			selectionMode: quizzes.selectionMode,
+			icon: quizzes.icon,
 			status: quizzes.status,
 			timeLimitSeconds: quizzes.timeLimitSeconds,
 			createdAt: quizzes.createdAt,

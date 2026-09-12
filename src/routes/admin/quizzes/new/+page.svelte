@@ -23,6 +23,7 @@
 		mode: 'JLPT_PRACTICE',
 		level: 'N4',
 		selectionMode: 'FIXED',
+		icon: 'book',
 		timeLimitSeconds: null
 	}}
 />

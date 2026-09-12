@@ -68,7 +68,8 @@ describe('QuestionMedia', () => {
 			return Promise.resolve();
 		});
 
-		await screen.getByRole('button', { name: 'Play' }).click();
+		// exact: 'Replay from the start' also matches "Play" as a substring otherwise.
+		await screen.getByRole('button', { name: 'Play', exact: true }).click();
 
 		expect(played).toBe(true);
 	});

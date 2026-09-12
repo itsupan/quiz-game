@@ -39,6 +39,26 @@ export const QUIZ_MODES = ['JLPT_PRACTICE', 'MOCK_TEST', 'FULL_EXAM'] as const;
 export type QuizMode = (typeof QUIZ_MODES)[number];
 
 /**
+ * The dashboard card icon an admin picks for a quiz.
+ *
+ * Each value is also a Flaticon UIcons "regular straight" class suffix — the card
+ * renders it as `fi fi-rs-{icon}` — so adding a preset here is the only step needed
+ * to make it choosable in the admin form and renderable on the card.
+ */
+export const QUIZ_ICONS = [
+	'book',
+	'flask',
+	'calculator',
+	'headphones',
+	'microphone',
+	'brain',
+	'pencil',
+	'graduation-cap',
+	'trophy'
+] as const;
+export type QuizIcon = (typeof QUIZ_ICONS)[number];
+
+/**
  * `FIXED` quizzes serve the ordered list in `quiz_questions`; `RANDOM` quizzes draw
  * `quiz_sections.draw_count` questions per section from the bank at attempt start.
  */

@@ -25,14 +25,22 @@
 	<div class="flex flex-col gap-4">
 		{#each options as option, i (option.id)}
 			<label
-				class="flex cursor-pointer items-center gap-6 border border-ink bg-white p-4 transition-colors hover:bg-stone-50 has-checked:border-2 has-checked:bg-paper has-disabled:opacity-60"
+				class="relative flex cursor-pointer items-center gap-6 border border-ink bg-white p-4 transition-colors hover:bg-stone-50 has-checked:border-2 has-checked:bg-paper has-disabled:opacity-60"
 			>
+				<!--
+					A full-size invisible overlay, not `sr-only`: that class's 1x1px absolutely
+					positioned box lands right under this label's own first child (the lettered
+					box below), so a direct click or Playwright's `.check()` on the input hits
+					that sibling instead. Covering the whole row keeps the input reachable from
+					anywhere in it, exactly like clicking the visible content already does.
+				-->
 				<input
 					type="radio"
 					{name}
 					value={option.id}
 					checked={selectedOptionId === option.id}
-					class="sr-only"
+					aria-label={option.body}
+					class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
 				/>
 
 				<div class="flex items-center justify-center border border-ink px-2 py-1">

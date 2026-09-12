@@ -9,7 +9,7 @@
 	type Props = {
 		children: Snippet;
 		navLinks: ShellNavLink[];
-		user: { displayName: string; role: string } | null;
+		user: { displayName: string; avatarUrl: string | null; role: string } | null;
 		/** Sections nav label, for assistive technology. */
 		navLabel: string;
 		/** Render the search box only where there is something to search. */
@@ -109,9 +109,11 @@
 						class="flex h-8 w-8 items-center justify-center border border-ink bg-white p-0.5 transition-colors hover:border-brand-red"
 					>
 						<div
-							class="flex h-full w-full items-center justify-center bg-stone-100 text-xs font-bold text-ink"
+							class="flex h-full w-full items-center justify-center overflow-hidden bg-stone-100 text-xs font-bold text-ink"
 						>
-							{#if user?.displayName}
+							{#if user?.avatarUrl}
+								<img src={user.avatarUrl} alt="" class="h-full w-full object-cover" />
+							{:else if user?.displayName}
 								{user.displayName.slice(0, 1).toUpperCase()}
 							{:else}
 								<svg class="h-4 w-4 text-stone-600" fill="currentColor" viewBox="0 0 20 20">
@@ -139,14 +141,29 @@
 							class="absolute right-0 z-50 mt-2 flex w-56 flex-col gap-2 border-2 border-ink bg-white px-3 py-2 shadow-lg"
 						>
 							{#if user}
-								<div class="border-b border-stone-200 pb-2">
-									<p class="truncate text-xs font-black tracking-wider text-ink uppercase">
-										{user.displayName}
-									</p>
-									<p class="font-mono text-[10px] tracking-wider text-stone-500 uppercase">
-										ROLE: {user.role}
-									</p>
-								</div>
+								<a
+									href={resolve('/profile')}
+									onclick={closeUserMenu}
+									class="flex items-center gap-2 border-b border-stone-200 pb-2 hover:text-brand-red"
+								>
+									<div
+										class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border border-ink bg-stone-100 text-xs font-bold text-ink"
+									>
+										{#if user.avatarUrl}
+											<img src={user.avatarUrl} alt="" class="h-full w-full object-cover" />
+										{:else}
+											{user.displayName.slice(0, 1).toUpperCase()}
+										{/if}
+									</div>
+									<div class="min-w-0">
+										<p class="truncate text-xs font-black tracking-wider uppercase">
+											{user.displayName}
+										</p>
+										<p class="font-mono text-[10px] tracking-wider text-stone-500 uppercase">
+											ROLE: {user.role}
+										</p>
+									</div>
+								</a>
 
 								{#if user.role === 'ADMIN'}
 									<a
@@ -207,18 +224,4 @@
 	<div class="mx-auto w-full max-w-[1280px] flex-1 px-4 py-8 sm:px-6 lg:px-8">
 		{@render children()}
 	</div>
-
-	<footer class="mt-auto w-full">
-		<div class="h-1 w-full bg-brand-red"></div>
-		<div
-			class="flex items-center justify-between bg-ink px-4 py-2.5 font-mono text-[11px] tracking-widest text-white uppercase sm:px-6 lg:px-8"
-		>
-			<span>SYSTEM STATUS: ACTIVE</span>
-			<div class="flex items-center gap-1.5" aria-hidden="true">
-				<span class="inline-block h-3 w-3 bg-brand-red"></span>
-				<span class="inline-block h-3 w-3 bg-white"></span>
-				<span class="inline-block h-3 w-3 border border-white bg-transparent"></span>
-			</div>
-		</div>
-	</footer>
 </div>
