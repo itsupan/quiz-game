@@ -3,9 +3,8 @@ import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import { mediaAssets, questionOptions, questions } from '$lib/server/db/schema';
 import type { ContentStatus, JlptLevel, Question, Section } from '$lib/server/db/schema';
+import { isForeignKeyFailure, type WriteResult } from '../write-result';
 import type { QuestionInput } from '../validation';
-
-export type WriteResult<T> = { ok: true; value: T } | { ok: false; message: string };
 
 export type QuestionListItem = Pick<
 	Question,
@@ -329,9 +328,4 @@ export async function updateQuestion(
 
 export async function setQuestionStatus(db: Database, questionId: number, status: ContentStatus) {
 	await db.update(questions).set({ status }).where(eq(questions.id, questionId));
-}
-
-/** D1 reports a RESTRICT violation as a plain message, so the text is what there is. */
-export function isForeignKeyFailure(cause: unknown): boolean {
-	return cause instanceof Error && /FOREIGN KEY constraint failed/i.test(cause.message);
 }

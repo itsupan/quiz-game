@@ -6,7 +6,7 @@ lives together, rather than being split across type-based folders.
 ```
 features/
   admin/
-    audit.server.ts       shared by every admin sub-slice below
+    audit.server.ts       recorded by every admin route (not by the sub-slices themselves)
     validation.ts         shared form validation (quiz + question forms)
     PageHeader.svelte      shared admin-wide components
     quizzes/
@@ -18,10 +18,12 @@ features/
 ```
 
 A file used by only one sub-slice lives in that sub-slice's folder; a file two or more
-sub-slices need (like `audit.server.ts` or `validation.ts` above) stays at the feature's
-root instead of picking one sub-slice to own it.
+sub-slices need, or one that belongs to the feature as a whole rather than any single
+sub-slice (like the dashboard's `overview.server.ts`), stays at the feature's root instead
+of picking one sub-slice to own it.
 
-Import through the `$lib` alias: `import { score } from '$lib/features/quiz/scoring';`
+Import through the `$lib` alias:
+`import { listQuizzes } from '$lib/features/admin/quizzes/quizzes.server';`
 
 Where things go:
 
@@ -37,6 +39,6 @@ Pure logic in a feature is the cheapest thing to test — a plain `*.spec.ts` in
 `tests/unit/` runs in the node project with no browser and no database.
 
 Tests live in the top-level `tests/unit/` (flat, filename picks the Vitest project) and
-`tests/e2e/`, not beside the feature — except a route's own `+page.svelte.spec.ts`, which
+`tests/e2e/`, not beside the feature — except a route's own `page.svelte.spec.ts`, which
 stays in `src/routes/` because SvelteKit's generated `$types` only resolves relative to
 that route folder.

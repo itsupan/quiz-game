@@ -76,8 +76,12 @@ One exception: `src/routes/admin/page.svelte.spec.ts` stays next to its route
 rather than moving to `tests/unit/`. SvelteKit generates a route's `$types`
 reachable only via a relative import from inside that route's own folder, so
 a route-level component spec that imports both its `+page.svelte` and its
-`./$types` has to stay put. Any future `+page.svelte.spec.ts` follows the
+`./$types` has to stay put. Any future `page.svelte.spec.ts` follows the
 same rule.
+
+When two modules share a basename, qualify the spec's filename with its
+slice (e.g. `schema-enums.spec.ts` for `lib/server/db/schema/enums.ts`, to
+distinguish it from a hypothetical `domain-enums.spec.ts`).
 
 ## Secrets and environment variables
 
