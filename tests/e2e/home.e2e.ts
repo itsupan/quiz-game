@@ -66,10 +66,8 @@ test.describe('learner home page (authenticated)', () => {
 		// Section 01: Overview
 		await expect(page.getByRole('heading', { name: /01\s*\/ OVERVIEW/i })).toBeVisible();
 		await expect(page.getByText(/Welcome back/i)).toBeVisible();
-		// Exact: earlier admin tests publish quizzes titled with a Date.now() stamp, and a
-		// loose match finds "14" inside one of those timestamps whenever it happens to
-		// contain those two digits.
-		await expect(page.getByText('14', { exact: true })).toBeVisible();
+		// Other suites can complete an attempt for this shared learner while running in parallel.
+		await expect(page.getByTestId('streak-days')).toHaveText(/^\d+$/);
 		await expect(page.getByText('DAY STREAK')).toBeVisible();
 		await expect(page.getByText('ACTIVE METRIC')).toBeVisible();
 
@@ -84,10 +82,15 @@ test.describe('learner home page (authenticated)', () => {
 		await expect(page.getByRole('heading', { name: /FEATURED SETS/i })).toBeVisible();
 		await expect(page.getByText('BANSHI SHEJI')).toBeVisible();
 
-		// Featured cards & action buttons
-		await expect(page.getByRole('heading', { name: 'Advanced Typography & Layout' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'LEARN MODE' }).first()).toBeVisible();
-		await expect(page.getByRole('button', { name: 'EXAM MODE' }).first()).toBeVisible();
+		// A seeded quiz card, linking straight into its own overview — one card, one mode,
+		// one link, rather than the two dead buttons this replaced. Scoped to this card by
+		// its own title, not `.first()`: admin tests elsewhere in this suite publish their
+		// own quizzes, which sort ahead of the seed by creation date.
+		const n4Card = page.getByRole('listitem').filter({ hasText: 'JLPT N4 模擬本試験' });
+		await expect(n4Card.getByRole('link', { name: 'Start' })).toHaveAttribute(
+			'href',
+			'/quiz/01JSEEDQZN4EXAM00000000000'
+		);
 
 		// Bottom brutalist status bar
 		await expect(page.getByText('SYSTEM STATUS: ACTIVE')).toBeVisible();
@@ -98,16 +101,16 @@ test.describe('learner home page (authenticated)', () => {
 
 		const filterBar = page.getByLabel('Filter quizzes by JLPT level');
 
-		// Default is N4 in mockup: N4 cards visible
-		await expect(page.getByRole('heading', { name: 'Advanced Typography & Layout' })).toBeVisible();
+		// Default is N4 in mockup: the seeded N4 exam is visible
+		await expect(page.getByRole('heading', { name: 'JLPT N4 模擬本試験' })).toBeVisible();
 
-		// Click N5 where no cards exist
-		await filterBar.getByRole('button', { name: 'N5' }).click();
-		await expect(page.getByText(/No quiz sets found for level N5/i)).toBeVisible();
+		// Click N2, a level nothing is seeded at
+		await filterBar.getByRole('button', { name: 'N2' }).click();
+		await expect(page.getByText(/No quiz sets found for level N2/i)).toBeVisible();
 
-		// Click ALL LEVELS in the filter bar: all cards visible
+		// Click ALL LEVELS in the filter bar: the N4 exam reappears
 		await filterBar.getByRole('button', { name: 'ALL LEVELS' }).click();
-		await expect(page.getByRole('heading', { name: 'Advanced Typography & Layout' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'JLPT N4 模擬本試験' })).toBeVisible();
 	});
 
 	test('user dropdown displays account info and sign out button', async ({ page }) => {

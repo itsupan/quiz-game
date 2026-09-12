@@ -4,6 +4,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import { JLPT_LEVELS, SECTIONS } from '$lib/domain/enums';
+	import type { MediaChoice } from './types';
 
 	/**
 	 * The question editor, shared by the create and edit pages.
@@ -14,8 +15,6 @@
 	 * *no* key at all.
 	 */
 	export type OptionRow = { id: number | null; body: string; isCorrect: boolean };
-
-	export type MediaChoice = { id: number; label: string; kind: 'IMAGE' | 'AUDIO' };
 
 	let {
 		action = '',

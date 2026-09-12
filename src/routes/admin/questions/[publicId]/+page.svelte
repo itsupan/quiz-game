@@ -7,7 +7,7 @@
 	import Button from '$lib/components/Button.svelte';
 	import BlockerList from '$lib/features/admin/BlockerList.svelte';
 	import PageHeader from '$lib/features/admin/PageHeader.svelte';
-	import QuestionForm from '$lib/features/admin/questions/QuestionForm.svelte';
+	import QuestionForm from '$lib/features/questions/QuestionForm.svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();

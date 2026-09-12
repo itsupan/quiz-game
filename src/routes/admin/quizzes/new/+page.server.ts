@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 
-import { createQuiz } from '$lib/features/admin/quizzes/quizzes.server';
-import { parseQuizForm } from '$lib/features/admin/validation';
+import { createQuiz } from '$lib/features/quiz/admin/quizzes.server';
+import { parseQuizForm } from '$lib/features/quiz/admin/validation';
 import type { Actions } from './$types';
 
 export const actions: Actions = {

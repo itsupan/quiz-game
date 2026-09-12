@@ -2,7 +2,7 @@ import { asc } from 'drizzle-orm';
 
 import type { Database } from '$lib/server/db';
 import { mediaAssets } from '$lib/server/db/schema';
-import type { MediaChoice } from './QuestionForm.svelte';
+import type { MediaChoice } from './types';
 
 /**
  * The media pickers on the question form.

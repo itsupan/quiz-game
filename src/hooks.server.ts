@@ -66,6 +66,17 @@ const adminOnly: Handle = async ({ event, resolve }) => {
 };
 
 /**
+ * Every path a signed-in learner needs. `/quiz` covers both the pre-start overview and
+ * `/quiz/attempt/**` — SvelteKit matches the static `attempt` segment before
+ * `[publicId]`, so nesting the sitting under `/quiz` costs this list one entry, not two.
+ *
+ * Quizzes stay signed-in-only for now: the schema supports a guest attempt
+ * (`attempts.user_id` is nullable for exactly that), but building the route split and
+ * the "sign in to keep this result" flow guest play needs is a follow-up.
+ */
+const LEARNER_PATHS = ['/home', '/practice', '/leaderboard', '/analytics', '/quiz'];
+
+/**
  * The authorization gate for learner dashboard routes.
  *
  * Prevents unauthorized users from accessing /home and other learner sections.
@@ -73,15 +84,9 @@ const adminOnly: Handle = async ({ event, resolve }) => {
  */
 const learnerAuth: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
-	const isLearnerProtected =
-		pathname === '/home' ||
-		pathname.startsWith('/home/') ||
-		pathname === '/practice' ||
-		pathname.startsWith('/practice/') ||
-		pathname === '/leaderboard' ||
-		pathname.startsWith('/leaderboard/') ||
-		pathname === '/analytics' ||
-		pathname.startsWith('/analytics/');
+	const isLearnerProtected = LEARNER_PATHS.some(
+		(path) => pathname === path || pathname.startsWith(`${path}/`)
+	);
 
 	if (isLearnerProtected && !event.locals.user) {
 		const isNavigation = event.request.method === 'GET' || event.request.method === 'HEAD';

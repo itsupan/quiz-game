@@ -1,22 +1,23 @@
 import { error, fail } from '@sveltejs/kit';
 
 import { recordAudit } from '$lib/features/admin/audit.server';
-import { getQuiz, listQuizzes, setQuizStatus } from '$lib/features/admin/quizzes/quizzes.server';
-import { CONTENT_STATUS, JLPT_LEVELS, QUIZ_MODES } from '$lib/server/db/schema/enums';
-import type { ContentStatus, JlptLevel, QuizMode } from '$lib/server/db/schema';
+import { enumFilter } from '$lib/features/admin/query-filters';
+import { getQuiz, listQuizzes, setQuizStatus } from '$lib/features/quiz/admin/quizzes.server';
+import {
+	CONTENT_STATUS,
+	JLPT_LEVELS,
+	QUIZ_MODES,
+	type ContentStatus,
+	type JlptLevel,
+	type QuizMode
+} from '$lib/domain/enums';
 import type { Actions, PageServerLoad } from './$types';
-
-function filter<T extends string>(url: URL, key: string, allowed: readonly T[]): T | undefined {
-	const value = url.searchParams.get(key);
-
-	return value && (allowed as readonly string[]).includes(value) ? (value as T) : undefined;
-}
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const filters = {
-		status: filter<ContentStatus>(url, 'status', CONTENT_STATUS),
-		level: filter<JlptLevel>(url, 'level', JLPT_LEVELS),
-		mode: filter<QuizMode>(url, 'mode', QUIZ_MODES),
+		status: enumFilter<ContentStatus>(url, 'status', CONTENT_STATUS),
+		level: enumFilter<JlptLevel>(url, 'level', JLPT_LEVELS),
+		mode: enumFilter<QuizMode>(url, 'mode', QUIZ_MODES),
 		page: Number(url.searchParams.get('page')) || 1
 	};
 

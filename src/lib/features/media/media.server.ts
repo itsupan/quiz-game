@@ -1,10 +1,11 @@
 import { count, desc, eq, or } from 'drizzle-orm';
 
 import type { Database } from '$lib/server/db';
+import { isForeignKeyFailure } from '$lib/server/db/errors';
 import { mediaAssets, questionGroups, questions } from '$lib/server/db/schema';
 import type { MediaAsset } from '$lib/server/db/schema';
 import { describeUpload } from './media';
-import { isForeignKeyFailure, type WriteResult } from '../write-result';
+import type { WriteResult } from '$lib/domain/write-result';
 
 /** Everything R2 needs from the platform, so callers pass one object rather than four. */
 export type MediaBucket = R2Bucket;
@@ -89,6 +90,12 @@ export async function updateMediaDescription(
 		.update(mediaAssets)
 		.set({ altText: description.altText, transcript: description.transcript })
 		.where(eq(mediaAssets.id, assetId));
+}
+
+export async function getMediaAssetById(db: Database, assetId: number) {
+	const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, assetId));
+
+	return asset ?? null;
 }
 
 /**

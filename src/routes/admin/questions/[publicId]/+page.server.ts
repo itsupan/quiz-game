@@ -1,14 +1,18 @@
 import { error, fail } from '@sveltejs/kit';
 
 import { recordAudit } from '$lib/features/admin/audit.server';
-import { listMediaChoices } from '$lib/features/admin/questions/mediaChoices.server';
+import { listMediaChoices } from '$lib/features/questions/media-choices.server';
 import {
 	checkMediaSlots,
 	getQuestion,
 	setQuestionStatus,
 	updateQuestion
-} from '$lib/features/admin/questions/questions.server';
-import { echoValues, parseQuestionForm, publishBlockers } from '$lib/features/admin/validation';
+} from '$lib/features/questions/questions.server';
+import {
+	echoValues,
+	parseQuestionForm,
+	questionPublishBlockers
+} from '$lib/features/questions/validation';
 import type { Actions, PageServerLoad } from './$types';
 
 async function load404(locals: App.Locals, publicId: string) {
@@ -32,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		options,
 		image,
 		audio,
-		blockers: publishBlockers(question, { image, audio }),
+		blockers: questionPublishBlockers(question, { image, audio }),
 		media: await listMediaChoices(locals.db)
 	};
 };
@@ -77,7 +81,7 @@ export const actions: Actions = {
 
 	publish: async ({ locals, params }) => {
 		const { question, image, audio } = await load404(locals, params.publicId);
-		const blockers = publishBlockers(question, { image, audio });
+		const blockers = questionPublishBlockers(question, { image, audio });
 
 		if (blockers.length > 0) {
 			return fail(400, { message: blockers.join(' ') });

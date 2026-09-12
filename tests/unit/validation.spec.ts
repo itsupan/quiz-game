@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-	parseQuestionForm,
-	parseQuizForm,
-	parseQuizSectionForm,
-	publishBlockers
-} from '$lib/features/admin/validation';
+import { parseQuizForm, parseQuizSectionForm } from '$lib/features/quiz/admin/validation';
+import { parseQuestionForm, questionPublishBlockers } from '$lib/features/questions/validation';
 
 /** Builds the multipart body an option row submits, in DOM order. */
 function withOptions(
@@ -276,16 +272,16 @@ describe('parseQuizSectionForm', () => {
 	});
 });
 
-describe('publishBlockers', () => {
+describe('questionPublishBlockers', () => {
 	const question = { stem: '音声を聞いてください。', status: 'DRAFT' as const };
 
 	it('lets a question with no media publish', () => {
-		expect(publishBlockers(question, { image: null, audio: null })).toEqual([]);
+		expect(questionPublishBlockers(question, { image: null, audio: null })).toEqual([]);
 	});
 
 	it('blocks an image with no alt text', () => {
 		// Nobody using a screen reader can answer a question whose image is undescribed.
-		const blockers = publishBlockers(question, {
+		const blockers = questionPublishBlockers(question, {
 			image: { altText: null },
 			audio: null
 		});
@@ -295,7 +291,7 @@ describe('publishBlockers', () => {
 	});
 
 	it('blocks audio with no transcript', () => {
-		const blockers = publishBlockers(question, {
+		const blockers = questionPublishBlockers(question, {
 			image: null,
 			audio: { transcript: '   ' }
 		});
@@ -304,7 +300,7 @@ describe('publishBlockers', () => {
 	});
 
 	it('reports every blocker at once rather than one per attempt', () => {
-		const blockers = publishBlockers(question, {
+		const blockers = questionPublishBlockers(question, {
 			image: { altText: '' },
 			audio: { transcript: '' }
 		});
@@ -314,7 +310,7 @@ describe('publishBlockers', () => {
 
 	it('passes described media', () => {
 		expect(
-			publishBlockers(question, {
+			questionPublishBlockers(question, {
 				image: { altText: '駅の時刻表' },
 				audio: { transcript: '男：すみません、駅はどこですか。' }
 			})
