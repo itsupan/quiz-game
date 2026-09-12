@@ -55,18 +55,22 @@ describe('QuestionMedia', () => {
 		await expect.element(screen.getByRole('button', { name: 'Retry audio' })).toBeInTheDocument();
 	});
 
-	it('replays from the start rather than resuming wherever the slider was left', async () => {
+	it('provides a custom play button', async () => {
 		const screen = render(QuestionMedia, {
 			image: null,
 			audio: { publicId: 'clip', transcript: null }
 		});
 
 		const audioEl = screen.container.querySelector('audio') as HTMLAudioElement;
-		audioEl.currentTime = 5;
+		let played = false;
+		audioEl.play = vi.fn().mockImplementation(() => {
+			played = true;
+			return Promise.resolve();
+		});
 
-		await screen.getByRole('button', { name: 'Replay from the start' }).click();
+		await screen.getByRole('button', { name: 'Play' }).click();
 
-		expect(audioEl.currentTime).toBe(0);
+		expect(played).toBe(true);
 	});
 
 	describe('the transcript', () => {
