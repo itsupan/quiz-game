@@ -15,10 +15,168 @@ servers:
 security:
   - sessionCookie: []
 tags:
+  - name: Overview
+  - name: Users
+  - name: AuditLogs
   - name: QuestionGroups
   - name: Questions
   - name: Quizzes
 paths:
+  /overview:
+    get:
+      tags: [Overview]
+      summary: Read dashboard totals, recent activity, and system health
+      responses:
+        '200':
+          description: Data for the admin dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminOverview'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /users:
+    get:
+      tags: [Users]
+      summary: List and filter users
+      parameters:
+        - name: search
+          in: query
+          description: Matches display name, email, or public id.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Level'
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserRole'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListPage'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      tags: [Users]
+      summary: Pre-provision a learner account
+      description: The learner signs in later with a verified Google account using the same email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateBody'
+      responses:
+        '201':
+          description: The created user's public id
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /users/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PublicId'
+    get:
+      tags: [Users]
+      summary: Read a user
+      responses:
+        '200':
+          description: The user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    patch:
+      tags: [Users]
+      summary: Update a user's profile, role, or status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatchBody'
+      responses:
+        '200':
+          description: The updated user
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /audit-logs:
+    get:
+      tags: [AuditLogs]
+      summary: List system audit entries
+      parameters:
+        - name: action
+          in: query
+          schema:
+            $ref: '#/components/schemas/AuditAction'
+        - name: entityType
+          in: query
+          schema:
+            $ref: '#/components/schemas/AuditEntityType'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of audit entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogPage'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /question-groups:
     get:
       tags: [QuestionGroups]
@@ -494,6 +652,31 @@ components:
     Level:
       type: string
       enum: [N5, N4, N3, N2, N1]
+    UserRole:
+      type: string
+      enum: [USER, ADMIN]
+    UserStatus:
+      type: string
+      enum: [ACTIVE, SUSPENDED]
+    AuditAction:
+      type: string
+      enum:
+        - USER_CREATED
+        - USER_PROFILE_CHANGED
+        - USER_ROLE_CHANGED
+        - USER_STATUS_CHANGED
+        - QUIZ_PUBLISHED
+        - QUIZ_ARCHIVED
+        - QUESTION_PUBLISHED
+        - QUESTION_ARCHIVED
+        - QUESTION_GROUP_CREATED
+        - QUESTION_GROUP_UPDATED
+        - QUESTION_GROUP_PUBLISHED
+        - QUESTION_GROUP_ARCHIVED
+        - MEDIA_DELETED
+    AuditEntityType:
+      type: string
+      enum: [quiz, question, question_group, media_asset, user]
     Section:
       type: string
       enum: [VOCAB_KANJI, GRAMMAR_READING, LISTENING]
@@ -552,6 +735,172 @@ components:
           type: integer
         totalPages:
           type: integer
+    User:
+      type: object
+      required: [id, email, displayName, jlptLevel, role, status, lastLoginAt, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        jlptLevel:
+          oneOf:
+            - $ref: '#/components/schemas/Level'
+            - type: 'null'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        lastLoginAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    UserCreateBody:
+      type: object
+      required: [email, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        jlptLevel:
+          oneOf:
+            - $ref: '#/components/schemas/Level'
+            - type: 'null'
+    UserPatchBody:
+      type: object
+      minProperties: 1
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        jlptLevel:
+          oneOf:
+            - $ref: '#/components/schemas/Level'
+            - type: 'null'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+    UserListPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        page:
+          $ref: '#/components/schemas/Page'
+    AuditActor:
+      type: object
+      nullable: true
+      required: [id, displayName]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        displayName:
+          type: string
+    AuditEntity:
+      type: object
+      required: [id, type, label]
+      properties:
+        id:
+          oneOf:
+            - $ref: '#/components/schemas/PublicId'
+            - type: 'null'
+        type:
+          $ref: '#/components/schemas/AuditEntityType'
+        label:
+          type: string
+    AuditLog:
+      type: object
+      required: [action, actor, entity, before, after, createdAt]
+      properties:
+        action:
+          type: string
+          description: Usually an AuditAction; older/future rows remain readable.
+        actor:
+          $ref: '#/components/schemas/AuditActor'
+        entity:
+          $ref: '#/components/schemas/AuditEntity'
+        before: {}
+        after: {}
+        createdAt:
+          type: string
+          format: date-time
+    AuditLogPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+        page:
+          $ref: '#/components/schemas/Page'
+    AdminOverview:
+      type: object
+      required: [students, quizzes, questions, attempts, recentActivity, health]
+      properties:
+        students:
+          type: object
+          required: [total, suspendedAccounts]
+          properties:
+            total:
+              type: integer
+            suspendedAccounts:
+              type: integer
+        quizzes:
+          type: object
+          required: [total, active, draft]
+          properties:
+            total:
+              type: integer
+            active:
+              type: integer
+            draft:
+              type: integer
+        questions:
+          type: object
+        attempts:
+          type: object
+        recentActivity:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            required: [action, actor, entity, createdAt]
+            properties:
+              action:
+                type: string
+              actor:
+                $ref: '#/components/schemas/AuditActor'
+              entity:
+                $ref: '#/components/schemas/AuditEntity'
+              createdAt:
+                type: string
+                format: date-time
+        health:
+          type: object
+          required: [status, database]
+          properties:
+            status:
+              const: OPERATIONAL
+            database:
+              const: CONNECTED
     MediaRef:
       type: object
       nullable: true

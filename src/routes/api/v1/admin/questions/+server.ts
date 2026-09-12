@@ -11,6 +11,7 @@ import {
 	parseLimit,
 	parsePageNumber,
 	parsePublicId,
+	parseSearchQuery,
 	readJsonObject,
 	requireAdmin
 } from '$lib/features/admin/api/http.server';
@@ -23,7 +24,16 @@ import { getGroupRefByPublicId } from '$lib/features/questions/groups.server';
 import { createQuestion, listQuestions } from '$lib/features/questions/questions.server';
 import type { RequestHandler } from './$types';
 
-const QUERY_PARAMS = ['level', 'section', 'status', 'format', 'groupId', 'page', 'limit'] as const;
+const QUERY_PARAMS = [
+	'level',
+	'section',
+	'status',
+	'format',
+	'groupId',
+	'q',
+	'page',
+	'limit'
+] as const;
 
 export const GET: RequestHandler = async ({ locals, request, url }) =>
 	apiEndpoint(request, async () => {
@@ -43,6 +53,7 @@ export const GET: RequestHandler = async ({ locals, request, url }) =>
 			format: parseEnumQuery(url.searchParams.get('format'), QUESTION_FORMATS, 'format'),
 			// An unresolvable groupId matches nothing, rather than erroring on a read-only filter.
 			groupId: groupPublicId ? (group?.id ?? -1) : undefined,
+			q: parseSearchQuery(url.searchParams.get('q'), 'q'),
 			page: parsePageNumber(url.searchParams.get('page')),
 			limit: parseLimit(url.searchParams.get('limit'))
 		});

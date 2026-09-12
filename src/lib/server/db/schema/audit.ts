@@ -8,6 +8,8 @@ import { createdAt } from './columns';
  * content actions get the same treatment because the table costs nothing extra.
  */
 export const AUDIT_ACTIONS = [
+	'USER_CREATED',
+	'USER_PROFILE_CHANGED',
 	'USER_ROLE_CHANGED',
 	'USER_STATUS_CHANGED',
 	'QUIZ_PUBLISHED',
@@ -21,6 +23,15 @@ export const AUDIT_ACTIONS = [
 	'MEDIA_DELETED'
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_ENTITY_TYPES = [
+	'quiz',
+	'question',
+	'question_group',
+	'media_asset',
+	'user'
+] as const;
+export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
 
 /**
  * Who changed what, when.
