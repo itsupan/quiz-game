@@ -102,12 +102,19 @@ export function parseQuestionForm(
 	};
 }
 
+/**
+ * `options` is optional so every existing 2-argument call site is unaffected — it checks
+ * "at least one answer key" (the half of the rule SQLite's partial unique index cannot
+ * express) and "at least two options" only when a caller actually has the options to
+ * check, instead of forcing every caller to fetch them just to pass an empty array.
+ */
 export function questionPublishBlockers(
 	question: { stem: string },
 	media: {
 		image: { altText: string | null } | null;
 		audio: { transcript: string | null } | null;
-	}
+	},
+	options?: { isCorrect: boolean }[]
 ): string[] {
 	const blockers: string[] = [];
 
@@ -117,6 +124,12 @@ export function questionPublishBlockers(
 	}
 	if (media.audio && (media.audio.transcript ?? '').trim() === '') {
 		blockers.push('The attached audio needs a transcript before this question can be published.');
+	}
+	if (options !== undefined) {
+		if (options.length < 2) blockers.push('A published question needs at least two options.');
+		if (!options.some((option) => option.isCorrect)) {
+			blockers.push('Mark one option as the correct answer before publishing.');
+		}
 	}
 
 	return blockers;

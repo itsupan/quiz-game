@@ -48,8 +48,8 @@ export async function listAttachableQuestions(
 	db: Database,
 	quiz: Pick<Quiz, 'id' | 'level'>,
 	sections: Pick<QuizSection, 'id' | 'section'>[]
-): Promise<Record<number, { id: number; stem: string }[]>> {
-	const bySection: Record<number, { id: number; stem: string }[]> = {};
+): Promise<Record<number, { id: number; publicId: string; stem: string }[]>> {
+	const bySection: Record<number, { id: number; publicId: string; stem: string }[]> = {};
 	if (sections.length === 0) return bySection;
 
 	const taken = await db
@@ -58,7 +58,12 @@ export async function listAttachableQuestions(
 		.where(eq(quizQuestions.quizId, quiz.id));
 	const attached = new Set(taken.map((row) => row.questionId));
 	const bank = await db
-		.select({ id: questions.id, stem: questions.stem, section: questions.section })
+		.select({
+			id: questions.id,
+			publicId: questions.publicId,
+			stem: questions.stem,
+			section: questions.section
+		})
 		.from(questions)
 		.where(
 			and(
@@ -75,10 +80,24 @@ export async function listAttachableQuestions(
 	for (const section of sections) {
 		bySection[section.id] = bank
 			.filter((question) => question.section === section.section && !attached.has(question.id))
-			.map(({ id, stem }) => ({ id, stem }));
+			.map(({ id, publicId, stem }) => ({ id, publicId, stem }));
 	}
 
 	return bySection;
+}
+
+/** The `quiz_questions` row joining this quiz to this bank question, if attached. */
+export async function findAttachedQuestion(
+	db: Database,
+	quizId: number,
+	questionId: number
+): Promise<{ id: number } | null> {
+	const [found] = await db
+		.select({ id: quizQuestions.id })
+		.from(quizQuestions)
+		.where(and(eq(quizQuestions.quizId, quizId), eq(quizQuestions.questionId, questionId)));
+
+	return found ?? null;
 }
 
 export async function attachQuestion(

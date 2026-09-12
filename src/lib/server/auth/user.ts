@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { RequestEvent } from '@sveltejs/kit';
 
 import type { Database } from '$lib/server/db';
@@ -104,8 +104,9 @@ export async function upsertGoogleUser(
 	profile: GoogleProfile,
 	bootstrapEmails?: string
 ): Promise<AuthUser> {
-	const displayName = profile.name?.trim() || profile.email;
-	const shouldBootstrap = isBootstrapAdmin(profile.email, bootstrapEmails);
+	const email = profile.email.trim().toLowerCase();
+	const displayName = profile.name?.trim() || email;
+	const shouldBootstrap = isBootstrapAdmin(email, bootstrapEmails);
 
 	const [linked] = await db
 		.select({ userId: oauthAccounts.userId })
@@ -118,18 +119,28 @@ export async function upsertGoogleUser(
 	const [byEmail] = linked
 		? []
 		: await db
-				.select({ id: users.id, linkedTo: oauthAccounts.providerAccountId })
+				.select({
+					id: users.id,
+					passwordHash: users.passwordHash,
+					linkedTo: oauthAccounts.providerAccountId
+				})
 				.from(users)
 				.leftJoin(
 					oauthAccounts,
 					and(eq(oauthAccounts.userId, users.id), eq(oauthAccounts.provider, 'google'))
 				)
-				.where(eq(users.email, profile.email))
+				.where(sql`lower(${users.email}) = ${email}`)
 				.limit(1);
 
 	if (byEmail?.linkedTo) {
 		throw new SignInError(
 			'An account already exists for that email address under a different Google identity. Contact an administrator.'
+		);
+	}
+
+	if (byEmail?.passwordHash) {
+		throw new SignInError(
+			'An account already exists for that email address with password sign-in. Sign in with your password instead.'
 		);
 	}
 
@@ -139,7 +150,7 @@ export async function upsertGoogleUser(
 		const [created] = await db
 			.insert(users)
 			.values({
-				email: profile.email,
+				email,
 				displayName,
 				avatarUrl: profile.picture,
 				role: shouldBootstrap ? 'ADMIN' : 'USER',
@@ -159,7 +170,7 @@ export async function upsertGoogleUser(
 	const [updated] = await db
 		.update(users)
 		.set({
-			email: profile.email,
+			email,
 			displayName,
 			avatarUrl: profile.picture,
 			lastLoginAt: new Date(),

@@ -1,10 +1,32 @@
 import { and, count, eq, ne } from 'drizzle-orm';
 
+import type { Section } from '$lib/domain/enums';
 import type { WriteResult } from '$lib/domain/write-result';
 import type { Database } from '$lib/server/db';
 import { isForeignKeyFailure } from '$lib/server/db/errors';
 import { quizQuestions, quizSections } from '$lib/server/db/schema';
+import type { QuizSection } from '$lib/server/db/schema';
 import type { QuizSectionInput } from './validation';
+
+/**
+ * Looks a section up by its enum value rather than its internal row id.
+ *
+ * `quiz_sections_quiz_section_idx` makes `(quizId, section)` unique, so the section enum
+ * is already a stable, public identifier — the API addresses a section this way instead
+ * of exposing the row's autoincrement id.
+ */
+export async function getSectionByEnum(
+	db: Database,
+	quizId: number,
+	section: Section
+): Promise<QuizSection | null> {
+	const [found] = await db
+		.select()
+		.from(quizSections)
+		.where(and(eq(quizSections.quizId, quizId), eq(quizSections.section, section)));
+
+	return found ?? null;
+}
 
 export async function upsertSection(
 	db: Database,

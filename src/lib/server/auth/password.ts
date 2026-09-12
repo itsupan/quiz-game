@@ -2,11 +2,12 @@
  * Password hashing and verification using Web Crypto PBKDF2-HMAC-SHA256.
  *
  * Runs natively in Cloudflare Workers and Node.js with zero native binary dependencies.
- * Uses 100,000 iterations of PBKDF2 with SHA-256 and a cryptographically random 16-byte salt,
- * matching OWASP recommendations.
+ * Uses 600,000 iterations of PBKDF2 with SHA-256 and a cryptographically random 16-byte salt,
+ * matching the current OWASP recommendation. The iteration count stays encoded in every
+ * hash so older values remain verifiable and can be upgraded after a successful login.
  */
 
-const ITERATIONS = 100_000;
+const ITERATIONS = 600_000;
 const KEY_LENGTH_BITS = 256;
 const SALT_BYTES = 16;
 const PREFIX = 'pbkdf2:sha256';
@@ -52,6 +53,17 @@ export async function hashPassword(password: string): Promise<string> {
 		.join('');
 
 	return `${PREFIX}:${ITERATIONS}:${saltHex}:${hashHex}`;
+}
+
+export function passwordNeedsRehash(storedHash: string): boolean {
+	const parts = storedHash.split(':');
+	if (parts.length !== 5 || parts[0] !== 'pbkdf2' || parts[1] !== 'sha256') {
+		return true;
+	}
+
+	const iterations = Number(parts[2]);
+
+	return !Number.isInteger(iterations) || iterations < ITERATIONS;
 }
 
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {

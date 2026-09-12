@@ -29,18 +29,14 @@ describe('credentials authentication', () => {
 			expect(stored.passwordHash).toMatch(/^pbkdf2:sha256:/);
 		});
 
-		it('promotes to ADMIN if on bootstrap list', async () => {
-			const user = await registerUser(
-				db,
-				{
-					email: 'admin@example.com',
-					password: 'securePassword123!',
-					displayName: 'Admin User'
-				},
-				'admin@example.com, other@example.com'
-			);
+		it('never grants admin from an unverified signup email', async () => {
+			const user = await registerUser(db, {
+				email: 'admin@example.com',
+				password: 'securePassword123!',
+				displayName: 'Admin User'
+			});
 
-			expect(user.role).toBe('ADMIN');
+			expect(user.role).toBe('USER');
 		});
 
 		it('rejects invalid email', async () => {
@@ -88,6 +84,21 @@ describe('credentials authentication', () => {
 				})
 			).rejects.toThrow('An account with this email already exists.');
 		});
+
+		it('rejects a differently-cased version of an existing email', async () => {
+			await db.insert(users).values({
+				email: 'Existing@Example.COM',
+				displayName: 'Existing user'
+			});
+
+			await expect(
+				registerUser(db, {
+					email: 'existing@example.com',
+					password: 'securePassword123!',
+					displayName: 'Duplicate user'
+				})
+			).rejects.toThrow('An account with this email already exists.');
+		});
 	});
 
 	describe('loginUser', () => {
@@ -107,6 +118,28 @@ describe('credentials authentication', () => {
 
 			expect(user.email).toBe('learner@example.com');
 			expect(user.displayName).toBe('Learner');
+		});
+
+		it('upgrades a legacy password hash after a successful login', async () => {
+			const legacyHash =
+				'pbkdf2:sha256:100000:00000000000000000000000000000000:4b58a5b66d5b9b627f460bed3f6656429e89952d7578c869f0cdb43ace16d391';
+			await db
+				.update(users)
+				.set({ passwordHash: legacyHash })
+				.where(eq(users.email, 'learner@example.com'));
+
+			await loginUser(db, {
+				email: 'learner@example.com',
+				password: 'securePassword123!'
+			});
+
+			const [updated] = await db
+				.select({ passwordHash: users.passwordHash })
+				.from(users)
+				.where(eq(users.email, 'learner@example.com'));
+
+			expect(updated.passwordHash).toMatch(/^pbkdf2:sha256:600000:/);
+			expect(updated.passwordHash).not.toBe(legacyHash);
 		});
 
 		it('is case-insensitive with email', async () => {

@@ -1,27 +1,14 @@
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { recordAudit } from '$lib/features/admin/audit.server';
 import {
 	deleteMedia,
 	getMediaAssetById,
 	listMedia,
+	requireMediaBucket,
 	updateMediaDescription,
 	uploadMedia
 } from '$lib/features/media/media.server';
 import type { Actions, PageServerLoad } from './$types';
-
-/** The R2 binding, or a clear failure. Missing bindings are silent in named envs. */
-function bucket(platform: App.Platform | undefined) {
-	const media = platform?.env?.MEDIA;
-
-	if (!media) {
-		error(
-			500,
-			'The R2 binding `MEDIA` is unavailable. Check the r2_buckets entry in wrangler.jsonc — bindings are not inherited by named environments.'
-		);
-	}
-
-	return media;
-}
 
 const optional = (data: FormData, field: string) => {
 	const value = String(data.get(field) ?? '').trim();
@@ -30,7 +17,7 @@ const optional = (data: FormData, field: string) => {
 };
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	return await listMedia(locals.db, Number(url.searchParams.get('page')) || 1);
+	return await listMedia(locals.db, { page: Number(url.searchParams.get('page')) || 1 });
 };
 
 export const actions: Actions = {
@@ -42,10 +29,16 @@ export const actions: Actions = {
 			return fail(400, { message: 'Choose a file to upload.' });
 		}
 
-		const uploaded = await uploadMedia(locals.db, bucket(platform), locals.user?.id ?? null, file, {
-			altText: optional(data, 'altText'),
-			transcript: optional(data, 'transcript')
-		});
+		const uploaded = await uploadMedia(
+			locals.db,
+			requireMediaBucket(platform),
+			locals.user?.id ?? null,
+			file,
+			{
+				altText: optional(data, 'altText'),
+				transcript: optional(data, 'transcript')
+			}
+		);
 
 		if (!uploaded.ok) {
 			return fail(400, { message: uploaded.message });
@@ -87,7 +80,7 @@ export const actions: Actions = {
 			return fail(404, { message: 'That file no longer exists.' });
 		}
 
-		const removed = await deleteMedia(locals.db, bucket(platform), asset);
+		const removed = await deleteMedia(locals.db, requireMediaBucket(platform), asset);
 
 		if (!removed.ok) {
 			return fail(409, { message: removed.message });

@@ -20,7 +20,7 @@ export const POST: RequestHandler = async ({ locals, params, request, url }) =>
 		const location = `/api/v1/attempts/${started.attemptId}`;
 
 		return json(
-			{ data: { id: started.attemptId, status: 'IN_PROGRESS', links: { self: location } } },
+			{ data: { id: started.attemptId, status: started.status, links: { self: location } } },
 			{ status: started.created ? 201 : 200, headers: { location } }
 		);
 	});
