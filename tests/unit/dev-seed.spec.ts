@@ -60,7 +60,7 @@ describe('development seed', () => {
 		expect(
 			values(
 				sqlite,
-				 `SELECT DISTINCT question_group.format
+				`SELECT DISTINCT question_group.format
 				  FROM question_groups question_group
 				  INNER JOIN questions question ON question.group_id = question_group.id
 				  INNER JOIN quiz_questions quiz_question ON quiz_question.question_id = question.id
@@ -78,7 +78,7 @@ describe('development seed', () => {
 
 		const unusableSections = sqlite
 			.prepare(
-				 `SELECT quiz.public_id AS quizId, quiz_section.section
+				`SELECT quiz.public_id AS quizId, quiz_section.section
 				  FROM quizzes quiz
 				  INNER JOIN quiz_sections quiz_section ON quiz_section.quiz_id = quiz.id
 				  WHERE quiz.status = 'PUBLISHED'
