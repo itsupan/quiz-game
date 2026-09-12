@@ -26,10 +26,10 @@
 
 	<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 		<div
-			class="relative flex min-h-[220px] flex-col justify-between border-2 border-ink bg-white p-6 sm:p-8"
+			class="group relative z-0 flex min-h-[220px] animate-fade-up flex-col justify-between overflow-hidden p-6 opacity-0 transition-all duration-300 ease-out before:absolute before:inset-[-150%] before:z-[-2] before:animate-[spin_4s_linear_infinite] before:bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-ink)_0%,#facc15_50%,var(--color-ink)_100%)] before:content-[''] after:absolute after:inset-[2px] after:z-[-1] after:bg-white after:content-[''] hover:-translate-y-1 hover:shadow-hard-lg sm:p-8"
 		>
 			<div
-				class="absolute top-0 right-0 flex h-12 w-12 items-center justify-center bg-brand-red text-white"
+				class="absolute top-0 right-0 z-10 flex h-12 w-12 items-center justify-center bg-brand-red text-white"
 				aria-label="Active Streak Badge"
 			>
 				<svg class="h-6 w-6 fill-current" viewBox="0 0 24 24" aria-hidden="true">
@@ -39,7 +39,7 @@
 				</svg>
 			</div>
 
-			<div>
+			<div class="relative z-10">
 				<h3 class="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
 					Welcome back, {userName}.
 				</h3>
@@ -48,7 +48,7 @@
 				</p>
 			</div>
 
-			<div class="mt-8 flex items-baseline gap-2.5">
+			<div class="relative z-10 mt-8 flex items-baseline gap-2.5">
 				<span
 					class="text-6xl leading-none font-black tracking-tight text-brand-red sm:text-7xl"
 					data-testid="streak-days"
@@ -59,8 +59,12 @@
 			</div>
 		</div>
 
-		<div class="border border-ink bg-white p-1.5">
-			<div class="flex h-full min-h-[208px] flex-col justify-between border border-ink p-6">
+		<div
+			class="group relative z-0 animate-fade-up overflow-hidden p-1.5 opacity-0 transition-all duration-300 ease-out [animation-delay:100ms] before:absolute before:inset-[-150%] before:z-[-2] before:animate-[spin_4s_linear_infinite] before:bg-[conic-gradient(from_90deg_at_50%_50%,var(--color-ink)_0%,#facc15_50%,var(--color-ink)_100%)] before:content-[''] after:absolute after:inset-[2px] after:z-[-1] after:bg-white after:content-[''] hover:-translate-y-1 hover:shadow-hard-lg"
+		>
+			<div
+				class="relative z-10 flex h-full min-h-[208px] flex-col justify-between border border-ink p-6"
+			>
 				<div class="flex items-center justify-between border-b border-stone-200 pb-3">
 					<span
 						class="border-b-2 border-brand-red pb-0.5 text-xs font-black tracking-widest text-brand-red uppercase"
