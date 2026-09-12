@@ -2,20 +2,37 @@ import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 
 import type { Database } from '$lib/server/db';
 import { isForeignKeyFailure } from '$lib/server/db/errors';
-import { mediaAssets, questionOptions, questions } from '$lib/server/db/schema';
-import type { ContentStatus, JlptLevel, Question, Section } from '$lib/server/db/schema';
+import { mediaAssets, questionGroups, questionOptions, questions } from '$lib/server/db/schema';
+import type {
+	ContentStatus,
+	JlptLevel,
+	Question,
+	QuestionFormat,
+	Section
+} from '$lib/server/db/schema';
 import type { WriteResult } from '$lib/domain/write-result';
 import type { QuestionInput } from './validation';
 
 export type QuestionListItem = Pick<
 	Question,
-	'publicId' | 'stem' | 'level' | 'section' | 'status' | 'points' | 'createdAt' | 'updatedAt'
+	| 'publicId'
+	| 'stem'
+	| 'level'
+	| 'section'
+	| 'format'
+	| 'status'
+	| 'points'
+	| 'createdAt'
+	| 'updatedAt'
 > & { optionCount: number; hasAnswerKey: boolean };
 
 export type QuestionFilters = {
 	level?: JlptLevel;
 	section?: Section;
 	status?: ContentStatus;
+	format?: QuestionFormat;
+	/** The attached group's internal id, resolved from its public id by the caller. */
+	groupId?: number;
 	page?: number;
 	/** Defaults to `PAGE_SIZE`. The admin dashboard never overrides this; the JSON API does. */
 	limit?: number;
@@ -40,7 +57,9 @@ export async function listQuestions(db: Database, filters: QuestionFilters = {})
 	const where = and(
 		filters.level ? eq(questions.level, filters.level) : undefined,
 		filters.section ? eq(questions.section, filters.section) : undefined,
-		filters.status ? eq(questions.status, filters.status) : undefined
+		filters.status ? eq(questions.status, filters.status) : undefined,
+		filters.format ? eq(questions.format, filters.format) : undefined,
+		filters.groupId !== undefined ? eq(questions.groupId, filters.groupId) : undefined
 	);
 
 	const rows = await db
@@ -49,6 +68,7 @@ export async function listQuestions(db: Database, filters: QuestionFilters = {})
 			stem: questions.stem,
 			level: questions.level,
 			section: questions.section,
+			format: questions.format,
 			status: questions.status,
 			points: questions.points,
 			createdAt: questions.createdAt,
@@ -119,11 +139,36 @@ export async function getQuestion(db: Database, publicId: string) {
 		? await db.select().from(mediaAssets).where(inArray(mediaAssets.id, attachedIds))
 		: [];
 
+	const group =
+		question.groupId !== null
+			? ((await db
+					.select()
+					.from(questionGroups)
+					.where(eq(questionGroups.id, question.groupId))
+					.then((rows) => rows[0])) ?? null)
+			: null;
+
+	let groupImage = null;
+	let groupAudio = null;
+	if (group) {
+		const groupMediaIds = [group.imageMediaId, group.audioMediaId].filter(
+			(id): id is number => id !== null
+		);
+		const groupMedia = groupMediaIds.length
+			? await db.select().from(mediaAssets).where(inArray(mediaAssets.id, groupMediaIds))
+			: [];
+		groupImage = groupMedia.find((asset) => asset.id === group.imageMediaId) ?? null;
+		groupAudio = groupMedia.find((asset) => asset.id === group.audioMediaId) ?? null;
+	}
+
 	return {
 		question,
 		options,
 		image: media.find((asset) => asset.id === question.imageMediaId) ?? null,
-		audio: media.find((asset) => asset.id === question.audioMediaId) ?? null
+		audio: media.find((asset) => asset.id === question.audioMediaId) ?? null,
+		group,
+		groupImage,
+		groupAudio
 	};
 }
 
@@ -189,9 +234,17 @@ export async function createQuestion(
 			explanation: input.explanation,
 			level: input.level,
 			section: input.section,
+			format: input.format,
+			promptTranslation: input.promptTranslation,
+			focusText: input.focusText,
+			focusReading: input.focusReading,
+			contextText: input.contextText,
+			contextTransliteration: input.contextTransliteration,
 			points: input.points,
 			imageMediaId: input.imageMediaId,
 			audioMediaId: input.audioMediaId,
+			groupId: input.groupId,
+			groupPosition: input.groupPosition,
 			createdBy: actorUserId
 		})
 		.returning({ id: questions.id, publicId: questions.publicId });
@@ -261,9 +314,17 @@ export async function updateQuestion(
 				explanation: input.explanation,
 				level: input.level,
 				section: input.section,
+				format: input.format,
+				promptTranslation: input.promptTranslation,
+				focusText: input.focusText,
+				focusReading: input.focusReading,
+				contextText: input.contextText,
+				contextTransliteration: input.contextTransliteration,
 				points: input.points,
 				imageMediaId: input.imageMediaId,
-				audioMediaId: input.audioMediaId
+				audioMediaId: input.audioMediaId,
+				groupId: input.groupId,
+				groupPosition: input.groupPosition
 			})
 			.where(eq(questions.id, questionId)),
 

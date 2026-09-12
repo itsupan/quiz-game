@@ -41,7 +41,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request, url }) =>
 		assertKnownFields(body, QUESTION_BODY_FIELDS);
 		const input = await parseQuestionPatchBody(
 			locals.db,
-			currentQuestionFrom(found.question, found.image, found.audio),
+			currentQuestionFrom(found.question, found.image, found.audio, found.group),
 			found.options,
 			body
 		);

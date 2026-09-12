@@ -27,7 +27,9 @@ const currentQuiz: QuizInput = {
 	mode: 'JLPT_PRACTICE',
 	level: 'N3',
 	selectionMode: 'RANDOM',
-	timeLimitSeconds: null
+	timeLimitSeconds: null,
+	showStudyAidsDuringAttempt: true,
+	xpReward: 50
 };
 
 describe('parseQuizCreateBody', () => {
@@ -38,7 +40,9 @@ describe('parseQuizCreateBody', () => {
 			mode: 'FULL_EXAM',
 			level: 'N4',
 			selectionMode: 'FIXED',
-			timeLimitSeconds: 6900
+			timeLimitSeconds: 6900,
+			showStudyAidsDuringAttempt: false,
+			xpReward: 0
 		});
 	});
 
@@ -85,6 +89,24 @@ describe('parseQuizCreateBody', () => {
 	it('rejects a non-positive time limit', () => {
 		expect(() => parseQuizCreateBody(validQuizBody({ timeLimitSeconds: 0 }))).toThrow(ApiProblem);
 	});
+
+	it('accepts showStudyAidsDuringAttempt and xpReward', () => {
+		const result = parseQuizCreateBody(
+			validQuizBody({ showStudyAidsDuringAttempt: true, xpReward: 25 })
+		);
+		expect(result.showStudyAidsDuringAttempt).toBe(true);
+		expect(result.xpReward).toBe(25);
+	});
+
+	it('rejects a negative xpReward', () => {
+		expect(() => parseQuizCreateBody(validQuizBody({ xpReward: -1 }))).toThrow(ApiProblem);
+	});
+
+	it('rejects a non-boolean showStudyAidsDuringAttempt', () => {
+		expect(() => parseQuizCreateBody(validQuizBody({ showStudyAidsDuringAttempt: 'yes' }))).toThrow(
+			ApiProblem
+		);
+	});
 });
 
 describe('parseQuizPatchBody', () => {
@@ -111,6 +133,16 @@ describe('parseQuizPatchBody', () => {
 		expect(() => parseQuizPatchBody(currentQuiz, { selectionMode: 'SHUFFLED' })).toThrow(
 			ApiProblem
 		);
+	});
+
+	it('patches xpReward and showStudyAidsDuringAttempt independently', () => {
+		const result = parseQuizPatchBody(currentQuiz, { xpReward: 10 });
+		expect(result.xpReward).toBe(10);
+		expect(result.showStudyAidsDuringAttempt).toBe(currentQuiz.showStudyAidsDuringAttempt);
+	});
+
+	it('rejects a negative xpReward on patch', () => {
+		expect(() => parseQuizPatchBody(currentQuiz, { xpReward: -5 })).toThrow(ApiProblem);
 	});
 });
 

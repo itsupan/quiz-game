@@ -68,4 +68,25 @@ test.describe('quiz API v1', () => {
 		expect(malformed.status()).toBe(400);
 		await expect(malformed.json()).resolves.toMatchObject({ code: 'invalid_identifier' });
 	});
+
+	test('abandons a quiz idempotently without exposing a result', async ({ page }) => {
+		const quizId = '01JSEEDQZN4EXAM00000000000';
+		const startResponse = await page.request.post(`/api/v1/quizzes/${quizId}/attempts`, {
+			headers: { 'idempotency-key': `abandon-${crypto.randomUUID()}` }
+		});
+		const started = (await startResponse.json()) as { data: { id: string } };
+		const abandonmentUrl = `/api/v1/attempts/${started.data.id}/abandonment`;
+
+		for (let attempt = 0; attempt < 2; attempt++) {
+			const response = await page.request.put(abandonmentUrl);
+			expect(response.status()).toBe(200);
+			await expect(response.json()).resolves.toMatchObject({
+				data: { id: started.data.id, status: 'ABANDONED' }
+			});
+		}
+
+		const resultResponse = await page.request.get(`/api/v1/attempts/${started.data.id}/result`);
+		expect(resultResponse.status()).toBe(409);
+		await expect(resultResponse.json()).resolves.toMatchObject({ code: 'attempt_abandoned' });
+	});
 });

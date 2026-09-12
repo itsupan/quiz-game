@@ -61,8 +61,13 @@ INSERT INTO quiz_sections (id, quiz_id, section, position, time_limit_seconds, d
 	(7, 3, 'VOCAB_KANJI',     1, NULL, 5, NULL)
 ON CONFLICT(id) DO NOTHING;
 
-INSERT INTO question_groups (id, public_id, level, section, title, passage_text, instruction, status, created_by) VALUES
-	(1, '01JSEEDGRPRDNG000000000000', 'N3', 'GRAMMAR_READING', '図書館のお知らせ', '当図書館は、来月から開館時間を変更いたします。平日は午前九時から午後八時まで、土曜日と日曜日は午前十時から午後六時までとなります。なお、毎月第一月曜日は館内整理のため休館いたしますので、ご注意ください。', '次の文章を読んで、質問に答えなさい。', 'PUBLISHED', 1)
+INSERT INTO question_groups
+	(id, public_id, level, section, format, title, passage_text, body_translation, instruction,
+	 example_text, example_transliteration, example_translation, audio_media_id, status, created_by)
+VALUES
+	(1, '01JSEEDGRPRDNG000000000000', 'N3', 'GRAMMAR_READING', 'READING_PASSAGE', '図書館のお知らせ', '当図書館は、来月から開館時間を変更いたします。平日は午前九時から午後八時まで、土曜日と日曜日は午前十時から午後六時までとなります。なお、毎月第一月曜日は館内整理のため休館いたしますので、ご注意ください。', 'The library will change its opening hours next month. On weekdays it will be open from 9 a.m. to 8 p.m.; on weekends from 10 a.m. to 6 p.m. It is closed on the first Monday of every month.', '次の文章を読んで、質問に答えなさい。', NULL, NULL, NULL, NULL, 'PUBLISHED', 1),
+	(2, '01JSEEDGRPLSTN000000000000', 'N4', 'LISTENING', 'LISTENING_CLIP', '会議の後', NULL, NULL, '音声を聞いて、質問に答えなさい。', NULL, NULL, NULL, 2, 'PUBLISHED', 1),
+	(3, '01JSEEDGRPCNCP000000000000', 'N4', 'GRAMMAR_READING', 'CONCEPT_REVIEW', '助詞「に」', '「に」は目的地や到着点を示します。', 'The particle に marks a destination or arrival point.', '最も自然な助詞を選びなさい。', '私は毎日学校に行きます。', 'Watashi wa mainichi gakkou ni ikimasu.', 'I go to school every day.', NULL, 'PUBLISHED', 1)
 ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO questions (id, public_id, group_id, group_position, level, section, stem, explanation, points, status, created_by) VALUES
@@ -89,6 +94,32 @@ ON CONFLICT(id) DO NOTHING;
 -- intent.
 UPDATE questions SET audio_media_id = 2 WHERE id = 4;
 UPDATE questions SET image_media_id = 1 WHERE id = 14;
+
+-- Keep the demo bank aligned with every typed learner presentation. These updates also
+-- upgrade an older local database where the idempotent inserts above already existed.
+UPDATE questions
+SET format = 'KANJI_READING', focus_text = '病院', focus_reading = 'びょういん'
+WHERE id = 1;
+UPDATE questions
+SET format = 'VOCABULARY_MEANING', focus_text = '明確', focus_reading = 'めいかく'
+WHERE id = 5;
+UPDATE questions
+SET format = 'GRAMMAR_CLOZE', group_id = 3, group_position = 1,
+	context_text = '雨が ふって いる ので、試合は 中止に ___。',
+	context_transliteration = 'Ame ga futte iru node, shiai wa chuushi ni ___.',
+	prompt_translation = 'Choose the correct form to complete the sentence.'
+WHERE id = 3;
+UPDATE questions
+SET format = 'READING_COMPREHENSION'
+WHERE id IN (11, 12);
+UPDATE questions
+SET format = 'LISTENING_COMPREHENSION', group_id = 2, group_position = 1,
+	audio_media_id = 2
+WHERE id = 4;
+
+UPDATE quizzes
+SET show_study_aids_during_attempt = true, xp_reward = 120
+WHERE id = 1;
 
 -- Exactly one option per question carries is_correct = 1. A second would be rejected
 -- by the question_options_one_correct_idx partial unique index, not by a validator.

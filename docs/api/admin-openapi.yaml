@@ -1,0 +1,820 @@
+openapi: 3.1.0
+info:
+  title: Quiz Game Admin Content API
+  version: 1.0.0
+  description: |
+    Same-origin JSON API for authenticated administrators authoring quiz content: the
+    six question formats, shared reading/listening/concept-review groups, and quiz
+    authoring fields. Content is archived, never deleted. Every mutating request is
+    same-origin only and every identifier in a payload is a public ULID, never an
+    internal numeric id. `docs/api/openapi.yaml` documents the separate learner-facing
+    attempt API; this document covers only the admin authoring surface package 1 added
+    or extended (question groups, and the new question/quiz fields).
+servers:
+  - url: /api/v1/admin
+security:
+  - sessionCookie: []
+tags:
+  - name: QuestionGroups
+  - name: Questions
+  - name: Quizzes
+paths:
+  /question-groups:
+    get:
+      tags: [QuestionGroups]
+      summary: List question groups
+      parameters:
+        - $ref: '#/components/parameters/Level'
+        - $ref: '#/components/parameters/Section'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/GroupFormat'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of question groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupListPage'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      tags: [QuestionGroups]
+      summary: Create a question group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupWriteBody'
+      responses:
+        '201':
+          description: The created group's public id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id]
+                    properties:
+                      id:
+                        $ref: '#/components/schemas/PublicId'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /question-groups/{groupId}:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    get:
+      tags: [QuestionGroups]
+      summary: Read a question group, including publish blockers
+      responses:
+        '200':
+          description: The group
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GroupDetail'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    patch:
+      tags: [QuestionGroups]
+      summary: Update a question group
+      description: |
+        Every field follows "omitted keeps the current value, explicit null clears it" —
+        an update that does not mention a field never erases it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupWriteBody'
+      responses:
+        '200':
+          description: The updated group
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GroupDetail'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /question-groups/{groupId}/publication:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    put:
+      tags: [QuestionGroups]
+      summary: Publish a question group
+      description: |
+        Fails with 409 and a list of blockers when the group is not ready: a reading
+        passage needs non-empty body text, a listening clip needs an attached audio
+        asset with a transcript, a concept-review group needs explanatory body text and
+        a usable example, and any attached image needs alt text.
+      responses:
+        '200':
+          description: The published group
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GroupDetail'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+    delete:
+      tags: [QuestionGroups]
+      summary: Archive a question group
+      description: Archives the group (sets status to ARCHIVED); it is never deleted.
+      responses:
+        '200':
+          description: The archived group
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/GroupDetail'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /questions:
+    get:
+      tags: [Questions]
+      summary: List questions
+      parameters:
+        - $ref: '#/components/parameters/Level'
+        - $ref: '#/components/parameters/Section'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/QuestionFormat'
+        - $ref: '#/components/parameters/GroupIdFilter'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of questions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuestionListItem'
+                  page:
+                    $ref: '#/components/schemas/Page'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      tags: [Questions]
+      summary: Create a question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionWriteBody'
+      responses:
+        '201':
+          description: The created question's public id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id]
+                    properties:
+                      id:
+                        $ref: '#/components/schemas/PublicId'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /questions/{questionId}:
+    parameters:
+      - $ref: '#/components/parameters/QuestionId'
+    get:
+      tags: [Questions]
+      summary: Read a question, including its answer key and publish blockers
+      responses:
+        '200':
+          description: The question
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/QuestionDetail'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    patch:
+      tags: [Questions]
+      summary: Update a question
+      description: |
+        Every field, including `groupId`, follows "omitted keeps the current value,
+        explicit null clears it" — an update that does not mention `groupId` never
+        silently detaches an attached group.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionWriteBody'
+      responses:
+        '200':
+          description: The updated question
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/QuestionDetail'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '415':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /questions/{questionId}/publication:
+    parameters:
+      - $ref: '#/components/parameters/QuestionId'
+    put:
+      tags: [Questions]
+      summary: Publish a question
+      description: |
+        Fails with 409 and a list of blockers when the question is not ready. Blockers
+        are format-aware: `VOCABULARY_MEANING`/`KANJI_READING` need a non-empty
+        `focusText`; `GRAMMAR_CLOZE` needs a `contextText` with exactly one `___` token;
+        `READING_COMPREHENSION`/`LISTENING_COMPREHENSION` need an attached, published,
+        ready group of the matching type.
+      responses:
+        '200':
+          description: The published question
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/QuestionDetail'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+    delete:
+      tags: [Questions]
+      summary: Archive a question
+      description: Archives the question (sets status to ARCHIVED); it is never deleted.
+      responses:
+        '200':
+          description: The archived question
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/QuestionDetail'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /quizzes/{quizId}:
+    parameters:
+      - $ref: '#/components/parameters/QuizId'
+    patch:
+      tags: [Quizzes]
+      summary: Update quiz authoring fields relevant to this package
+      description: |
+        Package 1 adds `showStudyAidsDuringAttempt` and `xpReward` to the existing quiz
+        create/detail/patch contract (title, description, mode, level, selectionMode,
+        timeLimitSeconds — documented alongside the rest of the admin quiz API). Learner
+        endpoints never accept either field.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                showStudyAidsDuringAttempt:
+                  type: boolean
+                xpReward:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: The updated quiz
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [showStudyAidsDuringAttempt, xpReward]
+                    properties:
+                      showStudyAidsDuringAttempt:
+                        type: boolean
+                      xpReward:
+                        type: integer
+                        minimum: 0
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: Same-origin session cookie for a signed-in, active ADMIN account.
+  parameters:
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/PublicId'
+    QuestionId:
+      name: questionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/PublicId'
+    QuizId:
+      name: quizId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/PublicId'
+    Level:
+      name: level
+      in: query
+      schema:
+        $ref: '#/components/schemas/Level'
+    Section:
+      name: section
+      in: query
+      schema:
+        $ref: '#/components/schemas/Section'
+    Status:
+      name: status
+      in: query
+      schema:
+        $ref: '#/components/schemas/ContentStatus'
+    GroupFormat:
+      name: format
+      in: query
+      schema:
+        $ref: '#/components/schemas/GroupFormat'
+    QuestionFormat:
+      name: format
+      in: query
+      schema:
+        $ref: '#/components/schemas/QuestionFormat'
+    GroupIdFilter:
+      name: groupId
+      in: query
+      description: A group's public id. An id that resolves to no group matches nothing.
+      schema:
+        $ref: '#/components/schemas/PublicId'
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 25
+  responses:
+    Problem:
+      description: Machine-readable API error (RFC 9457)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    PublicId:
+      type: string
+      pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+      example: 01JSEEDGRPRDNG000000000000
+    Level:
+      type: string
+      enum: [N5, N4, N3, N2, N1]
+    Section:
+      type: string
+      enum: [VOCAB_KANJI, GRAMMAR_READING, LISTENING]
+    ContentStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED, ARCHIVED]
+    QuestionFormat:
+      type: string
+      enum:
+        - STANDARD
+        - VOCABULARY_MEANING
+        - KANJI_READING
+        - GRAMMAR_CLOZE
+        - READING_COMPREHENSION
+        - LISTENING_COMPREHENSION
+    GroupFormat:
+      type: string
+      enum: [READING_PASSAGE, LISTENING_CLIP, CONCEPT_REVIEW]
+    Problem:
+      type: object
+      required: [type, title, status, detail, code, requestId]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+        requestId:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    Page:
+      type: object
+      required: [number, size, total, totalPages]
+      properties:
+        number:
+          type: integer
+        size:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+    MediaRef:
+      type: object
+      nullable: true
+      required: [id, url]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        url:
+          type: string
+        altText:
+          type: [string, 'null']
+        transcript:
+          type: [string, 'null']
+    GroupListItem:
+      type: object
+      required: [id, level, section, format, title, status, createdAt, updatedAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        level:
+          $ref: '#/components/schemas/Level'
+        section:
+          $ref: '#/components/schemas/Section'
+        format:
+          $ref: '#/components/schemas/GroupFormat'
+        title:
+          type: [string, 'null']
+        status:
+          $ref: '#/components/schemas/ContentStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    GroupListPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupListItem'
+        page:
+          $ref: '#/components/schemas/Page'
+    GroupDetail:
+      allOf:
+        - $ref: '#/components/schemas/GroupListItem'
+        - type: object
+          required:
+            - body
+            - bodyTranslation
+            - instruction
+            - exampleText
+            - exampleTransliteration
+            - exampleTranslation
+            - image
+            - audio
+            - blockers
+          properties:
+            body:
+              type: [string, 'null']
+              description: The group's passage/explanatory text (the `passage_text` column).
+            bodyTranslation:
+              type: [string, 'null']
+            instruction:
+              type: [string, 'null']
+            exampleText:
+              type: [string, 'null']
+            exampleTransliteration:
+              type: [string, 'null']
+            exampleTranslation:
+              type: [string, 'null']
+            image:
+              $ref: '#/components/schemas/MediaRef'
+            audio:
+              $ref: '#/components/schemas/MediaRef'
+            blockers:
+              type: array
+              items:
+                type: string
+    GroupWriteBody:
+      type: object
+      description: |
+        A create requires level, section and format; every other field is optional.
+        A patch merges onto the current group: an omitted field is unchanged, an
+        explicit null clears it. Unknown fields are rejected.
+      properties:
+        level:
+          $ref: '#/components/schemas/Level'
+        section:
+          $ref: '#/components/schemas/Section'
+        format:
+          $ref: '#/components/schemas/GroupFormat'
+        title:
+          type: [string, 'null']
+        body:
+          type: [string, 'null']
+        instruction:
+          type: [string, 'null']
+        bodyTranslation:
+          type: [string, 'null']
+        exampleText:
+          type: [string, 'null']
+        exampleTransliteration:
+          type: [string, 'null']
+        exampleTranslation:
+          type: [string, 'null']
+        imageId:
+          type: [string, 'null']
+          description: A media asset's public id, or null to detach.
+        audioId:
+          type: [string, 'null']
+    QuestionOption:
+      type: object
+      required: [body, isCorrect, position]
+      properties:
+        body:
+          type: string
+        isCorrect:
+          type: boolean
+        position:
+          type: integer
+    QuestionListItem:
+      type: object
+      required:
+        [
+          id,
+          stem,
+          level,
+          section,
+          format,
+          status,
+          points,
+          optionCount,
+          hasAnswerKey,
+          createdAt,
+          updatedAt
+        ]
+      properties:
+        id:
+          $ref: '#/components/schemas/PublicId'
+        stem:
+          type: string
+        level:
+          $ref: '#/components/schemas/Level'
+        section:
+          $ref: '#/components/schemas/Section'
+        format:
+          $ref: '#/components/schemas/QuestionFormat'
+        status:
+          $ref: '#/components/schemas/ContentStatus'
+        points:
+          type: integer
+        optionCount:
+          type: integer
+        hasAnswerKey:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    QuestionDetail:
+      allOf:
+        - $ref: '#/components/schemas/QuestionListItem'
+        - type: object
+          required:
+            - explanation
+            - promptTranslation
+            - focusText
+            - focusReading
+            - contextText
+            - contextTransliteration
+            - image
+            - audio
+            - groupId
+            - groupPosition
+            - options
+            - blockers
+          properties:
+            explanation:
+              type: [string, 'null']
+            promptTranslation:
+              type: [string, 'null']
+            focusText:
+              type: [string, 'null']
+              description: 'VOCABULARY_MEANING/KANJI_READING: the large focus term.'
+            focusReading:
+              type: [string, 'null']
+            contextText:
+              type: [string, 'null']
+              description: 'GRAMMAR_CLOZE: the sentence containing exactly one ___ token.'
+            contextTransliteration:
+              type: [string, 'null']
+            image:
+              $ref: '#/components/schemas/MediaRef'
+            audio:
+              $ref: '#/components/schemas/MediaRef'
+            groupId:
+              oneOf:
+                - $ref: '#/components/schemas/PublicId'
+                - type: 'null'
+            groupPosition:
+              type: [integer, 'null']
+            options:
+              type: array
+              items:
+                $ref: '#/components/schemas/QuestionOption'
+            blockers:
+              type: array
+              items:
+                type: string
+    QuestionWriteBody:
+      type: object
+      description: |
+        A create requires stem, level, section and options; every other field is
+        optional and defaults as documented in the coverage plan. A patch merges onto
+        the current question: an omitted field (including groupId) is unchanged, an
+        explicit null clears it. Unknown fields are rejected.
+      properties:
+        stem:
+          type: string
+        explanation:
+          type: [string, 'null']
+        level:
+          $ref: '#/components/schemas/Level'
+        section:
+          $ref: '#/components/schemas/Section'
+        format:
+          $ref: '#/components/schemas/QuestionFormat'
+        promptTranslation:
+          type: [string, 'null']
+        focusText:
+          type: [string, 'null']
+        focusReading:
+          type: [string, 'null']
+        contextText:
+          type: [string, 'null']
+        contextTransliteration:
+          type: [string, 'null']
+        points:
+          type: integer
+          minimum: 1
+        imageId:
+          type: [string, 'null']
+        audioId:
+          type: [string, 'null']
+        groupId:
+          type: [string, 'null']
+          description: A question group's public id, or null to detach.
+        groupPosition:
+          type: [integer, 'null']
+          minimum: 1
+        options:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            required: [body, isCorrect]
+            properties:
+              body:
+                type: string
+              isCorrect:
+                type: boolean

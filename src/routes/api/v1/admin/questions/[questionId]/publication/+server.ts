@@ -10,6 +10,7 @@ import {
 import { recordAudit } from '$lib/features/admin/audit.server';
 import {
 	questionDetailDto,
+	questionGroupStatus,
 	requireQuestionDetail
 } from '$lib/features/questions/api-detail.server';
 import { setQuestionStatus } from '$lib/features/questions/questions.server';
@@ -25,7 +26,8 @@ export const PUT: RequestHandler = async ({ locals, params, request, url }) =>
 		const blockers = questionPublishBlockers(
 			found.question,
 			{ image: found.image, audio: found.audio },
-			found.options
+			found.options,
+			questionGroupStatus(found)
 		);
 
 		if (blockers.length > 0) {

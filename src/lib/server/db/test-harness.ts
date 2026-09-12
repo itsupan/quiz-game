@@ -34,7 +34,9 @@ export const TEST_MIGRATIONS = [
 	'migrations/0002_add_password_hash.sql',
 	'migrations/0003_attempt_idempotency.sql',
 	'migrations/0004_freeze_attempt_snapshots.sql',
-	'migrations/0005_attempt_revision.sql'
+	'migrations/0005_attempt_revision.sql',
+	'migrations/0006_quiz_formats_and_groups.sql',
+	'migrations/0007_attempt_presentations.sql'
 ] as const;
 
 /**

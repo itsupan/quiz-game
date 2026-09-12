@@ -86,6 +86,8 @@ export function toQuizDetailDto(input: {
 		timeLimitSeconds: input.quiz.timeLimitSeconds,
 		scaledTotalMax: input.quiz.scaledTotalMax,
 		passMarkTotal: input.quiz.passMarkTotal,
+		showStudyAidsDuringAttempt: input.quiz.showStudyAidsDuringAttempt,
+		xpReward: input.quiz.xpReward,
 		publishedAt: input.quiz.publishedAt?.toISOString() ?? null,
 		createdAt: input.quiz.createdAt.toISOString(),
 		updatedAt: input.quiz.updatedAt.toISOString(),

@@ -23,7 +23,7 @@
 		onaudioready
 	}: {
 		image: { publicId: string; altText: string | null } | null;
-		audio: { publicId: string; transcript: string | null } | null;
+		audio: { publicId: string; transcript?: string | null } | null;
 		revealTranscript?: boolean;
 		onaudioready?: () => void;
 	} = $props();

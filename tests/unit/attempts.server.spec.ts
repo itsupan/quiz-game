@@ -14,6 +14,7 @@ import {
 	attemptAnswers,
 	attempts,
 	mediaAssets,
+	questionGroups,
 	questionOptions,
 	questions,
 	quizQuestions,
@@ -372,6 +373,82 @@ describe('content immutability', () => {
 		expect(result?.questions[0].isCorrect).toBe(true);
 		expect(result?.questions[0].pointsEarned).toBe(5);
 		expect(result?.questions[0].correctOptionId).toBe(originalOption.id);
+	});
+
+	it('freezes typed group stimuli, study-aid policy, and XP reward', async () => {
+		const quiz = await createFixedQuiz(db, {
+			mode: 'JLPT_PRACTICE',
+			sections: [{ section: 'GRAMMAR_READING' }]
+		});
+		const question = quiz.questionsBySection.GRAMMAR_READING[0];
+		const [group] = await db
+			.insert(questionGroups)
+			.values({
+				level: 'N4',
+				section: 'GRAMMAR_READING',
+				format: 'CONCEPT_REVIEW',
+				title: 'Concept review',
+				passageText: 'Particles indicate relationships between words.',
+				exampleText: '私は学生です。',
+				exampleTranslation: 'I am a student.',
+				status: 'PUBLISHED',
+				createdBy: adminId
+			})
+			.returning({ id: questionGroups.id });
+		await db
+			.update(questions)
+			.set({
+				groupId: group.id,
+				groupPosition: 1,
+				format: 'GRAMMAR_CLOZE',
+				stem: 'Choose the correct particle.',
+				promptTranslation: 'Translated prompt',
+				contextText: '私は毎日 ___ 行きます。',
+				contextTransliteration: 'Watashi wa mainichi ...'
+			})
+			.where(eq(questions.id, question.questionId));
+
+		const started = await startAttempt(
+			db,
+			{ ...quiz, showStudyAidsDuringAttempt: false, xpReward: 120 },
+			quiz.sections,
+			learnerId,
+			START
+		);
+		if (!started.ok) throw new Error(started.message);
+
+		const active = await loadAttempt(db, started.value, learnerId);
+		expect(active?.questions[0]).toMatchObject({
+			format: 'GRAMMAR_CLOZE',
+			stem: 'Choose the correct particle.',
+			promptTranslation: null,
+			contextText: '私は毎日 ___ 行きます。',
+			contextTransliteration: null,
+			group: null
+		});
+
+		await db
+			.update(questionGroups)
+			.set({ passageText: 'EDITED CONCEPT', exampleText: 'EDITED EXAMPLE' })
+			.where(eq(questionGroups.id, group.id));
+		await db
+			.update(questions)
+			.set({ contextText: 'EDITED ___ CONTEXT' })
+			.where(eq(questions.id, question.questionId));
+		await db.update(quizzes).set({ xpReward: 999 }).where(eq(quizzes.id, quiz.id));
+
+		await finalizeAttempt(db, active!.attempt.id, 'SUBMITTED', after(5));
+		const result = await loadResult(db, started.value, learnerId);
+
+		expect(result?.attempt.xpAwarded).toBe(120);
+		expect(result?.questions[0]).toMatchObject({
+			contextText: '私は毎日 ___ 行きます。',
+			group: {
+				passageText: 'Particles indicate relationships between words.',
+				exampleText: '私は学生です。',
+				exampleTranslation: 'I am a student.'
+			}
+		});
 	});
 });
 
@@ -832,7 +909,7 @@ describe('loadResult', () => {
 		if (!started.ok) throw new Error(started.message);
 
 		const inProgress = await loadAttempt(db, started.value, learnerId);
-		expect(inProgress?.questions[0].audio?.transcript).toBeNull();
+		expect(inProgress?.questions[0].audio).not.toHaveProperty('transcript');
 
 		await finalizeAttempt(db, inProgress!.attempt.id, 'SUBMITTED', after(1));
 

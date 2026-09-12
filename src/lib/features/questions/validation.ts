@@ -1,4 +1,10 @@
-import { JLPT_LEVELS, SECTIONS, type JlptLevel, type Section } from '$lib/domain/enums';
+import {
+	JLPT_LEVELS,
+	SECTIONS,
+	type JlptLevel,
+	type QuestionFormat,
+	type Section
+} from '$lib/domain/enums';
 import {
 	echoValues,
 	formText,
@@ -25,11 +31,63 @@ export type QuestionInput = {
 	explanation: string | null;
 	level: JlptLevel;
 	section: Section;
+	format: QuestionFormat;
+	promptTranslation: string | null;
+	focusText: string | null;
+	focusReading: string | null;
+	contextText: string | null;
+	contextTransliteration: string | null;
 	points: number;
 	imageMediaId: number | null;
 	audioMediaId: number | null;
+	groupId: number | null;
+	groupPosition: number | null;
 	options: QuestionOptionInput[];
 };
+
+/** The single blank token a `GRAMMAR_CLOZE` sentence must contain, exactly once. */
+export const CLOZE_BLANK_TOKEN = '___';
+
+/**
+ * `true` when `text` contains exactly one run of underscores, and that run is exactly
+ * three characters — so `"a___b"` passes but `"a____b"` (a four-underscore run) and
+ * `"a___b___c"` (two separate runs) do not.
+ */
+export function hasExactlyOneClozeBlank(text: string): boolean {
+	const runs = text.match(/_+/g) ?? [];
+	return runs.length === 1 && runs[0] === CLOZE_BLANK_TOKEN;
+}
+
+/**
+ * The format-specific required-content rules from the coverage plan, enforced as a hard
+ * validation (not just a publish blocker) so stored data can never drift out of shape
+ * with its own declared format.
+ */
+export function formatContentErrors(input: {
+	format: QuestionFormat;
+	focusText: string | null;
+	contextText: string | null;
+}): string[] {
+	const errors: string[] = [];
+
+	if (
+		(input.format === 'VOCABULARY_MEANING' || input.format === 'KANJI_READING') &&
+		(input.focusText ?? '').trim() === ''
+	) {
+		errors.push(`${input.format} requires a non-empty focusText.`);
+	}
+
+	if (input.format === 'GRAMMAR_CLOZE') {
+		const contextText = (input.contextText ?? '').trim();
+		if (contextText === '') {
+			errors.push('GRAMMAR_CLOZE requires a non-empty contextText.');
+		} else if (!hasExactlyOneClozeBlank(contextText)) {
+			errors.push('GRAMMAR_CLOZE requires contextText to contain exactly one ___ token.');
+		}
+	}
+
+	return errors;
+}
 
 export function parseQuestionForm(
 	data: FormData
@@ -89,9 +147,19 @@ export function parseQuestionForm(
 			explanation: explanation === '' ? null : explanation,
 			level: level as JlptLevel,
 			section: section as Section,
+			// The admin dashboard form only ever authors STANDARD questions; the richer
+			// formats are authored through the JSON API (`parseQuestionCreateBody`).
+			format: 'STANDARD',
+			promptTranslation: null,
+			focusText: null,
+			focusReading: null,
+			contextText: null,
+			contextTransliteration: null,
 			points,
 			imageMediaId: imageMediaId ?? null,
 			audioMediaId: audioMediaId ?? null,
+			groupId: null,
+			groupPosition: null,
 			options: bodies.map((body, index) => ({
 				id: ids[index] ?? null,
 				body: body.trim(),
@@ -109,14 +177,22 @@ export function parseQuestionForm(
  * check, instead of forcing every caller to fetch them just to pass an empty array.
  */
 export function questionPublishBlockers(
-	question: { stem: string },
+	question: {
+		stem: string;
+		format?: QuestionFormat;
+		focusText?: string | null;
+		contextText?: string | null;
+	},
 	media: {
 		image: { altText: string | null } | null;
 		audio: { transcript: string | null } | null;
 	},
-	options?: { isCorrect: boolean }[]
+	options?: { isCorrect: boolean }[],
+	/** The attached group's own readiness, when this question's format requires one. */
+	group?: { status: string; blockers: string[] } | null
 ): string[] {
 	const blockers: string[] = [];
+	const format = question.format ?? 'STANDARD';
 
 	if (question.stem.trim() === '') blockers.push('The question has no text.');
 	if (media.image && (media.image.altText ?? '').trim() === '') {
@@ -129,6 +205,22 @@ export function questionPublishBlockers(
 		if (options.length < 2) blockers.push('A published question needs at least two options.');
 		if (!options.some((option) => option.isCorrect)) {
 			blockers.push('Mark one option as the correct answer before publishing.');
+		}
+	}
+	blockers.push(
+		...formatContentErrors({
+			format,
+			focusText: question.focusText ?? null,
+			contextText: question.contextText ?? null
+		})
+	);
+	if (format === 'READING_COMPREHENSION' || format === 'LISTENING_COMPREHENSION') {
+		if (!group) {
+			blockers.push(`${format} requires an attached, compatible question group.`);
+		} else if (group.status !== 'PUBLISHED') {
+			blockers.push('The attached question group must be published before this question can be.');
+		} else if (group.blockers.length > 0) {
+			blockers.push(`The attached question group is not ready: ${group.blockers.join(' ')}`);
 		}
 	}
 
