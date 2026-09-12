@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ADMIN_SESSION, LEARNER_SESSION, signIn } from './sessions';
+import { ADMIN_SESSION, signIn } from './sessions';
 
 async function signInAsAdmin({ page }: { page: Page }) {
 	await signIn(page.context(), ADMIN_SESSION);

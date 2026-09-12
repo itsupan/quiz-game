@@ -1,4 +1,4 @@
-import { and, count, desc, eq, like, or } from 'drizzle-orm';
+import { count, desc, eq, like, or } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import type { UserRole, UserStatus } from '$lib/server/db/schema/enums';
