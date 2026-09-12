@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 
 import { apiEndpoint, parsePublicId, requireLearner } from '$lib/features/quiz/api/http.server';
-import { getAttempt } from '$lib/features/quiz/api/quiz-api.server';
+import { getOwnedAttempt } from '$lib/features/quiz/api/quiz-api.server';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals, params, request }) =>
@@ -9,5 +9,5 @@ export const GET: RequestHandler = async ({ locals, params, request }) =>
 		const user = requireLearner(locals.user);
 		const attemptId = parsePublicId(params.attemptId, 'attemptId');
 
-		return json({ data: await getAttempt(locals.db, attemptId, user.id, new Date()) });
+		return json({ data: await getOwnedAttempt(locals.db, attemptId, user.id, new Date()) });
 	});

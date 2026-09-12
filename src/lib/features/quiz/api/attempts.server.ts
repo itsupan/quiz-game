@@ -85,7 +85,7 @@ async function loadOwnedSettledAttempt(
 	return view;
 }
 
-export async function getAttempt(db: Database, attemptId: string, userId: number, now: Date) {
+export async function getOwnedAttempt(db: Database, attemptId: string, userId: number, now: Date) {
 	return toAttemptDto(await loadOwnedSettledAttempt(db, attemptId, userId, now), now);
 }
 
@@ -195,7 +195,12 @@ export async function submitAttempt(db: Database, attemptId: string, userId: num
 	return completedResult(db, attemptId, userId);
 }
 
-export async function getAttemptResult(db: Database, attemptId: string, userId: number, now: Date) {
+export async function getCompletedResult(
+	db: Database,
+	attemptId: string,
+	userId: number,
+	now: Date
+) {
 	const view = await loadOwnedSettledAttempt(db, attemptId, userId, now);
 	if (view.attempt.status === 'IN_PROGRESS') {
 		apiProblem(

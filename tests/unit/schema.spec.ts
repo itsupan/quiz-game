@@ -4,8 +4,11 @@ import { describe, expect, it } from 'vitest';
 import {
 	attemptAnswers,
 	attemptBandScores,
+	attemptQuestionOptions,
 	attemptQuestions,
+	attemptScoringBands,
 	attemptSectionScores,
+	attemptSections,
 	attempts,
 	auditLogs,
 	mediaAssets,
@@ -26,8 +29,11 @@ import { ATTEMPT_STATUS, JLPT_LEVELS, SCORING_BANDS, SECTIONS } from '$lib/serve
 const ALL_TABLES = [
 	attemptAnswers,
 	attemptBandScores,
+	attemptQuestionOptions,
 	attemptQuestions,
+	attemptScoringBands,
 	attemptSectionScores,
+	attemptSections,
 	attempts,
 	auditLogs,
 	mediaAssets,
@@ -56,8 +62,11 @@ describe('schema wiring', () => {
 		expect(ALL_TABLES.map((table) => getTableConfig(table).name).sort()).toEqual([
 			'attempt_answers',
 			'attempt_band_scores',
+			'attempt_question_options',
 			'attempt_questions',
+			'attempt_scoring_bands',
 			'attempt_section_scores',
+			'attempt_sections',
 			'attempts',
 			'audit_logs',
 			'media_assets',
@@ -103,17 +112,31 @@ describe('answer keys', () => {
 		expect(Object.keys(publicQuestionOptionColumns)).not.toContain('isCorrect');
 	});
 
-	it('ties a chosen option to the question it belongs to', () => {
-		// Without this composite key a client could post any option id and be scored
-		// against an unrelated question's answer key.
+	it('ties a chosen option to this attempt’s own frozen answer key, not the live table', () => {
+		// Without this composite key a client could post an option id belonging to a
+		// different attempt (or a stale live-table id) and be scored against it.
 		const optionFk = getTableConfig(attemptAnswers).foreignKeys.find(
-			(fk) => fk.reference().foreignTable === questionOptions
+			(fk) => fk.reference().foreignTable === attemptQuestionOptions
 		);
 
 		expect(optionFk?.reference().columns.map((column) => column.name)).toEqual([
 			'selected_option_id',
-			'question_id'
+			'attempt_id'
 		]);
+	});
+
+	it('makes a second correct frozen option impossible per served question, per attempt', () => {
+		const oneCorrect = indexNamed(
+			attemptQuestionOptions,
+			'attempt_question_options_one_correct_idx'
+		);
+
+		expect(oneCorrect?.config.unique).toBe(true);
+		expect(oneCorrect?.config.columns.map((column) => (column as { name: string }).name)).toEqual([
+			'attempt_id',
+			'question_position'
+		]);
+		expect(oneCorrect?.config.where).toBeDefined();
 	});
 });
 

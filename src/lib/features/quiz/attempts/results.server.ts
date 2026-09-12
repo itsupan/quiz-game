@@ -1,52 +1,80 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
+import type { ScoringBand, Section } from '$lib/domain/enums';
 import type { Database } from '$lib/server/db';
 import {
 	attemptAnswers,
 	attemptBandScores,
+	attemptQuestionOptions,
 	attemptQuestions,
+	attemptScoringBands,
 	attemptSectionScores,
 	attempts,
-	questionOptions,
-	questions,
-	quizScoringBands,
-	quizzes,
-	quizSections
+	quizzes
 } from '$lib/server/db/schema';
 import type { AttemptStatus } from '$lib/server/db/schema';
 import { scoreAttempt, type BandConfig, type SavedAnswer, type ServedQuestion } from '../scoring';
 import { isExpired } from '../timing';
-import { audioAsset, imageAsset, loadPublicOptions } from './questions.server';
+import { loadFrozenOptions } from './questions.server';
 import type { AttemptView, ResultView } from './types.server';
 
-async function loadBandConfig(db: Database, quizId: number): Promise<BandConfig[]> {
+type FrozenServedQuestion = {
+	attemptQuestionId: number;
+	questionId: number;
+	section: Section;
+	position: number;
+	points: number;
+	bandCode: ScoringBand | null;
+};
+
+/** Groups this attempt's frozen scoring bands by the sections its own served questions fed. */
+async function loadFrozenBandConfig(
+	db: Database,
+	attemptId: number,
+	served: Pick<FrozenServedQuestion, 'section' | 'bandCode'>[]
+): Promise<BandConfig[]> {
 	const bands = await db
 		.select({
-			id: quizScoringBands.id,
-			code: quizScoringBands.code,
-			label: quizScoringBands.label,
-			scaledMax: quizScoringBands.scaledMax,
-			passMark: quizScoringBands.passMark
+			bandCode: attemptScoringBands.bandCode,
+			label: attemptScoringBands.label,
+			scaledMax: attemptScoringBands.scaledMax,
+			passMark: attemptScoringBands.passMark
 		})
-		.from(quizScoringBands)
-		.where(eq(quizScoringBands.quizId, quizId));
-
-	if (bands.length === 0) return [];
-
-	const sections = await db
-		.select({ section: quizSections.section, scoringBandId: quizSections.scoringBandId })
-		.from(quizSections)
-		.where(eq(quizSections.quizId, quizId));
+		.from(attemptScoringBands)
+		.where(eq(attemptScoringBands.attemptId, attemptId));
 
 	return bands.map((band) => ({
-		code: band.code,
+		code: band.bandCode,
 		label: band.label,
 		scaledMax: band.scaledMax,
 		passMark: band.passMark,
-		sections: sections
-			.filter((section) => section.scoringBandId === band.id)
-			.map((section) => section.section)
+		sections: [
+			...new Set(
+				served.filter((question) => question.bandCode === band.bandCode).map((q) => q.section)
+			)
+		]
 	}));
+}
+
+/** This attempt's own frozen answer key: which option, per served question, was correct. */
+async function loadCorrectOptionByPosition(
+	db: Database,
+	attemptId: number
+): Promise<Map<number, number>> {
+	const rows = await db
+		.select({
+			questionPosition: attemptQuestionOptions.questionPosition,
+			id: attemptQuestionOptions.id
+		})
+		.from(attemptQuestionOptions)
+		.where(
+			and(
+				eq(attemptQuestionOptions.attemptId, attemptId),
+				eq(attemptQuestionOptions.isCorrect, true)
+			)
+		);
+
+	return new Map(rows.map((row) => [row.questionPosition, row.id]));
 }
 
 export async function finalizeAttempt(
@@ -56,41 +84,31 @@ export async function finalizeAttempt(
 	at: Date
 ): Promise<void> {
 	const [claimable] = await db
-		.select({ id: attempts.id, startedAt: attempts.startedAt, quizId: attempts.quizId })
+		.select({
+			id: attempts.id,
+			startedAt: attempts.startedAt,
+			scaledTotalMax: attempts.scaledTotalMax,
+			passMarkTotal: attempts.passMarkTotal
+		})
 		.from(attempts)
 		.where(and(eq(attempts.id, attemptId), eq(attempts.status, 'IN_PROGRESS')));
 
 	if (!claimable) return;
 
-	const [quiz] = await db
-		.select({ scaledTotalMax: quizzes.scaledTotalMax, passMarkTotal: quizzes.passMarkTotal })
-		.from(quizzes)
-		.where(eq(quizzes.id, claimable.quizId));
-	const bands = await loadBandConfig(db, claimable.quizId);
 	const served = await db
 		.select({
 			attemptQuestionId: attemptQuestions.id,
 			questionId: attemptQuestions.questionId,
 			section: attemptQuestions.section,
-			points: attemptQuestions.points
+			position: attemptQuestions.position,
+			points: attemptQuestions.points,
+			bandCode: attemptQuestions.bandCode
 		})
 		.from(attemptQuestions)
 		.where(eq(attemptQuestions.attemptId, attemptId));
 
-	const questionIds = served.map((question) => question.questionId);
-	const correctOptions =
-		questionIds.length > 0
-			? await db
-					.select({ questionId: questionOptions.questionId, id: questionOptions.id })
-					.from(questionOptions)
-					.where(
-						and(
-							inArray(questionOptions.questionId, questionIds),
-							eq(questionOptions.isCorrect, true)
-						)
-					)
-			: [];
-	const correctByQuestion = new Map(correctOptions.map((option) => [option.questionId, option.id]));
+	const bands = await loadFrozenBandConfig(db, attemptId, served);
+	const correctByPosition = await loadCorrectOptionByPosition(db, attemptId);
 	const answers = await db
 		.select({
 			attemptQuestionId: attemptAnswers.attemptQuestionId,
@@ -104,7 +122,7 @@ export async function finalizeAttempt(
 		questionId: question.questionId,
 		section: question.section,
 		points: question.points,
-		correctOptionId: correctByQuestion.get(question.questionId) ?? null
+		correctOptionId: correctByPosition.get(question.position) ?? null
 	}));
 	const savedAnswers: SavedAnswer[] = answers.map((answer) => ({
 		attemptQuestionId: answer.attemptQuestionId,
@@ -114,8 +132,8 @@ export async function finalizeAttempt(
 		served: servedQuestions,
 		answers: savedAnswers,
 		bands,
-		scaledTotalMax: quiz.scaledTotalMax,
-		passMarkTotal: quiz.passMarkTotal
+		scaledTotalMax: claimable.scaledTotalMax,
+		passMarkTotal: claimable.passMarkTotal
 	});
 
 	const groups = new Map<string, { isCorrect: boolean; pointsEarned: number; ids: number[] }>();
@@ -233,7 +251,6 @@ export async function loadResult(
 	const [row] = await db
 		.select({
 			id: attempts.id,
-			quizId: quizzes.id,
 			publicId: attempts.publicId,
 			status: attempts.status,
 			startedAt: attempts.startedAt,
@@ -245,12 +262,12 @@ export async function loadResult(
 			questionCount: attempts.questionCount,
 			scaledTotal: attempts.scaledTotal,
 			passed: attempts.passed,
+			scaledTotalMax: attempts.scaledTotalMax,
+			passMarkTotal: attempts.passMarkTotal,
 			quizPublicId: quizzes.publicId,
 			title: quizzes.title,
 			mode: quizzes.mode,
-			level: quizzes.level,
-			scaledTotalMax: quizzes.scaledTotalMax,
-			passMarkTotal: quizzes.passMarkTotal
+			level: quizzes.level
 		})
 		.from(attempts)
 		.innerJoin(quizzes, eq(quizzes.id, attempts.quizId))
@@ -269,9 +286,9 @@ export async function loadResult(
 		.from(attemptBandScores)
 		.where(eq(attemptBandScores.attemptId, row.id));
 	const bandLabels = await db
-		.select({ code: quizScoringBands.code, label: quizScoringBands.label })
-		.from(quizScoringBands)
-		.where(eq(quizScoringBands.quizId, row.quizId));
+		.select({ code: attemptScoringBands.bandCode, label: attemptScoringBands.label })
+		.from(attemptScoringBands)
+		.where(eq(attemptScoringBands.attemptId, row.id));
 	const labelByCode = new Map(bandLabels.map((band) => [band.code, band.label]));
 
 	const served = await db
@@ -281,39 +298,23 @@ export async function loadResult(
 			section: attemptQuestions.section,
 			position: attemptQuestions.position,
 			points: attemptQuestions.points,
-			stem: questions.stem,
-			explanation: questions.explanation,
-			imagePublicId: imageAsset.publicId,
-			imageAltText: imageAsset.altText,
-			audioPublicId: audioAsset.publicId,
-			audioTranscript: audioAsset.transcript,
+			stem: attemptQuestions.stem,
+			explanation: attemptQuestions.explanation,
+			imagePublicId: attemptQuestions.imagePublicId,
+			imageAltText: attemptQuestions.imageAltText,
+			audioPublicId: attemptQuestions.audioPublicId,
+			audioTranscript: attemptQuestions.audioTranscript,
 			selectedOptionId: attemptAnswers.selectedOptionId,
 			isCorrect: attemptAnswers.isCorrect,
 			pointsEarned: attemptAnswers.pointsEarned
 		})
 		.from(attemptQuestions)
-		.innerJoin(questions, eq(questions.id, attemptQuestions.questionId))
-		.leftJoin(imageAsset, eq(imageAsset.id, questions.imageMediaId))
-		.leftJoin(audioAsset, eq(audioAsset.id, questions.audioMediaId))
 		.leftJoin(attemptAnswers, eq(attemptAnswers.attemptQuestionId, attemptQuestions.id))
 		.where(eq(attemptQuestions.attemptId, row.id))
 		.orderBy(attemptQuestions.position);
 
-	const questionIds = served.map((entry) => entry.questionId);
-	const options = await loadPublicOptions(db, questionIds);
-	const correctOptions =
-		questionIds.length > 0
-			? await db
-					.select({ questionId: questionOptions.questionId, id: questionOptions.id })
-					.from(questionOptions)
-					.where(
-						and(
-							inArray(questionOptions.questionId, questionIds),
-							eq(questionOptions.isCorrect, true)
-						)
-					)
-			: [];
-	const correctByQuestion = new Map(correctOptions.map((option) => [option.questionId, option.id]));
+	const options = await loadFrozenOptions(db, row.id);
+	const correctByPosition = await loadCorrectOptionByPosition(db, row.id);
 
 	return {
 		attempt: {
@@ -351,7 +352,7 @@ export async function loadResult(
 			section: entry.section,
 			position: entry.position,
 			points: entry.points,
-			stem: entry.stem,
+			stem: entry.stem ?? '',
 			explanation: entry.explanation,
 			image: entry.imagePublicId
 				? { publicId: entry.imagePublicId, altText: entry.imageAltText }
@@ -359,9 +360,9 @@ export async function loadResult(
 			audio: entry.audioPublicId
 				? { publicId: entry.audioPublicId, transcript: entry.audioTranscript }
 				: null,
-			options: options.get(entry.questionId) ?? [],
+			options: options.get(entry.position) ?? [],
 			selectedOptionId: entry.selectedOptionId,
-			correctOptionId: correctByQuestion.get(entry.questionId) ?? null,
+			correctOptionId: correctByPosition.get(entry.position) ?? null,
 			isCorrect: entry.isCorrect ?? false,
 			pointsEarned: entry.pointsEarned ?? 0
 		}))

@@ -160,6 +160,8 @@ async function createFixedQuiz(
 		selectionMode: 'FIXED' as const,
 		level,
 		timeLimitSeconds,
+		scaledTotalMax: null as number | null,
+		passMarkTotal: null as number | null,
 		sections: await db.select().from(quizSections).where(eq(quizSections.quizId, quiz.id)),
 		questionsBySection
 	};
@@ -246,6 +248,8 @@ describe('startAttempt', () => {
 				selectionMode: 'RANDOM' as const,
 				level,
 				timeLimitSeconds: null,
+				scaledTotalMax: null as number | null,
+				passMarkTotal: null as number | null,
 				sections: await db.select().from(quizSections).where(eq(quizSections.quizId, quiz.id))
 			};
 		}
@@ -275,6 +279,99 @@ describe('startAttempt', () => {
 
 			expect(result.ok).toBe(false);
 		});
+	});
+
+	it('rolls the created attempt back completely if freezing its served questions fails', async () => {
+		const quiz = await createFixedQuiz(db, { sections: [{ section: 'VOCAB_KANJI' }] });
+
+		await db.run(
+			sql.raw(`
+				CREATE TRIGGER fail_freeze
+				BEFORE INSERT ON attempt_questions
+				BEGIN
+					SELECT RAISE(ABORT, 'forced freeze failure');
+				END
+			`)
+		);
+
+		await expect(startAttempt(db, quiz, quiz.sections, learnerId, START)).rejects.toThrow(
+			'forced freeze failure'
+		);
+		expect(await db.select().from(attempts)).toHaveLength(0);
+
+		await db.run(sql.raw('DROP TRIGGER fail_freeze'));
+		const retried = await startAttempt(db, quiz, quiz.sections, learnerId, START);
+		expect(retried.ok).toBe(true);
+	});
+});
+
+describe('content immutability', () => {
+	it('keeps an attempt’s served content and answer key frozen against a later content edit', async () => {
+		const quiz = await createFixedQuiz(db, {
+			sections: [{ section: 'VOCAB_KANJI', points: 5 }]
+		});
+		const question = quiz.questionsBySection.VOCAB_KANJI[0];
+
+		const started = await startAttempt(db, quiz, quiz.sections, learnerId, START);
+		if (!started.ok) throw new Error(started.message);
+
+		const before = await loadAttempt(db, started.value, learnerId);
+		if (!before) throw new Error('did not load');
+		const originalOption = before.questions[0].options[0];
+
+		// An administrator edits the published question after the attempt has already
+		// started: different wording, different points, a different option body, and —
+		// most importantly — a different correct answer.
+		await db
+			.update(questions)
+			.set({ stem: 'EDITED STEM', points: 99 })
+			.where(eq(questions.id, question.questionId));
+		await db
+			.update(questionOptions)
+			.set({ body: 'EDITED BODY' })
+			.where(eq(questionOptions.id, originalOption.id));
+		await db
+			.update(questionOptions)
+			.set({ isCorrect: false })
+			.where(eq(questionOptions.id, question.correctOptionId));
+		const liveOptions = await db
+			.select()
+			.from(questionOptions)
+			.where(eq(questionOptions.questionId, question.questionId));
+		const flipTo = liveOptions.find((option) => option.id !== question.correctOptionId)!;
+		await db
+			.update(questionOptions)
+			.set({ isCorrect: true })
+			.where(eq(questionOptions.id, flipTo.id));
+
+		const viewAfterEdit = await loadAttempt(db, started.value, learnerId);
+		if (!viewAfterEdit) throw new Error('did not load');
+
+		expect(viewAfterEdit.questions[0].stem).toBe(before.questions[0].stem);
+		expect(viewAfterEdit.questions[0].stem).not.toBe('EDITED STEM');
+		expect(viewAfterEdit.questions[0].points).toBe(5);
+		expect(
+			viewAfterEdit.questions[0].options.find((option) => option.id === originalOption.id)?.body
+		).toBe(originalOption.body);
+		expect(
+			viewAfterEdit.questions[0].options.find((option) => option.id === originalOption.id)?.body
+		).not.toBe('EDITED BODY');
+
+		// Scoring still uses the frozen answer key: selecting the originally-correct
+		// option is still marked correct, even though the live table now says otherwise.
+		await saveAnswer(
+			db,
+			viewAfterEdit,
+			viewAfterEdit.questions[0].attemptQuestionId,
+			originalOption.id,
+			START
+		);
+		await finalizeAttempt(db, viewAfterEdit.attempt.id, 'SUBMITTED', after(5));
+
+		const result = await loadResult(db, started.value, learnerId);
+		expect(result?.questions[0].isCorrect).toBe(true);
+		expect(result?.questions[0].pointsEarned).toBe(5);
+		expect(result?.questions[0].correctOptionId).toBe(originalOption.id);
 	});
 });
 
@@ -542,6 +639,7 @@ describe('enforceDeadline and finalizeAttempt', () => {
 			timeLimitSeconds: 200,
 			sections: [{ section: 'VOCAB_KANJI' }, { section: 'LISTENING' }]
 		});
+		quiz.passMarkTotal = 50;
 		await db.update(quizzes).set({ passMarkTotal: 50 }).where(eq(quizzes.id, quiz.quizId));
 		const [languageBand] = await db
 			.insert(quizScoringBands)
@@ -553,7 +651,11 @@ describe('enforceDeadline and finalizeAttempt', () => {
 				scaledMax: 60,
 				passMark: 19
 			})
-			.returning({ id: quizScoringBands.id });
+			.returning({
+				id: quizScoringBands.id,
+				code: quizScoringBands.code,
+				label: quizScoringBands.label
+			});
 		const [listeningBand] = await db
 			.insert(quizScoringBands)
 			.values({
@@ -564,7 +666,11 @@ describe('enforceDeadline and finalizeAttempt', () => {
 				scaledMax: 60,
 				passMark: 19
 			})
-			.returning({ id: quizScoringBands.id });
+			.returning({
+				id: quizScoringBands.id,
+				code: quizScoringBands.code,
+				label: quizScoringBands.label
+			});
 		await db
 			.update(quizSections)
 			.set({ scoringBandId: languageBand.id })
@@ -573,8 +679,27 @@ describe('enforceDeadline and finalizeAttempt', () => {
 			.update(quizSections)
 			.set({ scoringBandId: listeningBand.id })
 			.where(eq(quizSections.section, 'LISTENING'));
+		quiz.sections = await db
+			.select()
+			.from(quizSections)
+			.where(eq(quizSections.quizId, quiz.quizId));
 
-		const started = await startAttempt(db, quiz, quiz.sections, learnerId, START);
+		const started = await startAttempt(db, quiz, quiz.sections, learnerId, START, null, [
+			{
+				id: languageBand.id,
+				code: languageBand.code,
+				label: languageBand.label,
+				scaledMax: 60,
+				passMark: 19
+			},
+			{
+				id: listeningBand.id,
+				code: listeningBand.code,
+				label: listeningBand.label,
+				scaledMax: 60,
+				passMark: 19
+			}
+		]);
 		if (!started.ok) throw new Error(started.message);
 		const view = await loadAttempt(db, started.value, learnerId);
 		if (!view) throw new Error('did not load');

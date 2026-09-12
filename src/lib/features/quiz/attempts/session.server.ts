@@ -6,12 +6,11 @@ import {
 	attemptAnswers,
 	attemptQuestions,
 	attempts,
-	questions,
-	quizzes,
-	quizSections
+	attemptSections,
+	quizzes
 } from '$lib/server/db/schema';
 import { isExpired, sectionDeadlines, sectionOpen } from '../timing';
-import { audioAsset, imageAsset, loadPublicOptions } from './questions.server';
+import { loadFrozenOptions } from './questions.server';
 import type { AttemptView } from './types.server';
 
 export async function loadAttempt(
@@ -40,14 +39,16 @@ export async function loadAttempt(
 
 	if (!row) return null;
 
+	// Frozen at start time: what this attempt's sections actually looked like then, not
+	// whatever `quiz_sections` says now.
 	const sections = await db
 		.select({
-			section: quizSections.section,
-			position: quizSections.position,
-			timeLimitSeconds: quizSections.timeLimitSeconds
+			section: attemptSections.section,
+			position: attemptSections.position,
+			timeLimitSeconds: attemptSections.timeLimitSeconds
 		})
-		.from(quizSections)
-		.where(eq(quizSections.quizId, row.quizId));
+		.from(attemptSections)
+		.where(eq(attemptSections.attemptId, row.attemptId));
 
 	const served = await db
 		.select({
@@ -56,24 +57,18 @@ export async function loadAttempt(
 			section: attemptQuestions.section,
 			position: attemptQuestions.position,
 			points: attemptQuestions.points,
-			stem: questions.stem,
-			imagePublicId: imageAsset.publicId,
-			imageAltText: imageAsset.altText,
-			audioPublicId: audioAsset.publicId,
+			stem: attemptQuestions.stem,
+			imagePublicId: attemptQuestions.imagePublicId,
+			imageAltText: attemptQuestions.imageAltText,
+			audioPublicId: attemptQuestions.audioPublicId,
 			selectedOptionId: attemptAnswers.selectedOptionId
 		})
 		.from(attemptQuestions)
-		.innerJoin(questions, eq(questions.id, attemptQuestions.questionId))
-		.leftJoin(imageAsset, eq(imageAsset.id, questions.imageMediaId))
-		.leftJoin(audioAsset, eq(audioAsset.id, questions.audioMediaId))
 		.leftJoin(attemptAnswers, eq(attemptAnswers.attemptQuestionId, attemptQuestions.id))
 		.where(eq(attemptQuestions.attemptId, row.attemptId))
 		.orderBy(attemptQuestions.position);
 
-	const options = await loadPublicOptions(
-		db,
-		served.map((entry) => entry.questionId)
-	);
+	const options = await loadFrozenOptions(db, row.attemptId);
 
 	return {
 		attempt: {
@@ -99,12 +94,12 @@ export async function loadAttempt(
 			section: entry.section,
 			position: entry.position,
 			points: entry.points,
-			stem: entry.stem,
+			stem: entry.stem ?? '',
 			image: entry.imagePublicId
 				? { publicId: entry.imagePublicId, altText: entry.imageAltText }
 				: null,
 			audio: entry.audioPublicId ? { publicId: entry.audioPublicId, transcript: null } : null,
-			options: options.get(entry.questionId) ?? [],
+			options: options.get(entry.position) ?? [],
 			selectedOptionId: entry.selectedOptionId
 		}))
 	};

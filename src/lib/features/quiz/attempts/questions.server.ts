@@ -1,32 +1,43 @@
-import { inArray } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/sqlite-core';
+import { eq } from 'drizzle-orm';
 
 import type { Database } from '$lib/server/db';
-import { mediaAssets, publicQuestionOptionColumns, questionOptions } from '$lib/server/db/schema';
-import type { PublicQuestionOption } from '$lib/server/db/schema';
+import { attemptQuestionOptions } from '$lib/server/db/schema';
 
-export const imageAsset = alias(mediaAssets, 'image_asset');
-export const audioAsset = alias(mediaAssets, 'audio_asset');
+export type FrozenOption = { id: number; body: string; position: number };
 
-export async function loadPublicOptions(
+/**
+ * The options this attempt was actually served, per served question — frozen at
+ * `startAttempt` time, so this never touches the live `question_options` table an admin
+ * might be mid-edit on. Excludes `isCorrect` by construction, the same guarantee
+ * `publicQuestionOptionColumns` gives the live-content path: a payload built from this
+ * can never leak the answer key before completion.
+ *
+ * Keyed by `attempt_questions.position` — the `questionPosition` frozen options are
+ * stored under — not by the live `questionId`, since that's the actual scope the frozen
+ * table is keyed on.
+ */
+export async function loadFrozenOptions(
 	db: Database,
-	questionIds: number[]
-): Promise<Map<number, PublicQuestionOption[]>> {
-	const byQuestion = new Map<number, PublicQuestionOption[]>();
-
-	if (questionIds.length === 0) return byQuestion;
+	attemptId: number
+): Promise<Map<number, FrozenOption[]>> {
+	const byPosition = new Map<number, FrozenOption[]>();
 
 	const rows = await db
-		.select({ ...publicQuestionOptionColumns, questionId: questionOptions.questionId })
-		.from(questionOptions)
-		.where(inArray(questionOptions.questionId, [...new Set(questionIds)]))
-		.orderBy(questionOptions.position);
+		.select({
+			questionPosition: attemptQuestionOptions.questionPosition,
+			id: attemptQuestionOptions.id,
+			body: attemptQuestionOptions.body,
+			position: attemptQuestionOptions.position
+		})
+		.from(attemptQuestionOptions)
+		.where(eq(attemptQuestionOptions.attemptId, attemptId))
+		.orderBy(attemptQuestionOptions.position);
 
-	for (const { questionId, ...option } of rows) {
-		const options = byQuestion.get(questionId) ?? [];
+	for (const { questionPosition, ...option } of rows) {
+		const options = byPosition.get(questionPosition) ?? [];
 		options.push(option);
-		byQuestion.set(questionId, options);
+		byPosition.set(questionPosition, options);
 	}
 
-	return byQuestion;
+	return byPosition;
 }

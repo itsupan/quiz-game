@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { ApiProblem } from '$lib/features/quiz/api/http.server';
 import {
 	createAttempt,
-	getAttempt,
+	getOwnedAttempt,
 	getAttemptQuestion,
-	getAttemptResult,
+	getCompletedResult,
 	listPublishedQuizzes,
 	putAttemptAnswer,
 	submitAttempt
@@ -111,7 +111,7 @@ describe('quiz API application facade', () => {
 
 	it('runs the complete attempt workflow without leaking an answer key before submission', async () => {
 		const started = await createAttempt(db, quizPublicId, learnerId, 'complete-flow-key', START);
-		const attempt = await getAttempt(db, started.attemptId, learnerId, START);
+		const attempt = await getOwnedAttempt(db, started.attemptId, learnerId, START);
 		const question = await getAttemptQuestion(db, started.attemptId, 1, learnerId, START);
 
 		expect(started.created).toBe(true);
@@ -153,11 +153,11 @@ describe('quiz API application facade', () => {
 	it('hides another learner’s attempt from every attempt operation', async () => {
 		const started = await createAttempt(db, quizPublicId, learnerId, 'private-attempt-key', START);
 		const operations = [
-			() => getAttempt(db, started.attemptId, otherLearnerId, START),
+			() => getOwnedAttempt(db, started.attemptId, otherLearnerId, START),
 			() => getAttemptQuestion(db, started.attemptId, 1, otherLearnerId, START),
 			() => putAttemptAnswer(db, started.attemptId, 1, 1, otherLearnerId, START),
 			() => submitAttempt(db, started.attemptId, otherLearnerId, START),
-			() => getAttemptResult(db, started.attemptId, otherLearnerId, START)
+			() => getCompletedResult(db, started.attemptId, otherLearnerId, START)
 		];
 
 		for (const operation of operations) {
@@ -170,14 +170,14 @@ describe('quiz API application facade', () => {
 
 	it('settles an expired attempt before returning it or accepting another answer', async () => {
 		const started = await createAttempt(db, quizPublicId, learnerId, 'expired-attempt-key', START);
-		const attempt = await getAttempt(db, started.attemptId, learnerId, after(60));
+		const attempt = await getOwnedAttempt(db, started.attemptId, learnerId, after(60));
 
 		expect(attempt.status).toBe('EXPIRED');
 		await expect(
 			putAttemptAnswer(db, started.attemptId, 1, 1, learnerId, after(60))
 		).rejects.toMatchObject({ status: 409, code: 'attempt_closed' } satisfies Partial<ApiProblem>);
 
-		const result = await getAttemptResult(db, started.attemptId, learnerId, after(60));
+		const result = await getCompletedResult(db, started.attemptId, learnerId, after(60));
 		expect(result.attempt).toMatchObject({ status: 'EXPIRED', correctCount: 0 });
 	});
 

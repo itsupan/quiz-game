@@ -1,13 +1,13 @@
 import type {
 	Attempt,
 	JlptLevel,
-	PublicQuestionOption,
 	Quiz,
 	QuizMode,
 	ScoringBand,
 	Section,
 	SelectionMode
 } from '$lib/server/db/schema';
+import type { FrozenOption } from './questions.server';
 import type { SectionDeadline } from '../timing';
 
 type MediaRef = { publicId: string; altText: string | null } | null;
@@ -22,7 +22,7 @@ export type AttemptQuestionView = {
 	stem: string;
 	image: MediaRef;
 	audio: AudioRef;
-	options: PublicQuestionOption[];
+	options: FrozenOption[];
 	selectedOptionId: number | null;
 };
 

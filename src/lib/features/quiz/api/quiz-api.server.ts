@@ -1,8 +1,8 @@
 export {
 	createAttempt,
-	getAttempt,
+	getOwnedAttempt,
 	getAttemptQuestion,
-	getAttemptResult,
+	getCompletedResult,
 	putAttemptAnswer,
 	submitAttempt
 } from './attempts.server';
