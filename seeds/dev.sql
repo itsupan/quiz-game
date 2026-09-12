@@ -11,14 +11,22 @@
 --   quiz 3  N3 JLPT_PRACTICE  RANDOM  no bands, draws 5 from the bank
 --   quiz 4  N5 JLPT_PRACTICE  FIXED   3 second first section, 8 second quiz clock
 --
+-- The questions linked to those published quizzes also cover every learner-facing
+-- presentation: STANDARD, VOCABULARY_MEANING, KANJI_READING, GRAMMAR_CLOZE,
+-- READING_COMPREHENSION and LISTENING_COMPREHENSION. Their shared stimuli cover every
+-- group format: READING_PASSAGE, LISTENING_CLIP and CONCEPT_REVIEW.
+--
 -- Scaled bands and pass marks are a LINEAR APPROXIMATION of JLPT scoring, which is
 -- item-response-theory based and unpublished. Confirm against the official site
 -- before showing any of it to a learner as an exam-readiness figure.
 
-INSERT INTO users (id, public_id, email, display_name, role, status) VALUES
-	(1, '01JSEEDACCTADMN00000000000', 'admin@example.com', '管理者テスト', 'ADMIN', 'ACTIVE'),
-	(2, '01JSEEDACCTSTDNT0000000000', 'learner@example.com', '学習者テスト', 'USER', 'ACTIVE')
+INSERT INTO users (id, public_id, email, display_name, jlpt_level, role, status) VALUES
+	(1, '01JSEEDACCTADMN00000000000', 'admin@example.com', '管理者テスト', NULL, 'ADMIN', 'ACTIVE'),
+	(2, '01JSEEDACCTSTDNT0000000000', 'learner@example.com', '学習者テスト', 'N4', 'USER', 'ACTIVE')
 ON CONFLICT(id) DO NOTHING;
+
+-- Keep a database seeded before learner levels existed useful for the level filter.
+UPDATE users SET jlpt_level = 'N4' WHERE id = 2 AND role = 'USER';
 
 -- The bytes these rows describe live in R2, not here — `pnpm db:seed:media` puts
 -- seeds/fixtures/sample-image.png and sample-audio.mp3 at these exact keys in the local

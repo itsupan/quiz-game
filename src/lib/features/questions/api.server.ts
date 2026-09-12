@@ -474,6 +474,8 @@ export function toQuestionListItemDto(item: {
 	points: number;
 	optionCount: number;
 	hasAnswerKey: boolean;
+	hasImage: boolean;
+	hasAudio: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 }) {
@@ -487,6 +489,8 @@ export function toQuestionListItemDto(item: {
 		points: item.points,
 		optionCount: item.optionCount,
 		hasAnswerKey: item.hasAnswerKey,
+		hasImage: item.hasImage,
+		hasAudio: item.hasAudio,
 		createdAt: item.createdAt.toISOString(),
 		updatedAt: item.updatedAt.toISOString()
 	};

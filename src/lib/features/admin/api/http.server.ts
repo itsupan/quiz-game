@@ -13,6 +13,7 @@ export {
 	parseLimit,
 	parsePageNumber,
 	parsePublicId,
+	parseSearchQuery,
 	readJsonObject
 } from '$lib/server/http/problem';
 

@@ -7,6 +7,7 @@ export function toQuizListItemDto(item: QuizListItem) {
 	return {
 		id: item.publicId,
 		title: item.title,
+		description: item.description,
 		mode: item.mode,
 		level: item.level,
 		selectionMode: item.selectionMode,
@@ -15,6 +16,7 @@ export function toQuizListItemDto(item: QuizListItem) {
 		timeLimitSeconds: item.timeLimitSeconds,
 		sectionCount: item.sectionCount,
 		questionCount: item.questionCount,
+		sections: item.sections,
 		createdAt: item.createdAt.toISOString(),
 		updatedAt: item.updatedAt.toISOString()
 	};

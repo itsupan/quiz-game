@@ -1,10 +1,10 @@
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 import { checkIn, createdAt, publicId, updatedAt } from './columns';
-import { OAUTH_PROVIDERS, USER_ROLES, USER_STATUS } from './enums';
+import { JLPT_LEVELS, OAUTH_PROVIDERS, USER_ROLES, USER_STATUS } from './enums';
 
 /**
- * A person, created on their first successful Google sign-in.
+ * A person, created by signup, verified Google sign-in, or admin pre-provisioning.
  *
  * `email` is unique so a returning user resolves to one record, but it is not the
  * identity we match on — see `oauth_accounts`.
@@ -18,6 +18,8 @@ export const users = sqliteTable(
 		displayName: text('display_name').notNull(),
 		avatarUrl: text('avatar_url'),
 		passwordHash: text('password_hash'),
+		/** Optional study level used by the learner catalog and admin filters. */
+		jlptLevel: text('jlpt_level', { enum: JLPT_LEVELS }),
 		role: text('role', { enum: USER_ROLES }).notNull().default('USER'),
 		status: text('status', { enum: USER_STATUS }).notNull().default('ACTIVE'),
 		lastLoginAt: integer('last_login_at', { mode: 'timestamp' }),
@@ -27,10 +29,12 @@ export const users = sqliteTable(
 	(table) => [
 		check('users_role_check', checkIn(table.role, USER_ROLES)),
 		check('users_status_check', checkIn(table.status, USER_STATUS)),
+		check('users_jlpt_level_check', checkIn(table.jlptLevel, JLPT_LEVELS)),
 		// The admin user list pages by creation date and filters by role and status.
 		index('users_created_at_idx').on(table.createdAt),
 		index('users_role_idx').on(table.role),
-		index('users_status_idx').on(table.status)
+		index('users_status_idx').on(table.status),
+		index('users_jlpt_level_idx').on(table.jlptLevel)
 		// No index on display_name: SQLite's LIKE is case-insensitive by default, so it
 		// will not use a plain index for a prefix match (EXPLAIN reports SCAN, not
 		// SEARCH). Admin name search scans, which is fine at user-table scale; an index

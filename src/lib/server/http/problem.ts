@@ -175,6 +175,29 @@ export function parseLimit(value: string | null, max = 50, fallback = 20): numbe
 	return limit;
 }
 
+/** A free-text query param: trims, treats blank as absent, and bounds its length. */
+export function parseSearchQuery(
+	value: string | null,
+	field: string,
+	maxLength = 200
+): string | undefined {
+	if (value === null) return undefined;
+
+	const trimmed = value.trim();
+	if (trimmed === '') return undefined;
+
+	if (trimmed.length > maxLength) {
+		apiProblem(
+			400,
+			'invalid_query_parameter',
+			'Invalid query parameter',
+			`${field} must be at most ${maxLength} characters.`
+		);
+	}
+
+	return trimmed;
+}
+
 export function parsePageNumber(value: string | null): number {
 	if (value === null) return 1;
 	if (!/^[1-9][0-9]*$/.test(value)) {
