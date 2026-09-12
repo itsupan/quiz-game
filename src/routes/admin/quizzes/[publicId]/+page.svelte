@@ -8,7 +8,7 @@
 	import Notice from '$lib/components/Notice.svelte';
 	import BlockerList from '$lib/features/admin/BlockerList.svelte';
 	import PageHeader from '$lib/features/admin/PageHeader.svelte';
-	import QuizForm from '$lib/features/admin/QuizForm.svelte';
+	import QuizForm from '$lib/features/admin/quizzes/QuizForm.svelte';
 	import { SECTIONS } from '$lib/domain/enums';
 	import type { PageProps } from './$types';
 

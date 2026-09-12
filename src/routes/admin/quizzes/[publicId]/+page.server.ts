@@ -8,7 +8,7 @@ import {
 	setQuizStatus,
 	updateQuiz,
 	upsertSection
-} from '$lib/features/admin/quizzes.server';
+} from '$lib/features/admin/quizzes/quizzes.server';
 import { parseQuizForm, parseQuizSectionForm } from '$lib/features/admin/validation';
 import type { Actions, PageServerLoad } from './$types';
 
