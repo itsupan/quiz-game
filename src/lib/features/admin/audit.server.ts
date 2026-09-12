@@ -16,7 +16,7 @@ export async function recordAudit(
 	entry: {
 		actorUserId: number | null;
 		action: AuditAction;
-		entityType: 'quiz' | 'question' | 'question_group' | 'media_asset';
+		entityType: 'quiz' | 'question' | 'question_group' | 'media_asset' | 'user';
 		entityId: number;
 		before?: unknown;
 		after?: unknown;
