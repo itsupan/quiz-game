@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { safeReturnTo } from './flow';
+import { safeReturnTo } from '$lib/server/auth/flow';
 
 describe('safeReturnTo', () => {
 	it.each(['/admin', '/admin/quizzes?status=DRAFT', '/quiz/01ABC#top', '/'])(

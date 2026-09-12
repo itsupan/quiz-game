@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { verifyIdToken, type Jwks } from './jwt';
+import { verifyIdToken, type Jwks } from '$lib/server/auth/jwt';
 
 const CLIENT_ID = '1234567890-abc.apps.googleusercontent.com';
 const NONCE = 'the-nonce';

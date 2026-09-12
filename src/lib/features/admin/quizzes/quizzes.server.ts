@@ -3,8 +3,8 @@ import { and, count, desc, eq, ne } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import { quizQuestions, quizSections, quizzes } from '$lib/server/db/schema';
 import type { ContentStatus, JlptLevel, Quiz, QuizMode, QuizSection } from '$lib/server/db/schema';
-import { isForeignKeyFailure, type WriteResult } from './questions.server';
-import type { QuizInput, QuizSectionInput } from './validation';
+import { isForeignKeyFailure, type WriteResult } from '../write-result';
+import type { QuizInput, QuizSectionInput } from '../validation';
 
 export type QuizListItem = Pick<
 	Quiz,

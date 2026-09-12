@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestDatabase, type TestDatabase } from '$lib/server/db/test-harness';
 import { oauthAccounts, sessions, users } from '$lib/server/db/schema';
-import type { GoogleProfile } from './jwt';
-import { createSession } from './session';
-import { isBootstrapAdmin, resolveUser, upsertGoogleUser } from './user';
+import type { GoogleProfile } from '$lib/server/auth/jwt';
+import { createSession } from '$lib/server/auth/session';
+import { isBootstrapAdmin, resolveUser, upsertGoogleUser } from '$lib/server/auth/user';
 
 let db: TestDatabase;
 

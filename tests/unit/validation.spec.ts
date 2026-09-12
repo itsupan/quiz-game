@@ -5,7 +5,7 @@ import {
 	parseQuizForm,
 	parseQuizSectionForm,
 	publishBlockers
-} from './validation';
+} from '$lib/features/admin/validation';
 
 /** Builds the multipart body an option row submits, in DOM order. */
 function withOptions(

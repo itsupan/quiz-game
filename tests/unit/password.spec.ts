@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashPassword, validatePasswordStrength, verifyPassword } from './password';
+import { hashPassword, validatePasswordStrength, verifyPassword } from '$lib/server/auth/password';
 
 describe('password hashing and verification', () => {
 	it('hashes and verifies a correct password', async () => {

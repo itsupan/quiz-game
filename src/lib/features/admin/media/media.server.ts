@@ -4,7 +4,7 @@ import type { Database } from '$lib/server/db';
 import { mediaAssets, questionGroups, questions } from '$lib/server/db/schema';
 import type { MediaAsset } from '$lib/server/db/schema';
 import { describeUpload } from './media';
-import { isForeignKeyFailure, type WriteResult } from './questions.server';
+import { isForeignKeyFailure, type WriteResult } from '../write-result';
 
 /** Everything R2 needs from the platform, so callers pass one object rather than four. */
 export type MediaBucket = R2Bucket;

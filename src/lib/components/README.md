@@ -19,6 +19,6 @@ Rules of thumb:
 - If a component is only ever used by one feature, it belongs in
   `$lib/features/<feature>/` instead. Move it here once a second feature needs it.
 
-Component tests live next to the component and **must** be named `*.svelte.spec.ts`, so
-Vitest runs them in the browser project. A component test named `*.spec.ts` lands in the
-node project and fails.
+Component tests live in `tests/unit/` and **must** be named `*.svelte.spec.ts`, so Vitest
+runs them in the browser project. A component test named `*.spec.ts` lands in the node
+project and fails.

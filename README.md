@@ -41,17 +41,23 @@ src/
   app.d.ts             App.Platform (Cloudflare Env) and App.Locals types
   hooks.server.ts      Puts a per-request Drizzle client on locals.db
   lib/components/      Presentational components shared by 2+ features
-  lib/features/        One folder per feature slice: its UI, logic and tests together
+  lib/features/        One folder per feature slice, e.g. admin/quizzes/,
+                        admin/questions/, admin/media/ — its UI and logic
+                        together; tests live in tests/unit/ (see below)
   lib/server/db/
-    schema.ts          Drizzle table definitions — the source of truth
-    index.ts           getDb(platform) → typed Drizzle client
-    schema.spec.ts     Unit test (Vitest, node project)
+    schema/             Drizzle table definitions — the source of truth
+    index.ts            getDb(platform) → typed Drizzle client
   routes/
-    +page.svelte       Hello world, lists quizzes from D1
-    +page.server.ts    Server load using locals.db
-    page.svelte.spec.ts  Component test (Vitest, browser project)
-    page.svelte.e2e.ts   End-to-end test (Playwright)
+    +page.svelte        Hello world, lists quizzes from D1
+    +page.server.ts     Server load using locals.db
+    admin/page.svelte.spec.ts  The one component test that stays colocated —
+                        see "Tests" below
     api/health/+server.ts  Smoke endpoint: reports D1 reachability
+tests/
+  unit/                Every *.spec.ts and *.svelte.spec.ts, flat, except the
+                        one route-level exception noted above
+  e2e/                 Every *.e2e.ts, plus sessions.ts (shared Playwright
+                        session helper)
 wrangler.jsonc         Worker + D1 config for local / staging / production
 drizzle.config.ts      Drizzle Kit — generates SQL only, never talks to D1
 .env.example           CLI credentials for deploys/remote migrations (not app config)
@@ -59,9 +65,23 @@ drizzle.config.ts      Drizzle Kit — generates SQL only, never talks to D1
 .github/workflows/cicd.yml
 ```
 
-Tests sit next to the code they cover rather than in a top-level `tests/` folder. The
-filename picks the runner: `*.svelte.spec.ts` → Vitest browser project, `*.spec.ts` →
-Vitest node project, `*.e2e.ts` → Playwright.
+## Tests
+
+Unit and component tests live in `tests/unit/`, flat — the filename picks the
+Vitest runner: `*.svelte.spec.ts` → browser project, `*.spec.ts` → node
+project. End-to-end tests live in `tests/e2e/` as `*.e2e.ts`, run by
+Playwright, alongside the shared `sessions.ts` sign-in helper.
+
+One exception: `src/routes/admin/page.svelte.spec.ts` stays next to its route
+rather than moving to `tests/unit/`. SvelteKit generates a route's `$types`
+reachable only via a relative import from inside that route's own folder, so
+a route-level component spec that imports both its `+page.svelte` and its
+`./$types` has to stay put. Any future `page.svelte.spec.ts` follows the
+same rule.
+
+When two modules share a basename, qualify the spec's filename with its
+slice (e.g. `schema-enums.spec.ts` for `lib/server/db/schema/enums.ts`, to
+distinguish it from a hypothetical `domain-enums.spec.ts`).
 
 ## Secrets and environment variables
 

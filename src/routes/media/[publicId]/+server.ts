@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 
-import { getAssetByPublicId } from '$lib/features/admin/media.server';
+import { getAssetByPublicId } from '$lib/features/admin/media/media.server';
 import type { RequestHandler } from './$types';
 
 /**

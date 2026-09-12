@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import PageHeader from '$lib/features/admin/PageHeader.svelte';
-	import QuizForm from '$lib/features/admin/QuizForm.svelte';
+	import QuizForm from '$lib/features/admin/quizzes/QuizForm.svelte';
 	import type { PageProps } from './$types';
 
 	let { form }: PageProps = $props();

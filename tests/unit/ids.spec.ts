@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PUBLIC_ID_LENGTH, newPublicId } from './ids';
+import { PUBLIC_ID_LENGTH, newPublicId } from '$lib/server/db/ids';
 
 const CROCKFORD = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 

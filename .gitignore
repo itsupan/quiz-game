@@ -33,5 +33,6 @@ test-results
 playwright-report
 
 docs/superpowers
+.superpowers
 
 CLAUDE.md

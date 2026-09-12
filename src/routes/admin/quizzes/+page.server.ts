@@ -1,7 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 
 import { recordAudit } from '$lib/features/admin/audit.server';
-import { getQuiz, listQuizzes, setQuizStatus } from '$lib/features/admin/quizzes.server';
+import { getQuiz, listQuizzes, setQuizStatus } from '$lib/features/admin/quizzes/quizzes.server';
 import { CONTENT_STATUS, JLPT_LEVELS, QUIZ_MODES } from '$lib/server/db/schema/enums';
 import type { ContentStatus, JlptLevel, QuizMode } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';

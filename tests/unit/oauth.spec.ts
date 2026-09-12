@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { base64urlEncode, sha256 } from './encoding';
-import { GOOGLE_SCOPE, GOOGLE_TOKEN_URL, createAuthorizationRequest, exchangeCode } from './oauth';
+import { base64urlEncode, sha256 } from '$lib/server/auth/encoding';
+import {
+	GOOGLE_SCOPE,
+	GOOGLE_TOKEN_URL,
+	createAuthorizationRequest,
+	exchangeCode
+} from '$lib/server/auth/oauth';
 
 const CLIENT_ID = '1234567890-abc.apps.googleusercontent.com';
 const CLIENT_SECRET = 'GOCSPX-secret';

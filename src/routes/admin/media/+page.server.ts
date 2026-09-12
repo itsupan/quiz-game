@@ -7,7 +7,7 @@ import {
 	listMedia,
 	updateMediaDescription,
 	uploadMedia
-} from '$lib/features/admin/media.server';
+} from '$lib/features/admin/media/media.server';
 import { mediaAssets } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 

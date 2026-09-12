@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { assertAdmin } from './guards';
-import type { AuthUser } from './user';
+import { assertAdmin } from '$lib/server/auth/guards';
+import type { AuthUser } from '$lib/server/auth/user';
 
 const user = (overrides: Partial<AuthUser> = {}): AuthUser => ({
 	id: 1,

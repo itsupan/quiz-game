@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { ADMIN_SESSION, LEARNER_SESSION, SIGNOUT_SESSION, signIn } from '../../../e2e/sessions';
+import { ADMIN_SESSION, LEARNER_SESSION, SIGNOUT_SESSION, signIn } from './sessions';
 
 /**
  * Sign-in, sign-out and the guard, against a real worker and a real D1 database.

@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 
-import { createQuiz } from '$lib/features/admin/quizzes.server';
+import { createQuiz } from '$lib/features/admin/quizzes/quizzes.server';
 import { parseQuizForm } from '$lib/features/admin/validation';
 import type { Actions } from './$types';
 

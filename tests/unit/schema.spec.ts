@@ -20,8 +20,8 @@ import {
 	publicQuestionOptionColumns,
 	sessions,
 	users
-} from './index';
-import { ATTEMPT_STATUS, JLPT_LEVELS, SCORING_BANDS, SECTIONS } from './enums';
+} from '$lib/server/db/schema';
+import { ATTEMPT_STATUS, JLPT_LEVELS, SCORING_BANDS, SECTIONS } from '$lib/server/db/schema/enums';
 
 const ALL_TABLES = [
 	attemptAnswers,
