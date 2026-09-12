@@ -167,6 +167,74 @@ test.describe('admin API v1 — quiz lifecycle', () => {
 		});
 		expect(wrongContentType.status()).toBe(415);
 	});
+
+	test('list includes description, section tags and the corrected RANDOM question count', async ({
+		page
+	}) => {
+		const created = await page.request.post('/api/v1/admin/quizzes', {
+			data: {
+				title: 'E2E random quiz for list fields',
+				description: 'Covers vocab and listening.',
+				mode: 'JLPT_PRACTICE',
+				level: 'N4',
+				selectionMode: 'RANDOM',
+				timeLimitSeconds: null
+			}
+		});
+		const { data: createdQuiz } = (await created.json()) as { data: { id: string } };
+		const quizId = createdQuiz.id;
+
+		await page.request.post(`/api/v1/admin/quizzes/${quizId}/sections`, {
+			data: { section: 'VOCAB_KANJI', position: 1, drawCount: 4 }
+		});
+		await page.request.post(`/api/v1/admin/quizzes/${quizId}/sections`, {
+			data: { section: 'LISTENING', position: 2, drawCount: 6 }
+		});
+
+		// Newest first by default, so the quiz just created and sectioned is on the first page.
+		const list = await page.request.get('/api/v1/admin/quizzes?limit=50');
+		expect(list.status()).toBe(200);
+		const body = (await list.json()) as {
+			data: {
+				id: string;
+				description: string | null;
+				sections: string[];
+				questionCount: number;
+			}[];
+		};
+		const item = body.data.find((quiz) => quiz.id === quizId);
+		expect(item).toBeTruthy();
+		expect(item?.description).toBe('Covers vocab and listening.');
+		expect(item?.sections).toEqual(['VOCAB_KANJI', 'LISTENING']);
+		// quiz_questions stays empty for a RANDOM quiz — this is the sections' draw total.
+		expect(item?.questionCount).toBe(10);
+	});
+
+	test('filters the list by section, sorts by date, and rejects an unsupported sort', async ({
+		page
+	}) => {
+		const listeningOnly = await page.request.get(
+			'/api/v1/admin/quizzes?section=LISTENING&limit=50'
+		);
+		expect(listeningOnly.status()).toBe(200);
+		const listeningBody = (await listeningOnly.json()) as { data: { sections: string[] }[] };
+		expect(listeningBody.data.length).toBeGreaterThan(0);
+		expect(listeningBody.data.every((quiz) => quiz.sections.includes('LISTENING'))).toBe(true);
+
+		const oldest = await page.request.get('/api/v1/admin/quizzes?sort=oldest&limit=50');
+		const oldestBody = (await oldest.json()) as { data: { updatedAt: string }[] };
+		const oldestTimestamps = oldestBody.data.map((quiz) => quiz.updatedAt);
+		expect(oldestTimestamps).toEqual([...oldestTimestamps].sort());
+
+		const newest = await page.request.get('/api/v1/admin/quizzes?limit=50');
+		const newestBody = (await newest.json()) as { data: { updatedAt: string }[] };
+		const newestTimestamps = newestBody.data.map((quiz) => quiz.updatedAt);
+		expect(newestTimestamps).toEqual([...newestTimestamps].sort().reverse());
+
+		const badSort = await page.request.get('/api/v1/admin/quizzes?sort=bogus');
+		expect(badSort.status()).toBe(400);
+		await expect(badSort.json()).resolves.toMatchObject({ code: 'invalid_query_parameter' });
+	});
 });
 
 test.describe('admin API v1 — question lifecycle', () => {
@@ -219,6 +287,69 @@ test.describe('admin API v1 — question lifecycle', () => {
 			}
 		});
 		expect(response.status()).toBe(422);
+	});
+
+	test('lists questions with a text search and hasImage/hasAudio indicators', async ({ page }) => {
+		const uploaded = await page.request.post('/api/v1/admin/media', {
+			headers: { origin: 'http://localhost:4173' },
+			multipart: {
+				file: { name: 'sample.png', mimeType: 'image/png', buffer: readFileSync(SAMPLE_IMAGE) },
+				altText: 'a red square'
+			}
+		});
+		const { data: image } = (await uploaded.json()) as { data: { id: string } };
+
+		const withImage = await page.request.post('/api/v1/admin/questions', {
+			data: {
+				stem: 'E2E searchable stem about 図書館',
+				level: 'N4',
+				section: 'VOCAB_KANJI',
+				imageId: image.id,
+				options: [
+					{ body: 'A', isCorrect: true },
+					{ body: 'B', isCorrect: false }
+				]
+			}
+		});
+		expect(withImage.status()).toBe(201);
+		const { data: withImageQuestion } = (await withImage.json()) as { data: { id: string } };
+
+		const withoutMedia = await page.request.post('/api/v1/admin/questions', {
+			data: {
+				stem: 'unrelated stem',
+				level: 'N4',
+				section: 'VOCAB_KANJI',
+				options: [
+					{ body: 'A', isCorrect: true },
+					{ body: 'B', isCorrect: false }
+				]
+			}
+		});
+		const { data: withoutMediaQuestion } = (await withoutMedia.json()) as { data: { id: string } };
+
+		const searched = await page.request.get(
+			`/api/v1/admin/questions?q=${encodeURIComponent('図書館')}`
+		);
+		expect(searched.status()).toBe(200);
+		const searchedBody = (await searched.json()) as { data: { id: string }[] };
+		expect(searchedBody.data.map((question) => question.id)).toContain(withImageQuestion.id);
+		expect(searchedBody.data.map((question) => question.id)).not.toContain(withoutMediaQuestion.id);
+
+		const list = await page.request.get('/api/v1/admin/questions?limit=50');
+		const listBody = (await list.json()) as {
+			data: { id: string; hasImage: boolean; hasAudio: boolean }[];
+		};
+		expect(listBody.data.find((question) => question.id === withImageQuestion.id)).toMatchObject({
+			hasImage: true,
+			hasAudio: false
+		});
+		expect(listBody.data.find((question) => question.id === withoutMediaQuestion.id)).toMatchObject(
+			{ hasImage: false, hasAudio: false }
+		);
+
+		const tooLong = await page.request.get(`/api/v1/admin/questions?q=${'a'.repeat(201)}`);
+		expect(tooLong.status()).toBe(400);
+		await expect(tooLong.json()).resolves.toMatchObject({ code: 'invalid_query_parameter' });
 	});
 });
 

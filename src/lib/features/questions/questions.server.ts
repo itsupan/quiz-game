@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, like, notInArray, or, sql } from 'drizzle-orm';
 
 import type { Database } from '$lib/server/db';
 import { isForeignKeyFailure } from '$lib/server/db/errors';
@@ -24,7 +24,7 @@ export type QuestionListItem = Pick<
 	| 'points'
 	| 'createdAt'
 	| 'updatedAt'
-> & { optionCount: number; hasAnswerKey: boolean };
+> & { optionCount: number; hasAnswerKey: boolean; hasImage: boolean; hasAudio: boolean };
 
 export type QuestionFilters = {
 	level?: JlptLevel;
@@ -33,6 +33,8 @@ export type QuestionFilters = {
 	format?: QuestionFormat;
 	/** The attached group's internal id, resolved from its public id by the caller. */
 	groupId?: number;
+	/** Case-insensitive substring search over the stem and the format-specific focus/context text. */
+	q?: string;
 	page?: number;
 	/** Defaults to `PAGE_SIZE`. The admin dashboard never overrides this; the JSON API does. */
 	limit?: number;
@@ -54,12 +56,20 @@ export async function listQuestions(db: Database, filters: QuestionFilters = {})
 	const page = Math.max(1, filters.page ?? 1);
 	const limit = filters.limit ?? PAGE_SIZE;
 
+	const search = filters.q?.trim();
 	const where = and(
 		filters.level ? eq(questions.level, filters.level) : undefined,
 		filters.section ? eq(questions.section, filters.section) : undefined,
 		filters.status ? eq(questions.status, filters.status) : undefined,
 		filters.format ? eq(questions.format, filters.format) : undefined,
-		filters.groupId !== undefined ? eq(questions.groupId, filters.groupId) : undefined
+		filters.groupId !== undefined ? eq(questions.groupId, filters.groupId) : undefined,
+		search
+			? or(
+					like(questions.stem, `%${search}%`),
+					like(questions.focusText, `%${search}%`),
+					like(questions.contextText, `%${search}%`)
+				)
+			: undefined
 	);
 
 	const rows = await db
@@ -71,6 +81,8 @@ export async function listQuestions(db: Database, filters: QuestionFilters = {})
 			format: questions.format,
 			status: questions.status,
 			points: questions.points,
+			imageMediaId: questions.imageMediaId,
+			audioMediaId: questions.audioMediaId,
 			createdAt: questions.createdAt,
 			updatedAt: questions.updatedAt,
 			optionCount: sql<number>`count(${questionOptions.id})`.mapWith(Number),
@@ -88,7 +100,12 @@ export async function listQuestions(db: Database, filters: QuestionFilters = {})
 	const [{ total }] = await db.select({ total: count() }).from(questions).where(where);
 
 	return {
-		items: rows.map(({ answerKeys, ...row }) => ({ ...row, hasAnswerKey: answerKeys > 0 })),
+		items: rows.map(({ answerKeys, imageMediaId, audioMediaId, ...row }) => ({
+			...row,
+			hasAnswerKey: answerKeys > 0,
+			hasImage: imageMediaId !== null,
+			hasAudio: audioMediaId !== null
+		})),
 		total,
 		page,
 		pageCount: Math.max(1, Math.ceil(total / limit))

@@ -57,6 +57,13 @@
       "when": 1789235492055,
       "tag": "0007_attempt_presentations",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789239084805,
+      "tag": "0008_sturdy_mandroid",
+      "breakpoints": true
     }
   ]
 }
