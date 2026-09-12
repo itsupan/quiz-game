@@ -1,7 +1,7 @@
 import { render } from 'vitest-browser-svelte';
 import { describe, expect, it } from 'vitest';
 
-import QuestionForm from './QuestionForm.svelte';
+import QuestionForm from '$lib/features/admin/questions/QuestionForm.svelte';
 
 const initial = {
 	stem: 'この漢字の読み方はどれですか。「病院」',

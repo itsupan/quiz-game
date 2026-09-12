@@ -3,7 +3,7 @@ import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import type { Database } from '$lib/server/db';
 import { mediaAssets, questionOptions, questions } from '$lib/server/db/schema';
 import type { ContentStatus, JlptLevel, Question, Section } from '$lib/server/db/schema';
-import type { QuestionInput } from './validation';
+import type { QuestionInput } from '../validation';
 
 export type WriteResult<T> = { ok: true; value: T } | { ok: false; message: string };
 

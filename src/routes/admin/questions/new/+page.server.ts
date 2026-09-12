@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 
-import { listMediaChoices } from '$lib/features/admin/mediaChoices.server';
-import { checkMediaSlots, createQuestion } from '$lib/features/admin/questions.server';
+import { listMediaChoices } from '$lib/features/admin/questions/mediaChoices.server';
+import { checkMediaSlots, createQuestion } from '$lib/features/admin/questions/questions.server';
 import { echoValues, parseQuestionForm } from '$lib/features/admin/validation';
 import type { Actions, PageServerLoad } from './$types';
 

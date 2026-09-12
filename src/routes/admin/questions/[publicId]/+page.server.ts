@@ -1,13 +1,13 @@
 import { error, fail } from '@sveltejs/kit';
 
 import { recordAudit } from '$lib/features/admin/audit.server';
-import { listMediaChoices } from '$lib/features/admin/mediaChoices.server';
+import { listMediaChoices } from '$lib/features/admin/questions/mediaChoices.server';
 import {
 	checkMediaSlots,
 	getQuestion,
 	setQuestionStatus,
 	updateQuestion
-} from '$lib/features/admin/questions.server';
+} from '$lib/features/admin/questions/questions.server';
 import { echoValues, parseQuestionForm, publishBlockers } from '$lib/features/admin/validation';
 import type { Actions, PageServerLoad } from './$types';
 

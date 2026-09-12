@@ -1,8 +1,8 @@
 import { error, fail } from '@sveltejs/kit';
 
 import { recordAudit } from '$lib/features/admin/audit.server';
-import { listQuestions, setQuestionStatus } from '$lib/features/admin/questions.server';
-import { getQuestion } from '$lib/features/admin/questions.server';
+import { listQuestions, setQuestionStatus } from '$lib/features/admin/questions/questions.server';
+import { getQuestion } from '$lib/features/admin/questions/questions.server';
 import { CONTENT_STATUS, JLPT_LEVELS, SECTIONS } from '$lib/server/db/schema/enums';
 import type { ContentStatus, JlptLevel, Section } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
