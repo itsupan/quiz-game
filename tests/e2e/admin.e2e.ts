@@ -123,7 +123,9 @@ test.describe('as an administrator', () => {
 		await expect(page.getByRole('link', { name: stem })).toBeVisible();
 	});
 
-	test.skip('creates questions as drafts, and the status filter separates them', async ({ page }) => {
+	test.skip('creates questions as drafts, and the status filter separates them', async ({
+		page
+	}) => {
 		const stem = `下書き問題 ${Date.now()}`;
 
 		await page.goto('/admin/questions/new');
