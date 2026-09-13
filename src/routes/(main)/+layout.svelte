@@ -8,7 +8,8 @@
 	const navLinks = [
 		{ href: resolve('/home'), label: 'DASHBOARD' },
 		{ href: resolve('/leaderboard'), label: 'LEADERBOARD' },
-		{ href: resolve('/analytics'), label: 'ANALYTICS' }
+		{ href: resolve('/analytics'), label: 'ANALYTICS' },
+		{ href: resolve('/our-team'), label: 'OUR TEAM' }
 	];
 </script>
 
