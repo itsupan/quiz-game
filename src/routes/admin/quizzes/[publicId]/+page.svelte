@@ -89,10 +89,11 @@
 
 	{#if data.quiz.selectionMode === 'FIXED'}
 		<QuizQuestionsEditor
+			quizPublicId={data.quiz.publicId}
 			level={data.quiz.level}
 			sections={data.sections}
 			attached={data.attached}
-			attachable={data.attachable}
+			form={form ?? null}
 		/>
 	{/if}
 </div>

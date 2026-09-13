@@ -2,6 +2,8 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import Notice from '$lib/components/Notice.svelte';
+	import FilterBar from '$lib/features/admin/FilterBar.svelte';
+	import { CONTENT_STATUS, JLPT_LEVELS, QUIZ_MODES } from '$lib/domain/enums';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -46,37 +48,43 @@
 		<Notice tone={form.ok ? 'success' : 'danger'} alert>{form.message}</Notice>
 	{/if}
 
-	<!-- Filters Row -->
-	<div class="mb-8 flex items-center justify-between border-b border-ink pb-3">
-		<!-- eslint-disable svelte/no-navigation-without-resolve -->
-		<div class="flex gap-2 text-[10px] font-bold tracking-widest uppercase">
-			<a
-				href="?tab=all"
-				class="border border-brand-red bg-brand-red px-3 py-1 text-white no-underline transition-colors"
-				>ALL</a
-			>
-			<a
-				href="?tab=reading"
-				class="border border-ink bg-white px-3 py-1 text-ink no-underline transition-colors hover:bg-stone-50"
-				>READING</a
-			>
-			<a
-				href="?tab=listening"
-				class="border border-ink bg-white px-3 py-1 text-ink no-underline transition-colors hover:bg-stone-50"
-				>LISTENING</a
-			>
-			<a
-				href="?tab=grammar"
-				class="border border-ink bg-white px-3 py-1 text-ink no-underline transition-colors hover:bg-stone-50"
-				>GRAMMAR</a
-			>
-		</div>
-		<div
-			class="flex cursor-pointer items-center text-[10px] font-bold tracking-widest text-muted uppercase transition-colors hover:text-ink"
-		>
-			Sort by: Date <i class="fi fi-rs-angle-down ml-1" aria-hidden="true"></i>
-		</div>
-	</div>
+	<!-- Filters -->
+	<FilterBar>
+		<label>
+			Status
+			<select name="status" onchange={(e) => e.currentTarget.form?.submit()}>
+				<option value="">All</option>
+				{#each CONTENT_STATUS as status (status)}
+					<option value={status} selected={data.filters.status === status}>{status}</option>
+				{/each}
+			</select>
+		</label>
+		<label>
+			Level
+			<select name="level" onchange={(e) => e.currentTarget.form?.submit()}>
+				<option value="">All</option>
+				{#each JLPT_LEVELS as level (level)}
+					<option value={level} selected={data.filters.level === level}>{level}</option>
+				{/each}
+			</select>
+		</label>
+		<label>
+			Mode
+			<select name="mode" onchange={(e) => e.currentTarget.form?.submit()}>
+				<option value="">All</option>
+				{#each QUIZ_MODES as mode (mode)}
+					<option value={mode} selected={data.filters.mode === mode}>{mode}</option>
+				{/each}
+			</select>
+		</label>
+		<label>
+			Sort
+			<select name="sort" onchange={(e) => e.currentTarget.form?.submit()}>
+				<option value="" selected={data.filters.sort !== 'oldest'}>Newest first</option>
+				<option value="oldest" selected={data.filters.sort === 'oldest'}>Oldest first</option>
+			</select>
+		</label>
+	</FilterBar>
 
 	{#if data.items.length === 0}
 		<p class="border-2 border-dashed border-line p-6 text-center text-muted" data-testid="empty">

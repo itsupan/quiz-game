@@ -10,6 +10,7 @@
 		{ href: resolve('/admin/users'), label: 'User Management', icon: 'users' },
 		{ href: resolve('/admin/quizzes'), label: 'Quiz Sets', icon: 'document' },
 		{ href: resolve('/admin/questions'), label: 'Question Bank', icon: 'interrogation' },
+		{ href: resolve('/admin/media'), label: 'Media Library', icon: 'picture' },
 		{ href: resolve('/admin/logs'), label: 'System Logs', icon: 'computer' }
 	];
 </script>

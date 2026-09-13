@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import Button from '$lib/components/Button.svelte';
 	import ConfirmSubmit from '$lib/components/ConfirmSubmit.svelte';
+	import Field from '$lib/components/Field.svelte';
 	import { SECTIONS, type Section, type SelectionMode } from '$lib/domain/enums';
 
 	type QuizSection = {
@@ -28,6 +30,12 @@
 	const unusedSections = $derived(
 		SECTIONS.filter((section) => !sections.some((existing) => existing.section === section))
 	);
+
+	/**
+	 * Only matters before any section exists: once the quiz has one, the full editor
+	 * below covers both growing it into a mock paper and everything else.
+	 */
+	let setupPath = $state<'single' | 'multi' | null>(null);
 </script>
 
 <h2 class="mt-8 mb-2 text-lg font-black tracking-tight text-ink uppercase">Sections</h2>
@@ -139,117 +147,141 @@
 			</tbody>
 		</table>
 	</div>
-{:else}
-	<p
-		class="border-2 border-dashed border-ink p-8 text-center text-sm font-bold tracking-widest text-muted uppercase"
+{:else if setupPath === null}
+	<div
+		class="grid gap-4 border-2 border-dashed border-ink p-6 md:grid-cols-2"
 		data-testid="no-sections"
 	>
-		This quiz has no sections yet.
-	</p>
-{/if}
-
-{#if unusedSections.length > 0}
+		<button
+			type="button"
+			class="flex cursor-pointer flex-col gap-2 border-2 border-ink bg-white p-5 text-left transition-colors hover:bg-stone-50"
+			onclick={() => (setupPath = 'single')}
+		>
+			<i class="fi fi-rs-bullseye text-2xl text-brand-red" aria-hidden="true"></i>
+			<span class="text-sm font-black tracking-tight text-ink uppercase">Single-topic quiz</span>
+			<span class="text-xs text-muted normal-case"
+				>One content section — pick it once, then go straight to adding questions.</span
+			>
+		</button>
+		<button
+			type="button"
+			class="flex cursor-pointer flex-col gap-2 border-2 border-ink bg-white p-5 text-left transition-colors hover:bg-stone-50"
+			onclick={() => (setupPath = 'multi')}
+		>
+			<i class="fi fi-rs-layers text-2xl text-brand-red" aria-hidden="true"></i>
+			<span class="text-sm font-black tracking-tight text-ink uppercase">JLPT mock paper</span>
+			<span class="text-xs text-muted normal-case"
+				>Multiple sections — Vocabulary, Grammar, Listening — each managed separately.</span
+			>
+		</button>
+	</div>
+{:else if setupPath === 'single'}
 	<form
 		method="POST"
 		action="?/saveSection"
-		class="mt-6 flex flex-col gap-6 border border-ink bg-stone-50 p-6"
+		class="mt-2 flex flex-wrap items-end gap-4 border-2 border-ink bg-stone-50 p-6"
 		use:enhance
 	>
-		<div class="flex items-center gap-2 border-b border-ink pb-4">
-			<i class="fi fi-rs-apps-add text-xl text-brand-red" aria-hidden="true"></i>
-			<h3 class="m-0 text-lg font-black tracking-tight text-ink uppercase">Add a section</h3>
-		</div>
-
-		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-			<div>
-				<label
-					class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
-					for="section">Section</label
-				>
-				<div class="relative flex items-center border border-ink bg-white">
+		<div class="min-w-[16rem] flex-1">
+			<Field id="section" label="Section" error={errors.section}>
+				{#snippet control(props)}
 					<select
-						id="section"
+						{...props}
 						name="section"
-						class="w-full appearance-none border-none bg-transparent px-3 py-2 text-sm outline-none"
+						class="w-full appearance-none border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
 					>
 						{#each unusedSections as section (section)}
 							<option value={section}>{section}</option>
 						{/each}
 					</select>
-					<i
-						class="fi fi-rs-angle-down pointer-events-none absolute right-3 text-muted"
-						aria-hidden="true"
-					></i>
-				</div>
-				{#if errors.section}<p class="mt-1 text-xs text-brand-red">{errors.section}</p>{/if}
-			</div>
-
-			<div>
-				<label
-					class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
-					for="position">Position</label
-				>
-				<input
-					id="position"
-					type="number"
-					name="position"
-					min="1"
-					value={nextPosition}
-					class="w-full border border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
-				/>
-				{#if errors.position}<p class="mt-1 text-xs text-brand-red">{errors.position}</p>{/if}
-			</div>
-
-			<div>
-				<label
-					class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
-					for="sectionTimeLimit">Time limit (min)</label
-				>
-				<input
-					id="sectionTimeLimit"
-					type="number"
-					name="timeLimitMinutes"
-					min="1"
-					class="w-full border border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
-					placeholder="Optional"
-				/>
-				{#if errors.timeLimitMinutes}<p class="mt-1 text-xs text-brand-red">
-						{errors.timeLimitMinutes}
-					</p>{/if}
-			</div>
-
-			{#if isRandom}
-				<div>
-					<label
-						class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
-						for="drawCount">Questions to draw</label
-					>
-					<input
-						id="drawCount"
-						type="number"
-						name="drawCount"
-						min="1"
-						class="w-full border border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
-						required
-					/>
-					{#if errors.drawCount}<p class="mt-1 text-xs text-brand-red">{errors.drawCount}</p>{/if}
-				</div>
-			{/if}
+				{/snippet}
+			</Field>
 		</div>
-
-		<div class="flex justify-end pt-2">
-			<button
-				type="submit"
-				class="border border-brand-red bg-brand-red px-6 py-2.5 text-[10px] font-bold tracking-widest text-white uppercase transition-colors hover:bg-brand-red-dark"
-			>
-				Add Section
-			</button>
-		</div>
+		<input type="hidden" name="position" value="1" />
+		<Button type="submit" size="md">Save & start adding questions</Button>
+		<Button type="button" variant="ghost" size="md" onclick={() => (setupPath = null)}>Back</Button>
 	</form>
-{:else}
-	<p
-		class="mt-6 border-2 border-dashed border-ink p-6 text-center text-xs font-bold tracking-widest text-muted uppercase"
-	>
-		Every section is already configured for this quiz.
-	</p>
+{/if}
+
+{#if sections.length > 0 || setupPath === 'multi'}
+	{#if unusedSections.length > 0}
+		<form
+			method="POST"
+			action="?/saveSection"
+			class="mt-6 flex flex-col gap-6 border-2 border-ink bg-stone-50 p-6"
+			use:enhance
+		>
+			<div class="flex items-center gap-2 border-b-2 border-ink pb-4">
+				<i class="fi fi-rs-apps-add text-xl text-brand-red" aria-hidden="true"></i>
+				<h3 class="m-0 text-lg font-black tracking-tight text-ink uppercase">Add a section</h3>
+			</div>
+
+			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+				<Field id="newSection" label="Section" error={errors.section}>
+					{#snippet control(props)}
+						<select
+							{...props}
+							name="section"
+							class="w-full appearance-none border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+						>
+							{#each unusedSections as section (section)}
+								<option value={section}>{section}</option>
+							{/each}
+						</select>
+					{/snippet}
+				</Field>
+
+				<Field id="position" label="Position" error={errors.position}>
+					{#snippet control(props)}
+						<input
+							{...props}
+							type="number"
+							name="position"
+							min="1"
+							value={nextPosition}
+							class="w-full border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+						/>
+					{/snippet}
+				</Field>
+
+				<Field id="sectionTimeLimit" label="Time limit (min)" error={errors.timeLimitMinutes}>
+					{#snippet control(props)}
+						<input
+							{...props}
+							type="number"
+							name="timeLimitMinutes"
+							min="1"
+							class="w-full border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+							placeholder="Optional"
+						/>
+					{/snippet}
+				</Field>
+
+				{#if isRandom}
+					<Field id="drawCount" label="Questions to draw" error={errors.drawCount}>
+						{#snippet control(props)}
+							<input
+								{...props}
+								type="number"
+								name="drawCount"
+								min="1"
+								class="w-full border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+								required
+							/>
+						{/snippet}
+					</Field>
+				{/if}
+			</div>
+
+			<div class="flex justify-end pt-2">
+				<Button type="submit" size="md">Add section</Button>
+			</div>
+		</form>
+	{:else}
+		<p
+			class="mt-6 border-2 border-dashed border-ink p-6 text-center text-xs font-bold tracking-widest text-muted uppercase"
+		>
+			Every section is already configured for this quiz.
+		</p>
+	{/if}
 {/if}

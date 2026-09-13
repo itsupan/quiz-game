@@ -1,9 +1,24 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import { SECTIONS, type Section } from '$lib/domain/enums';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
+
+	const SECTION_LABELS: Record<Section, string> = {
+		VOCAB_KANJI: 'Vocab / Kanji',
+		GRAMMAR_READING: 'Grammar / Reading',
+		LISTENING: 'Listening'
+	};
+
+	function sectionHref(section: Section | null) {
+		const params: Record<string, string> = { ...Object.fromEntries(page.url.searchParams) };
+		delete params.page;
+		if (section) params.section = section;
+		else delete params.section;
+		return `${resolve('/admin/questions')}?${new URLSearchParams(params)}`;
+	}
 </script>
 
 <div class="flex h-screen bg-stone-50 text-ink">
@@ -11,29 +26,45 @@
 	<div class="flex w-1/3 max-w-[480px] min-w-[360px] flex-col border-r border-ink bg-stone-50">
 		<div class="border-b border-ink p-6">
 			<h1 class="m-0 mb-4 text-2xl font-black tracking-tight text-ink">Question Repository</h1>
-			<div class="mb-4 flex gap-2">
+			<form method="GET" action={resolve('/admin/questions')} class="mb-4 flex gap-2">
 				<div class="flex flex-1 items-center border border-ink bg-white px-3 py-1">
 					<i class="fi fi-rs-search text-muted" aria-hidden="true"></i>
 					<input
-						type="text"
+						type="search"
+						name="q"
+						value={data.filters.q ?? ''}
 						placeholder="Search questions..."
 						class="w-full border-none bg-transparent px-2 py-1 text-xs outline-none"
 					/>
 				</div>
+				{#if data.filters.section}
+					<input type="hidden" name="section" value={data.filters.section} />
+				{/if}
 				<button
+					type="submit"
 					class="flex items-center gap-2 border border-ink bg-white px-3 py-1 text-[10px] font-bold tracking-widest uppercase transition-colors hover:bg-stone-100"
 				>
-					<i class="fi fi-rs-settings-sliders" aria-hidden="true"></i> Filter
+					<i class="fi fi-rs-search text-muted" aria-hidden="true"></i> Search
 				</button>
-			</div>
-			<!-- Tags -->
+			</form>
+			<!-- eslint-disable svelte/no-navigation-without-resolve -->
 			<div class="flex flex-wrap gap-1 text-[8px] font-bold tracking-widest uppercase">
-				<span class="bg-brand-red px-2 py-1 text-white">ALL</span>
-				<span class="bg-ink px-2 py-1 text-white">GRAMMAR</span>
-				<span class="bg-ink px-2 py-1 text-white">VOCABULARY</span>
-				<span class="bg-ink px-2 py-1 text-white">KANJI</span>
-				<span class="bg-ink px-2 py-1 text-white">READING</span>
+				<a
+					href={sectionHref(null)}
+					class="px-2 py-1 no-underline {data.filters.section
+						? 'bg-ink text-white'
+						: 'bg-brand-red text-white'}">ALL</a
+				>
+				{#each SECTIONS as section (section)}
+					<a
+						href={sectionHref(section)}
+						class="px-2 py-1 no-underline {data.filters.section === section
+							? 'bg-brand-red text-white'
+							: 'bg-ink text-white'}">{SECTION_LABELS[section]}</a
+					>
+				{/each}
 			</div>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		</div>
 
 		<!-- List of cards -->

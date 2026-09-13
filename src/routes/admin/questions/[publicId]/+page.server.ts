@@ -1,9 +1,9 @@
 import { error, fail } from '@sveltejs/kit';
 
 import { recordAudit } from '$lib/features/admin/audit.server';
-import { listMediaChoices } from '$lib/features/questions/media-choices.server';
+import { requireMediaBucket } from '$lib/features/media/media.server';
+import { resolveQuestionMedia } from '$lib/features/questions/question-media.server';
 import {
-	checkMediaSlots,
 	getQuestion,
 	setQuestionStatus,
 	updateQuestion
@@ -36,13 +36,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		options,
 		image,
 		audio,
-		blockers: questionPublishBlockers(question, { image, audio }),
-		media: await listMediaChoices(locals.db)
+		blockers: questionPublishBlockers(question, { image, audio })
 	};
 };
 
 export const actions: Actions = {
-	update: async ({ locals, params, request }) => {
+	update: async ({ locals, params, platform, request }) => {
 		const { question } = await load404(locals, params.publicId);
 		const data = await request.formData();
 		const parsed = parseQuestionForm(data);
@@ -55,13 +54,17 @@ export const actions: Actions = {
 			});
 		}
 
-		// Checked before the write so an unknown or mismatched asset is a message beside
-		// the picker rather than a foreign-key failure surfacing as a 500.
-		const mediaErrors = await checkMediaSlots(locals.db, parsed.value);
+		const media = await resolveQuestionMedia(
+			locals.db,
+			requireMediaBucket(platform),
+			locals.user?.id ?? null,
+			data,
+			{ imageMediaId: question.imageMediaId, audioMediaId: question.audioMediaId }
+		);
 
-		if (Object.keys(mediaErrors).length > 0) {
+		if (!media.ok) {
 			return fail(400, {
-				errors: mediaErrors,
+				errors: media.errors,
 				values: echoValues(data),
 				submitted: {
 					options: parsed.value.options.map(({ id, body }) => ({ id, body })),
@@ -70,7 +73,10 @@ export const actions: Actions = {
 			});
 		}
 
-		const written = await updateQuestion(locals.db, question.id, parsed.value);
+		const written = await updateQuestion(locals.db, question.id, {
+			...parsed.value,
+			...media.value
+		});
 
 		if (!written.ok) {
 			return fail(409, { message: written.message });

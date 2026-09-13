@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		status: enumFilter<ContentStatus>(url, 'status', CONTENT_STATUS),
 		level: enumFilter<JlptLevel>(url, 'level', JLPT_LEVELS),
 		mode: enumFilter<QuizMode>(url, 'mode', QUIZ_MODES),
+		sort: enumFilter<'newest' | 'oldest'>(url, 'sort', ['newest', 'oldest']),
 		page: Number(url.searchParams.get('page')) || 1
 	};
 

@@ -41,12 +41,14 @@
 		</div>
 
 		<div class="border-b border-ink">
-			<button
-				class="flex w-full items-center justify-between bg-brand-red px-6 py-4 text-xs font-bold tracking-wider text-white transition-colors hover:bg-brand-red-dark"
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+			<a
+				href={resolve('/admin/quizzes/new')}
+				class="flex w-full items-center justify-between bg-brand-red px-6 py-4 text-xs font-bold tracking-wider text-white no-underline transition-colors hover:bg-brand-red-dark"
 			>
-				<span>CREATE NEW SET</span>
+				<span>CREATE NEW QUIZ</span>
 				<i class="fi fi-rs-plus flex text-lg leading-none" aria-hidden="true"></i>
-			</button>
+			</a>
 		</div>
 
 		<nav class="flex flex-1 flex-col overflow-y-auto py-2">

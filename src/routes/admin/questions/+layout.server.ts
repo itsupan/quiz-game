@@ -15,6 +15,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		level: enumFilter<JlptLevel>(url, 'level', JLPT_LEVELS),
 		section: enumFilter<Section>(url, 'section', SECTIONS),
 		status: enumFilter<ContentStatus>(url, 'status', CONTENT_STATUS),
+		q: url.searchParams.get('q')?.trim() || undefined,
 		page: Number(url.searchParams.get('page')) || 1
 	};
 
