@@ -25,7 +25,7 @@
 		"db:migrate:local": "wrangler d1 migrations apply DB --local",
 		"db:seed:local": "wrangler d1 execute DB --local --file=./seeds/dev.sql",
 		"db:seed:e2e": "wrangler d1 execute DB --local --file=./seeds/e2e-sessions.sql",
-		"db:seed:media": "wrangler r2 object put quiz-game-media-local/01JSEEDASSETPNG00000000000.png --file=./seeds/fixtures/sample-image.png --content-type=image/png --local && wrangler r2 object put quiz-game-media-local/01JSEEDASSETMP300000000000.mp3 --file=./seeds/fixtures/sample-audio.mp3 --content-type=audio/mpeg --local",
+		"db:seed:media": "wrangler r2 object put quiz-game-media-local/01JSEEDASSETPNG00000000000.png --file=./seeds/fixtures/sample-image.png --content-type=image/png --local && wrangler r2 object put quiz-game-media-local/01JSEEDASSETMP300000000000.mp3 --file=./seeds/fixtures/sample-audio.mp3 --content-type=audio/mpeg --local && wrangler r2 object put quiz-game-media-local/01JSEEDASSETJPG00000000000.jpg --file=./seeds/fixtures/tokyo-station.jpg --content-type=image/jpeg --local && wrangler r2 object put quiz-game-media-local/01JSEEDASSETJPN00000000000.ogg --file=./seeds/fixtures/nihongo.ogg --content-type=audio/ogg --local",
 		"db:setup:local": "pnpm run db:migrate:local && pnpm run db:seed:local && pnpm run db:seed:media",
 		"db:migrate:staging": "wrangler d1 migrations apply DB --env staging --remote",
 		"db:migrate:production": "wrangler d1 migrations apply DB --env production --remote",

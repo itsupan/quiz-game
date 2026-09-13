@@ -40,6 +40,24 @@ export type ExamAttemptSummary = {
 	resultHref: string;
 };
 
+export const RESULT_TONE: Record<ExamResult, 'success' | 'warning' | 'danger' | 'neutral'> = {
+	PASSED: 'success',
+	FAILED: 'danger',
+	INCOMPLETE: 'warning',
+	UNGRADED: 'neutral'
+};
+
+export const RESULT_LABEL: Record<ExamResult, string> = {
+	PASSED: 'Passed',
+	FAILED: 'Failed',
+	INCOMPLETE: 'Incomplete',
+	UNGRADED: 'Ungraded'
+};
+
+export function categoryLabel(category: ExamAttemptSummary['category']): string {
+	return category === 'COMPREHENSIVE' ? 'Comprehensive' : SECTION_LABELS[category];
+}
+
 type DateParts = {
 	year: number;
 	month: number;

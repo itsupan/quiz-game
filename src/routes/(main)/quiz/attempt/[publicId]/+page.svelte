@@ -9,12 +9,17 @@
 	import Countdown from '$lib/features/quiz/Countdown.svelte';
 	import QuestionBody from '$lib/features/quiz/QuestionBody.svelte';
 	import QuestionContextPanel from '$lib/features/quiz/QuestionContextPanel.svelte';
+	import { stimulusFor } from '$lib/features/quiz/api/types';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
 	/** Whichever media is actually driving the readiness gate — the group's, or the question's own. */
-	const gatingAudio = $derived(data.question.group?.audio ?? data.question.audio);
+	const stimulus = $derived(stimulusFor(data.question));
+	const gatingAudio = $derived(stimulus?.audio ?? data.question.audio);
+	const progressPercent = $derived(
+		Math.round((data.question.progress.current / data.question.progress.total) * 100)
+	);
 
 	/**
 	 * Listening choices start disabled in SSR as well as in the browser. The media
@@ -22,14 +27,14 @@
 	 * merely by submitting the server-rendered form before hydration.
 	 */
 	// eslint-disable-next-line svelte/prefer-writable-derived
-	let optionsDisabled = $state(untrack(() => gatingAudio !== null));
+	let optionsDisabled = $state(untrack(() => gatingAudio !== null || !data.question.canAnswer));
 
 	$effect(() => {
-		optionsDisabled = gatingAudio !== null;
+		optionsDisabled = gatingAudio !== null || !data.question.canAnswer;
 	});
 
 	function onaudioready() {
-		optionsDisabled = false;
+		if (data.question.canAnswer) optionsDisabled = false;
 	}
 
 	let submitFormEl: HTMLFormElement | undefined = $state();
@@ -52,48 +57,78 @@
 </script>
 
 <svelte:head>
-	<title>{data.quiz.title} | QuizGame</title>
+	<title>{data.attempt.quiz.title} | QuizGame</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="space-y-4">
 	<div class="flex items-center gap-3">
-		<span class="h-8 w-1.5 bg-brand-red" aria-hidden="true"></span>
-		<h1 class="text-2xl font-black tracking-tight text-ink uppercase">{data.quiz.title}</h1>
+		<span class="h-6 w-1.5 bg-brand-red" aria-hidden="true"></span>
+		<h1 class="text-xl font-black tracking-tight text-ink uppercase">
+			{data.attempt.quiz.title}
+		</h1>
 	</div>
 
 	<!--
-		Docked just under AppShell's own sticky header (h-16), so the clock and progress
-		stay visible while scrolling a long passage — the one piece of exam chrome that
-		earns being sticky.
+		Docked below both rows of AppShell's mobile header, then below its single desktop
+		row from md upward, so long passage and media questions never hide their status.
 	-->
 	<div
-		class="sticky top-16 z-20 flex flex-wrap items-center justify-between gap-4 border-2 border-ink bg-white px-4 py-3 shadow-hard"
+		class="sticky top-[6.25rem] z-20 flex flex-col gap-2 border-2 border-ink bg-white px-4 py-2 shadow-hard sm:flex-row sm:items-center md:top-16"
 	>
-		<div class="flex items-center gap-3">
-			<Badge>{data.question.section.replace('_', ' ')}</Badge>
-			<span class="text-xs font-bold text-stone-500">
-				Question {data.index} of {data.total} · {data.answeredCount} answered
-			</span>
-		</div>
-
-		<div class="flex items-center gap-6">
-			<div class="hidden items-center gap-3 sm:flex">
-				<div class="h-1.5 w-24 bg-stone-200 lg:w-32">
-					<div
-						class="h-full bg-brand-red transition-all duration-300"
-						style="width: {(data.index / data.total) * 100}%"
-					></div>
+		<div class="min-w-0 flex-1 space-y-1.5">
+			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+				<div class="flex items-center gap-3">
+					<Badge>{data.question.section.replace('_', ' ')}</Badge>
+					<span class="text-xs font-black text-ink">
+						Question {data.question.progress.current} of {data.question.progress.total}
+					</span>
 				</div>
+				<span class="text-xs font-bold text-stone-500">
+					{data.question.progress.answered} answered · {progressPercent}% through
+				</span>
 			</div>
 
+			<div
+				class="h-2 w-full overflow-hidden bg-stone-200"
+				role="progressbar"
+				aria-label="Quiz progress"
+				aria-valuemin={0}
+				aria-valuenow={data.question.progress.current}
+				aria-valuemax={data.question.progress.total}
+				aria-valuetext={`Question ${data.question.progress.current} of ${data.question.progress.total}`}
+			>
+				<div
+					class="h-full bg-brand-red transition-[width] duration-300 ease-out motion-reduce:transition-none"
+					style={`width: ${progressPercent}%`}
+				></div>
+			</div>
+		</div>
+
+		<div class="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
 			{#if data.deadline}
 				<Countdown deadline={new Date(data.deadline)} {onexpire} />
 			{/if}
+			<ConfirmSubmit
+				label="Exit quiz"
+				title="Exit this quiz?"
+				message="Your saved answers will not be scored, and this attempt cannot be resumed."
+				confirmLabel="Exit quiz"
+				form="exit-attempt-form"
+				formaction="?/exit"
+				triggerVariant="ghost"
+			/>
 		</div>
 	</div>
 
 	{#if form?.message}
 		<Notice tone="danger" alert>{form.message}</Notice>
+	{:else if !data.question.canAnswer}
+		<Notice tone="warning">
+			This section isn't currently open, so this question can't be answered right now.
+		</Notice>
+		<form method="POST" action="?/advance" use:enhance>
+			<Button type="submit" variant="secondary">Continue</Button>
+		</form>
 	{/if}
 
 	<Card raised>
@@ -104,36 +139,39 @@
 			live attempt would just hand over the answer; it stays for the result page's
 			review instead, once the attempt is no longer live.
 		-->
-		{#if data.question.group && data.question.group.format !== 'CONCEPT_REVIEW'}
+		{#if stimulus && stimulus.type !== 'CONCEPT_REVIEW'}
 			<div class="grid grid-cols-1 lg:grid-cols-2">
-				<div class="border-b border-line bg-stone-50 p-6 lg:border-r lg:border-b-0 lg:p-8">
-					<QuestionContextPanel
-						group={data.question.group}
-						revealStudyAids={data.revealStudyAids}
-						{onaudioready}
-					/>
+				<div class="border-b border-line bg-stone-50 p-5 lg:border-r lg:border-b-0 lg:p-6">
+					<QuestionContextPanel group={stimulus} revealStudyAids={true} {onaudioready} />
 				</div>
 
-				<div class="p-6 lg:p-8">
-					<form method="POST" action="?/answer" use:enhance class="flex flex-col gap-8">
-						<input type="hidden" name="attemptQuestionId" value={data.question.attemptQuestionId} />
+				<div class="p-5 lg:p-6">
+					<form
+						id="active-answer-form"
+						method="POST"
+						action="?/answer"
+						use:enhance
+						class="flex flex-col gap-6"
+					>
+						<input type="hidden" name="questionNumber" value={data.question.number} />
 
 						<QuestionBody
 							question={data.question}
-							revealStudyAids={data.revealStudyAids}
-							name="selectedOptionId"
-							selectedOptionId={data.question.selectedOptionId}
+							revealStudyAids={true}
+							name="selectedOptionNumber"
+							selectedOptionId={data.question.selectedOptionNumber}
 							disabled={optionsDisabled}
 							showSectionBadge={false}
 						/>
 
-						<div class="flex items-center justify-between border-t border-line pt-6">
-							{#if data.index > 1}
+						<div class="flex items-center justify-between border-t border-line pt-4">
+							{#if data.question.links.previous}
 								<Button
 									type="submit"
-									name="nextIndex"
-									value={String(data.index - 1)}
+									name="nextQuestion"
+									value={String(data.question.number - 1)}
 									variant="secondary"
+									disabled={optionsDisabled}
 								>
 									&larr; Prev
 								</Button>
@@ -141,51 +179,62 @@
 								<span></span>
 							{/if}
 
-							<Button
-								type="submit"
-								name="nextIndex"
-								value={String(data.index)}
-								variant="secondary"
-								size="sm"
-								disabled={optionsDisabled}
-							>
-								Save answer
-							</Button>
-
-							<Button
-								type="submit"
-								name="nextIndex"
-								value={String(data.index < data.total ? data.index + 1 : data.index)}
-								disabled={optionsDisabled}
-							>
-								{data.index < data.total ? 'Next →' : 'Save →'}
-							</Button>
+							{#if data.question.links.next}
+								<Button
+									type="submit"
+									name="nextQuestion"
+									value={String(data.question.number + 1)}
+									disabled={optionsDisabled}
+								>
+									Next →
+								</Button>
+							{:else}
+								<ConfirmSubmit
+									label="Review & submit"
+									title="Submit this attempt?"
+									message={data.question.progress.answered < data.question.progress.total
+										? 'Any questions left blank are scored as unanswered. You can review saved answers before confirming.'
+										: 'You can review your answers on the result page afterwards, but this attempt closes once submitted.'}
+									confirmLabel="Submit attempt"
+									formaction="?/answer"
+									name="finish"
+									value="true"
+									disabled={optionsDisabled}
+								/>
+							{/if}
 						</div>
 					</form>
 				</div>
 			</div>
 		{:else}
-			<div class="p-6 lg:p-8">
-				<form method="POST" action="?/answer" use:enhance class="flex flex-col gap-8">
-					<input type="hidden" name="attemptQuestionId" value={data.question.attemptQuestionId} />
+			<div class="p-5 lg:p-6">
+				<form
+					id="active-answer-form"
+					method="POST"
+					action="?/answer"
+					use:enhance
+					class="flex flex-col gap-6"
+				>
+					<input type="hidden" name="questionNumber" value={data.question.number} />
 
 					<QuestionBody
 						question={data.question}
-						revealStudyAids={data.revealStudyAids}
-						name="selectedOptionId"
-						selectedOptionId={data.question.selectedOptionId}
+						revealStudyAids={true}
+						name="selectedOptionNumber"
+						selectedOptionId={data.question.selectedOptionNumber}
 						disabled={optionsDisabled}
 						showSectionBadge={false}
 						{onaudioready}
 					/>
 
-					<div class="flex items-center justify-between border-t border-line pt-6">
-						{#if data.index > 1}
+					<div class="flex items-center justify-between border-t border-line pt-4">
+						{#if data.question.links.previous}
 							<Button
 								type="submit"
-								name="nextIndex"
-								value={String(data.index - 1)}
+								name="nextQuestion"
+								value={String(data.question.number - 1)}
 								variant="secondary"
+								disabled={optionsDisabled}
 							>
 								&larr; Prev
 							</Button>
@@ -193,46 +242,41 @@
 							<span></span>
 						{/if}
 
-						<Button
-							type="submit"
-							name="nextIndex"
-							value={String(data.index)}
-							variant="secondary"
-							size="sm"
-							disabled={optionsDisabled}
-						>
-							Save answer
-						</Button>
-
-						<Button
-							type="submit"
-							name="nextIndex"
-							value={String(data.index < data.total ? data.index + 1 : data.index)}
-							disabled={optionsDisabled}
-						>
-							{data.index < data.total ? 'Next →' : 'Save →'}
-						</Button>
+						{#if data.question.links.next}
+							<Button
+								type="submit"
+								name="nextQuestion"
+								value={String(data.question.number + 1)}
+								disabled={optionsDisabled}
+							>
+								Next →
+							</Button>
+						{:else}
+							<ConfirmSubmit
+								label="Review & submit"
+								title="Submit this attempt?"
+								message={data.question.progress.answered < data.question.progress.total
+									? 'Any questions left blank are scored as unanswered. You can review saved answers before confirming.'
+									: 'You can review your answers on the result page afterwards, but this attempt closes once submitted.'}
+								confirmLabel="Submit attempt"
+								formaction="?/answer"
+								name="finish"
+								value="true"
+								disabled={optionsDisabled}
+							/>
+						{/if}
 					</div>
 				</form>
 			</div>
 		{/if}
 	</Card>
 
-	<div class="flex flex-col items-center justify-between gap-3 sm:flex-row">
-		<p class="text-xs font-medium text-stone-500">
-			Every answer is saved the moment you choose it.
-		</p>
-		<form method="POST" action="?/submit" bind:this={submitFormEl} use:enhance>
-			<ConfirmSubmit
-				label="Submit attempt"
-				title="Submit this attempt?"
-				message={data.answeredCount < data.total
-					? `You have answered ${data.answeredCount} of ${data.total} questions. Anything left blank is scored as unanswered.`
-					: 'You can review your answers on the result page afterwards, but this attempt closes once submitted.'}
-				confirmLabel="Submit attempt"
-			/>
-		</form>
-	</div>
+	<p class="text-xs font-medium text-stone-500">
+		Your answer is saved when you move to another question. Submit from the final question when you
+		are ready.
+	</p>
 
+	<form method="POST" action="?/submit" bind:this={submitFormEl} use:enhance hidden></form>
 	<form method="POST" action="?/advance" bind:this={advanceFormEl} use:enhance hidden></form>
+	<form id="exit-attempt-form" method="POST" action="?/exit" use:enhance hidden></form>
 </div>

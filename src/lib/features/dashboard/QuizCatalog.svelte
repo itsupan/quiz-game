@@ -5,7 +5,7 @@
 	import QuizCard from './QuizCard.svelte';
 
 	let { quizzes }: { quizzes: DashboardQuiz[] } = $props();
-	let selectedLevel = $state('N4');
+	let selectedLevel = $state('ALL LEVELS');
 	let searchQuery = $state(page.url.searchParams.get('q') ?? '');
 	const levels = ['ALL LEVELS', 'N5', 'N4', 'N3', 'N2', 'N1'];
 	const cards = $derived(toQuizCards(quizzes));

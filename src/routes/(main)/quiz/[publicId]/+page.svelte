@@ -94,12 +94,13 @@
 		{#if totalMinutes !== null}
 			<Notice tone="info">
 				The clock starts the moment you begin and cannot be paused. Closing this tab does not stop
-				it — every answer is saved as you choose it, and whatever you have answered when time runs
-				out is scored.
+				it. Answers are saved when you move between questions or submit the attempt, and whatever
+				has been saved when time runs out is scored.
 			</Notice>
 		{/if}
 
 		<form method="POST" action="?/start" use:enhance class="mt-6">
+			<input type="hidden" name="idempotencyKey" value={data.idempotencyKey} />
 			<Button type="submit" size="lg">Start</Button>
 		</form>
 	</Card>

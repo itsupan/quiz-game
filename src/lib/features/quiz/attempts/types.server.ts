@@ -134,6 +134,7 @@ export type QuizOverview = {
 	mode: QuizMode;
 	level: JlptLevel;
 	selectionMode: SelectionMode;
+	icon: Quiz['icon'];
 	timeLimitSeconds: number | null;
 	sections: QuizOverviewSection[];
 };

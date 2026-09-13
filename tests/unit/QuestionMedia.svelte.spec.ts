@@ -6,7 +6,14 @@ import QuestionMedia from '$lib/features/quiz/QuestionMedia.svelte';
 describe('QuestionMedia', () => {
 	it('renders an image with its own alt text', async () => {
 		const screen = render(QuestionMedia, {
-			image: { publicId: 'abc', altText: '赤い正方形' },
+			image: {
+				id: 'abc',
+				url: '/media/abc',
+				mimeType: 'image/png',
+				width: 100,
+				height: 100,
+				altText: '赤い正方形'
+			},
 			audio: null
 		});
 
@@ -26,7 +33,13 @@ describe('QuestionMedia', () => {
 
 		const screen = render(QuestionMedia, {
 			image: null,
-			audio: { publicId: 'clip', transcript: 'これは音声です。' },
+			audio: {
+				id: 'clip',
+				url: '/media/clip',
+				mimeType: 'audio/mpeg',
+				durationMs: null,
+				transcript: 'これは音声です。'
+			},
 			onaudioready
 		});
 
@@ -43,7 +56,13 @@ describe('QuestionMedia', () => {
 
 		const screen = render(QuestionMedia, {
 			image: null,
-			audio: { publicId: 'clip', transcript: null },
+			audio: {
+				id: 'clip',
+				url: '/media/clip',
+				mimeType: 'audio/mpeg',
+				durationMs: null,
+				transcript: null
+			},
 			onaudioready
 		});
 
@@ -58,7 +77,13 @@ describe('QuestionMedia', () => {
 	it('provides a custom play button', async () => {
 		const screen = render(QuestionMedia, {
 			image: null,
-			audio: { publicId: 'clip', transcript: null }
+			audio: {
+				id: 'clip',
+				url: '/media/clip',
+				mimeType: 'audio/mpeg',
+				durationMs: null,
+				transcript: null
+			}
 		});
 
 		const audioEl = screen.container.querySelector('audio') as HTMLAudioElement;
@@ -78,7 +103,13 @@ describe('QuestionMedia', () => {
 		it('is withheld during an attempt, because it is the answer to a listening question', async () => {
 			const screen = render(QuestionMedia, {
 				image: null,
-				audio: { publicId: 'clip', transcript: 'これはテストの文字起こしです。' },
+				audio: {
+					id: 'clip',
+					url: '/media/clip',
+					mimeType: 'audio/mpeg',
+					durationMs: null,
+					transcript: 'これはテストの文字起こしです。'
+				},
 				revealTranscript: false
 			});
 
@@ -88,7 +119,13 @@ describe('QuestionMedia', () => {
 		it('is shown once the caller reveals it, on the result page', async () => {
 			const screen = render(QuestionMedia, {
 				image: null,
-				audio: { publicId: 'clip', transcript: 'これはテストの文字起こしです。' },
+				audio: {
+					id: 'clip',
+					url: '/media/clip',
+					mimeType: 'audio/mpeg',
+					durationMs: null,
+					transcript: 'これはテストの文字起こしです。'
+				},
 				revealTranscript: true
 			});
 

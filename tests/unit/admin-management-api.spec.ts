@@ -37,6 +37,7 @@ beforeEach(async () => {
 		publicId: created.publicId,
 		email: created.email,
 		displayName: created.displayName,
+		avatarUrl: created.avatarUrl,
 		role: created.role,
 		status: created.status
 	};

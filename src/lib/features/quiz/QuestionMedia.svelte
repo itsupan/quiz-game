@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import Button from '$lib/components/Button.svelte';
 	import Notice from '$lib/components/Notice.svelte';
+	import type { AudioMedia, ImageMedia } from './api/types';
 
 	/**
 	 * A question's image and/or audio.
@@ -22,8 +22,8 @@
 		revealTranscript = false,
 		onaudioready
 	}: {
-		image: { publicId: string; altText: string | null } | null;
-		audio: { publicId: string; transcript?: string | null } | null;
+		image: ImageMedia | null;
+		audio: AudioMedia | null;
 		revealTranscript?: boolean;
 		onaudioready?: () => void;
 	} = $props();
@@ -90,9 +90,9 @@
 
 {#if image}
 	<img
-		src={resolve('/media/[publicId]', { publicId: image.publicId })}
+		src={image.url}
 		alt={image.altText ?? ''}
-		class="h-auto w-full object-contain"
+		class="mx-auto h-auto max-h-96 w-auto max-w-full object-contain"
 	/>
 {/if}
 
@@ -149,7 +149,7 @@
 			</div>
 		</div>
 
-		<Button type="button" variant="ghost" size="sm" onclick={replay} class="mt-2">
+		<Button type="button" variant="ghost" size="sm" onclick={replay} class="mt-5">
 			Replay from the start
 		</Button>
 
@@ -160,7 +160,7 @@
 			bind:duration
 			bind:paused
 			preload="metadata"
-			src={resolve('/media/[publicId]', { publicId: audio.publicId })}
+			src={audio.url}
 			{oncanplay}
 			{onerror}
 			class="hidden"

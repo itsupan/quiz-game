@@ -1,9 +1,22 @@
 <script lang="ts">
+	import { onNavigate } from '$app/navigation';
 	import './layout.css';
 	import Toast from '$lib/components/Toast.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+
+	/** Crossfades between pages instead of the abrupt swap a plain client-side nav gives. */
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 </script>
 
 <svelte:head>

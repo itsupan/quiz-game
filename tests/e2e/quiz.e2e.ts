@@ -65,6 +65,10 @@ test.describe('taking a quiz', () => {
 
 		await expect(page).toHaveURL(/\/quiz\/attempt\//);
 		await expect(page.getByText('Question 1 of 5')).toBeVisible();
+		const progress = page.getByRole('progressbar', { name: 'Quiz progress' });
+		await expect(progress).toHaveAttribute('aria-valuenow', '1');
+		await expect(progress).toHaveAttribute('aria-valuemax', '5');
+		await expect(page.getByRole('button', { name: 'Submit attempt' })).toHaveCount(0);
 
 		// The initial payload for a fresh attempt must not carry an answer key.
 		expect(await page.content()).not.toMatch(/is_?correct/i);
@@ -73,8 +77,10 @@ test.describe('taking a quiz', () => {
 		await page.getByRole('radio', { name: 'びょういん', exact: true }).check();
 		await page.getByRole('button', { name: 'Next' }).click();
 		await expect(page.getByText('1 answered')).toBeVisible();
+		await expect(progress).toHaveAttribute('aria-valuenow', '2');
 
 		// Q2: left unanswered on purpose, to exercise the skip path.
+		await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
 		await page.getByRole('button', { name: 'Next' }).click();
 
 		// Q3: the image question. Real alt text, real bytes from /media/[publicId].
@@ -111,9 +117,7 @@ test.describe('taking a quiz', () => {
 
 		// Answer wrong on purpose, to see it reviewed after submission.
 		await page.getByRole('radio', { name: '家に 帰る' }).check();
-		await page.getByRole('button', { name: 'Save answer' }).click();
-
-		await page.getByRole('button', { name: 'Submit attempt' }).click();
+		await page.getByRole('button', { name: 'Review & submit' }).click();
 		const dialog = page.getByRole('dialog');
 		await expect(dialog).toBeVisible();
 		await dialog.getByRole('button', { name: 'Submit attempt' }).click();
