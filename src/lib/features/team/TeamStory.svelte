@@ -520,6 +520,14 @@
 		height: min(77svh, 49rem);
 	}
 
+	@media (min-width: 901px) {
+		.portrait-column {
+			width: auto;
+			aspect-ratio: 2 / 3;
+			justify-self: center;
+		}
+	}
+
 	.copy-column {
 		align-self: center;
 	}
