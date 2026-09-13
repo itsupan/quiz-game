@@ -35,6 +35,7 @@
 			selectionMode: string;
 			icon: string;
 			timeLimitSeconds: number | null;
+			xpReward: number;
 		};
 	} = $props();
 
@@ -134,7 +135,7 @@
 	</div>
 
 	<!-- Configuration Row -->
-	<div class="grid gap-6 md:grid-cols-3">
+	<div class="grid gap-6 md:grid-cols-4">
 		<Field
 			id="selectionMode"
 			label="Questions"
@@ -186,6 +187,25 @@
 						<option value={option}>{ICON_LABELS[option]}</option>
 					{/each}
 				</select>
+			{/snippet}
+		</Field>
+
+		<Field
+			id="xpReward"
+			label="XP reward"
+			hint="Awarded once, on submission."
+			error={errors.xpReward}
+		>
+			{#snippet control(props)}
+				<input
+					{...props}
+					type="number"
+					name="xpReward"
+					min="0"
+					value={field('xpReward', initial.xpReward)}
+					class="w-full border-2 border-ink bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-brand-red"
+					placeholder="0"
+				/>
 			{/snippet}
 		</Field>
 	</div>

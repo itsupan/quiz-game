@@ -77,7 +77,8 @@
 			level: data.quiz.level,
 			selectionMode: data.quiz.selectionMode,
 			icon: data.quiz.icon,
-			timeLimitSeconds: data.quiz.timeLimitSeconds
+			timeLimitSeconds: data.quiz.timeLimitSeconds,
+			xpReward: data.quiz.xpReward
 		}}
 	/>
 

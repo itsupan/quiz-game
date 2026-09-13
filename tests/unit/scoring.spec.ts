@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+	scale,
 	scoreAttempt,
 	type BandConfig,
 	type SavedAnswer,
@@ -254,5 +255,20 @@ describe('scoreAttempt', () => {
 			expect(result.bandScores[0].passed).toBeNull();
 			expect(result.passed).toBeNull();
 		});
+	});
+});
+
+describe('scale', () => {
+	it('prorates linearly, rounded to the nearest whole number', () => {
+		// This is also what a quiz's flat xpReward is prorated by: 3 of 4 right on a
+		// 150-XP quiz earns round(3/4 * 150) = 113, not the full 150.
+		expect(scale(3, 4, 150)).toBe(113);
+		expect(scale(1, 4, 150)).toBe(38);
+		expect(scale(4, 4, 150)).toBe(150);
+		expect(scale(0, 4, 150)).toBe(0);
+	});
+
+	it('returns zero rather than dividing by zero when nothing was scoreable', () => {
+		expect(scale(0, 0, 150)).toBe(0);
 	});
 });

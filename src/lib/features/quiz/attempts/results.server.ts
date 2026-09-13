@@ -14,7 +14,13 @@ import {
 	quizzes
 } from '$lib/server/db/schema';
 import type { AttemptStatus } from '$lib/server/db/schema';
-import { scoreAttempt, type BandConfig, type SavedAnswer, type ServedQuestion } from '../scoring';
+import {
+	scale,
+	scoreAttempt,
+	type BandConfig,
+	type SavedAnswer,
+	type ServedQuestion
+} from '../scoring';
 import { isExpired } from '../timing';
 import { loadFrozenOptions } from './questions.server';
 import type { AttemptView, ResultView } from './types.server';
@@ -237,7 +243,10 @@ export async function finalizeAttempt(
 				scaledTotal: scored.scaledTotal,
 				durationMs: at.getTime() - claimable.startedAt.getTime(),
 				passed: scored.passed,
-				xpAwarded: status === 'SUBMITTED' ? claimable.xpReward : 0
+				// Prorated by how much of the raw score was actually earned, not a flat
+				// full-or-nothing reward — see `scale`'s doc comment.
+				xpAwarded:
+					status === 'SUBMITTED' ? scale(scored.rawScore, scored.rawMax, claimable.xpReward) : 0
 			})
 			.where(attemptIsUnchanged)
 	];

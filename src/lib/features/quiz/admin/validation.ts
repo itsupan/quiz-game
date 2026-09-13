@@ -66,16 +66,15 @@ export function drawCountRule(
 }
 
 /**
- * `current` carries the two fields the admin dashboard form does not yet expose
- * (`showStudyAidsDuringAttempt`, `xpReward`) through unchanged on an edit, rather than
- * resetting them to their create-time defaults — those are authored through the JSON
- * API (`parseQuizCreateBody`/`parseQuizPatchBody`) instead.
+ * `current` carries the one field the admin dashboard form does not yet expose
+ * (`showStudyAidsDuringAttempt`) through unchanged on an edit, rather than resetting it
+ * to its create-time default — that one is authored through the JSON API
+ * (`parseQuizCreateBody`/`parseQuizPatchBody`) instead.
  */
 export function parseQuizForm(
 	data: FormData,
-	current: Pick<QuizInput, 'showStudyAidsDuringAttempt' | 'xpReward'> = {
-		showStudyAidsDuringAttempt: false,
-		xpReward: 0
+	current: Pick<QuizInput, 'showStudyAidsDuringAttempt'> = {
+		showStudyAidsDuringAttempt: false
 	}
 ): ValidationResult<QuizInput> {
 	const errors: Record<string, string> = {};
@@ -101,6 +100,12 @@ export function parseQuizForm(
 		errors.timeLimitMinutes = `A ${mode.replace('_', ' ').toLowerCase()} needs a time limit.`;
 	}
 
+	const xpRewardRaw = formText(data, 'xpReward');
+	const xpReward = xpRewardRaw === '' ? 0 : Number(xpRewardRaw);
+	if (!Number.isInteger(xpReward) || xpReward < 0) {
+		errors.xpReward = 'XP reward must be a whole number of 0 or more.';
+	}
+
 	if (Object.keys(errors).length > 0) {
 		return { ok: false, errors, values: echoValues(data) };
 	}
@@ -116,7 +121,7 @@ export function parseQuizForm(
 			icon: icon as QuizIcon,
 			timeLimitSeconds: minutes ? minutes * 60 : null,
 			showStudyAidsDuringAttempt: current.showStudyAidsDuringAttempt,
-			xpReward: current.xpReward
+			xpReward
 		}
 	};
 }

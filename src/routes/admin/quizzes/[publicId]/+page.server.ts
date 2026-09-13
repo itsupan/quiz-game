@@ -60,8 +60,7 @@ export const actions: Actions = {
 	update: async ({ locals, params, request }) => {
 		const { quiz } = await load404(locals, params.publicId);
 		const parsed = parseQuizForm(await request.formData(), {
-			showStudyAidsDuringAttempt: quiz.showStudyAidsDuringAttempt,
-			xpReward: quiz.xpReward
+			showStudyAidsDuringAttempt: quiz.showStudyAidsDuringAttempt
 		});
 
 		if (!parsed.ok) {
