@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import ConfirmSubmit from '$lib/components/ConfirmSubmit.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import Notice from '$lib/components/Notice.svelte';
 	import { JLPT_LEVELS } from '$lib/domain/enums';
 	import type { PageProps } from './$types';
@@ -111,7 +114,7 @@
 							>Status</th
 						>
 						<th
-							class="relative w-16 px-4 py-3 text-center text-[10px] font-bold tracking-widest text-ink uppercase"
+							class="relative w-40 px-4 py-3 text-center text-[10px] font-bold tracking-widest text-ink uppercase"
 						>
 							Actions
 							<div class="absolute top-0 right-0 h-full w-4 bg-brand-red"></div>
@@ -146,10 +149,36 @@
 									● {user.status}
 								</span>
 							</td>
-							<td
-								class="cursor-pointer px-4 py-4 text-center text-xl leading-none font-bold tracking-widest text-muted hover:text-ink"
-							>
-								···
+							<td class="px-3 py-3 text-center">
+								<form
+									method="POST"
+									action="?/updateStatus"
+									use:enhance
+									class="m-0 flex items-center justify-center gap-2"
+								>
+									<input type="hidden" name="publicId" value={user.publicId} />
+									{#if user.status === 'ACTIVE'}
+										<ConfirmSubmit
+											label="Deactivate"
+											name="status"
+											value="SUSPENDED"
+											title="Deactivate this user?"
+											message="{user.displayName} will not be able to log in until reactivated."
+											confirmLabel="Deactivate"
+											disabled={user.publicId === data.currentUserPublicId}
+										/>
+									{:else}
+										<Button
+											type="submit"
+											name="status"
+											value="ACTIVE"
+											variant="secondary"
+											size="sm"
+										>
+											Activate
+										</Button>
+									{/if}
+								</form>
 							</td>
 						</tr>
 					{/each}

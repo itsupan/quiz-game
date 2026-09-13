@@ -195,12 +195,6 @@ export function questionPublishBlockers(
 	const format = question.format ?? 'STANDARD';
 
 	if (question.stem.trim() === '') blockers.push('The question has no text.');
-	if (media.image && (media.image.altText ?? '').trim() === '') {
-		blockers.push('The attached image needs alt text before this question can be published.');
-	}
-	if (media.audio && (media.audio.transcript ?? '').trim() === '') {
-		blockers.push('The attached audio needs a transcript before this question can be published.');
-	}
 	if (options !== undefined) {
 		if (options.length < 2) blockers.push('A published question needs at least two options.');
 		if (!options.some((option) => option.isCorrect)) {

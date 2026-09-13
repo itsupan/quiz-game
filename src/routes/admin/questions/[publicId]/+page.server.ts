@@ -5,6 +5,7 @@ import { requireMediaBucket } from '$lib/features/media/media.server';
 import { resolveQuestionMedia } from '$lib/features/questions/question-media.server';
 import {
 	getQuestion,
+	listQuizzesForQuestion,
 	setQuestionStatus,
 	updateQuestion
 } from '$lib/features/questions/questions.server';
@@ -27,6 +28,7 @@ async function load404(locals: App.Locals, publicId: string) {
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const { question, options, image, audio } = await load404(locals, params.publicId);
+	const usedInQuizzes = await listQuizzesForQuestion(locals.db, question.id);
 
 	return {
 		// `isCorrect` is read here and rendered as the checked radio. This is the one page
@@ -36,6 +38,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		options,
 		image,
 		audio,
+		usedInQuizzes,
 		blockers: questionPublishBlockers(question, { image, audio })
 	};
 };

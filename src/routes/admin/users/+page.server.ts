@@ -19,7 +19,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		page: Number(url.searchParams.get('page')) || 1
 	};
 
-	return { ...(await listUsers(locals.db, filters)), filters };
+	return {
+		...(await listUsers(locals.db, filters)),
+		filters,
+		currentUserPublicId: locals.user?.publicId ?? null
+	};
 };
 
 export const actions: Actions = {

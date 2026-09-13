@@ -108,3 +108,37 @@ export type GroupFormat = (typeof GROUP_FORMATS)[number];
 
 export const OAUTH_PROVIDERS = ['google'] as const;
 export type OauthProvider = (typeof OAUTH_PROVIDERS)[number];
+
+/**
+ * Actions worth an audit trail. Lives here rather than alongside the `audit_logs` table
+ * definition in `$lib/server/db/schema` so the System Logs filter UI can import it
+ * without pulling server-only code into the client bundle.
+ */
+export const AUDIT_ACTIONS = [
+	'USER_CREATED',
+	'USER_PROFILE_CHANGED',
+	'USER_ROLE_CHANGED',
+	'USER_STATUS_CHANGED',
+	'QUIZ_PUBLISHED',
+	'QUIZ_ARCHIVED',
+	'QUESTION_CREATED',
+	'QUESTION_PUBLISHED',
+	'QUESTION_ARCHIVED',
+	'QUESTION_IMPORTED',
+	'QUESTION_GROUP_CREATED',
+	'QUESTION_GROUP_UPDATED',
+	'QUESTION_GROUP_PUBLISHED',
+	'QUESTION_GROUP_ARCHIVED',
+	'MEDIA_UPLOADED',
+	'MEDIA_DELETED'
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_ENTITY_TYPES = [
+	'quiz',
+	'question',
+	'question_group',
+	'media_asset',
+	'user'
+] as const;
+export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];

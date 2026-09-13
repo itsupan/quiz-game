@@ -21,7 +21,7 @@
 	}
 </script>
 
-<div class="flex h-screen bg-stone-50 text-ink">
+<div class="flex max-h-screen bg-stone-50 text-ink">
 	<!-- Left Side: Question Repository -->
 	<div class="flex w-1/3 max-w-[480px] min-w-[360px] flex-col border-r border-ink bg-stone-50">
 		<div class="border-b border-ink p-6">

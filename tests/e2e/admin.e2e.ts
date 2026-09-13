@@ -338,60 +338,6 @@ test.describe('as an administrator', () => {
 		expect((await served.body()).byteLength).toBe(png.byteLength);
 	});
 
-	test.skip('blocks publishing a question whose image has no alt text, and unblocks it once described', async ({
-		page
-	}) => {
-		const filename = `undescribed-${Date.now()}.png`;
-		const png = Buffer.from(
-			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-			'base64'
-		);
-
-		await page.goto('/admin/media');
-		await page.getByRole('button', { name: 'File', exact: true }).setInputFiles({
-			name: filename,
-			mimeType: 'image/png',
-			buffer: png
-		});
-		// Deliberately no alt text.
-		await page.getByRole('button', { name: 'Upload' }).click();
-		await expect(page.getByRole('alert')).toContainText(`Uploaded ${filename}`);
-
-		await page.goto('/admin/questions/new');
-		await page.getByLabel('Question text').fill(`画像問題 ${Date.now()}`);
-		await page.getByLabel('Option 1', { exact: true }).fill('あ');
-		await page.getByLabel('Option 2', { exact: true }).fill('い');
-		await page.getByLabel('Option 3', { exact: true }).fill('う');
-		await page.getByLabel('Option 4', { exact: true }).fill('え');
-		await page.getByLabel('Mark option 1 as correct').check({ force: true });
-		// The picker says so before it is attached, not only after publishing fails.
-		await page.getByLabel('Image').selectOption({ label: `${filename} — not yet described` });
-		await page.getByRole('button', { name: 'Create question' }).click();
-
-		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit question');
-
-		const questionUrl = page.url();
-
-		await expect(page.getByRole('list', { name: 'Blocking publication' })).toContainText(
-			'needs alt text'
-		);
-
-		await page.getByRole('button', { name: 'Publish' }).click();
-		await expect(page.getByRole('alert')).toContainText('needs alt text');
-		await expect(page.getByText('draft')).toBeVisible();
-
-		// Describing the file once clears it for every question that uses it.
-		await page.goto('/admin/media');
-		const card = page.getByRole('listitem').filter({ hasText: filename });
-		await card.getByLabel('Alt text').fill('駅の時刻表');
-		await card.getByRole('button', { name: 'Save description' }).click();
-		await expect(page.getByRole('alert')).toContainText('Description saved.');
-
-		await page.goto(questionUrl);
-		await page.getByRole('button', { name: 'Publish' }).click();
-		await expect(page.getByRole('alert')).toContainText('Published.');
-	});
-
 	test.skip('refuses to delete a file a question still uses', async ({ page }) => {
 		const filename = `inuse-${Date.now()}.png`;
 		const png = Buffer.from(

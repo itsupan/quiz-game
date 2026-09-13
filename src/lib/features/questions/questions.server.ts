@@ -2,7 +2,15 @@ import { and, count, desc, eq, inArray, like, notInArray, or, sql } from 'drizzl
 
 import type { Database } from '$lib/server/db';
 import { isForeignKeyFailure } from '$lib/server/db/errors';
-import { mediaAssets, questionGroups, questionOptions, questions } from '$lib/server/db/schema';
+import {
+	mediaAssets,
+	questionGroups,
+	questionOptions,
+	questions,
+	quizQuestions,
+	quizSections,
+	quizzes
+} from '$lib/server/db/schema';
 import type {
 	ContentStatus,
 	JlptLevel,
@@ -445,4 +453,37 @@ export async function updateQuestion(
 
 export async function setQuestionStatus(db: Database, questionId: number, status: ContentStatus) {
 	await db.update(questions).set({ status }).where(eq(questions.id, questionId));
+}
+
+export type QuizUsingQuestion = {
+	quizPublicId: string;
+	quizTitle: string;
+	quizStatus: ContentStatus;
+	sectionLabel: Section;
+};
+
+/**
+ * Every quiz this bank question is placed on, via `quiz_questions` — the reverse of the
+ * lookup `paper.server.ts` does the other way (quiz → its questions). Deleting a question
+ * a quiz still references fails with `RESTRICT` at the database, so an admin needs this
+ * list before they can tell why a question won't detach or archive cleanly.
+ */
+export async function listQuizzesForQuestion(
+	db: Database,
+	questionId: number
+): Promise<QuizUsingQuestion[]> {
+	const rows = await db
+		.select({
+			quizPublicId: quizzes.publicId,
+			quizTitle: quizzes.title,
+			quizStatus: quizzes.status,
+			sectionLabel: quizSections.section
+		})
+		.from(quizQuestions)
+		.innerJoin(quizzes, eq(quizzes.id, quizQuestions.quizId))
+		.innerJoin(quizSections, eq(quizSections.id, quizQuestions.quizSectionId))
+		.where(eq(quizQuestions.questionId, questionId))
+		.orderBy(quizzes.title);
+
+	return rows;
 }

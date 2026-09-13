@@ -1,40 +1,15 @@
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '$lib/domain/enums';
 import { users } from './auth';
 import { createdAt } from './columns';
 
-/**
- * Actions worth a trail. Role and status changes are the ones the admin epic requires;
- * content actions get the same treatment because the table costs nothing extra.
- */
-export const AUDIT_ACTIONS = [
-	'USER_CREATED',
-	'USER_PROFILE_CHANGED',
-	'USER_ROLE_CHANGED',
-	'USER_STATUS_CHANGED',
-	'QUIZ_PUBLISHED',
-	'QUIZ_ARCHIVED',
-	'QUESTION_CREATED',
-	'QUESTION_PUBLISHED',
-	'QUESTION_ARCHIVED',
-	'QUESTION_IMPORTED',
-	'QUESTION_GROUP_CREATED',
-	'QUESTION_GROUP_UPDATED',
-	'QUESTION_GROUP_PUBLISHED',
-	'QUESTION_GROUP_ARCHIVED',
-	'MEDIA_UPLOADED',
-	'MEDIA_DELETED'
-] as const;
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
-
-export const AUDIT_ENTITY_TYPES = [
-	'quiz',
-	'question',
-	'question_group',
-	'media_asset',
-	'user'
-] as const;
-export type AuditEntityType = (typeof AUDIT_ENTITY_TYPES)[number];
+// Re-exported so existing server-side callers can keep importing these from
+// `$lib/server/db/schema` alongside the table itself; `$lib/domain/enums` is the source
+// of truth because the System Logs filter UI needs them too, and that file must stay
+// importable from client code.
+export { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES };
+export type { AuditAction, AuditEntityType } from '$lib/domain/enums';
 
 /**
  * Who changed what, when.
