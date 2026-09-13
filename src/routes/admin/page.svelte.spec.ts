@@ -45,6 +45,10 @@ describe('admin overview', () => {
 			props(overview({ quizzes: { total: 13, published: 9, draft: 4 } }))
 		);
 
-		await expect.element(screen.getByText('4 SYNCING')).toBeInTheDocument();
+		// The headline number on this card is "Active Quizzes" — the published count, not
+		// every quiz regardless of status.
+		await expect.element(screen.getByTestId('total-quizzes')).toHaveTextContent('9');
+		await expect.element(screen.getByText('4 DRAFT')).toBeInTheDocument();
+		await expect.element(screen.getByText('13 TOTAL')).toBeInTheDocument();
 	});
 });

@@ -248,7 +248,11 @@
 				{/snippet}
 			</Field>
 
-			<Field id="imageAltText" label="Alt text" hint="Required before this question can publish.">
+			<Field
+				id="imageAltText"
+				label="Alt text"
+				hint="Optional — describes the image for screen readers."
+			>
 				{#snippet control(props)}
 					<input
 						{...props}
@@ -291,11 +295,7 @@
 				{/snippet}
 			</Field>
 
-			<Field
-				id="audioTranscript"
-				label="Transcript"
-				hint="Required before this question can publish."
-			>
+			<Field id="audioTranscript" label="Transcript" hint="Optional — what is said in the clip.">
 				{#snippet control(props)}
 					<textarea
 						{...props}

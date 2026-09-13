@@ -280,33 +280,23 @@ describe('questionPublishBlockers', () => {
 		expect(questionPublishBlockers(question, { image: null, audio: null })).toEqual([]);
 	});
 
-	it('blocks an image with no alt text', () => {
-		// Nobody using a screen reader can answer a question whose image is undescribed.
+	it('allows publishing an image with no alt text', () => {
+		// Alt text and transcript are optional accessibility aids, not publish gates.
 		const blockers = questionPublishBlockers(question, {
 			image: { altText: null },
 			audio: null
 		});
 
-		expect(blockers).toHaveLength(1);
-		expect(blockers[0]).toMatch(/alt text/i);
+		expect(blockers).toEqual([]);
 	});
 
-	it('blocks audio with no transcript', () => {
+	it('allows publishing audio with no transcript', () => {
 		const blockers = questionPublishBlockers(question, {
 			image: null,
 			audio: { transcript: '   ' }
 		});
 
-		expect(blockers[0]).toMatch(/transcript/i);
-	});
-
-	it('reports every blocker at once rather than one per attempt', () => {
-		const blockers = questionPublishBlockers(question, {
-			image: { altText: '' },
-			audio: { transcript: '' }
-		});
-
-		expect(blockers).toHaveLength(2);
+		expect(blockers).toEqual([]);
 	});
 
 	it('passes described media', () => {

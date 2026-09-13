@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 </script>
 
-<div class="flex h-full flex-col items-center justify-center p-8 text-center">
+<div class="flex flex-col items-center justify-center p-8 text-center">
 	<div class="mb-4 flex h-16 w-16 items-center justify-center border-2 border-ink bg-stone-100">
 		<i class="fi fi-rs-pencil text-2xl text-muted" aria-hidden="true"></i>
 	</div>

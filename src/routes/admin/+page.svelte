@@ -80,7 +80,7 @@
 					data-testid="total-quizzes"
 					class="mb-6 text-6xl leading-none font-black tracking-tighter text-ink tabular-nums"
 				>
-					{data.overview.quizzes?.total?.toLocaleString() || 0}
+					{data.overview.quizzes?.published?.toLocaleString() || 0}
 				</div>
 				<div class="relative mt-auto h-px w-full bg-ink/20">
 					<div class="absolute top-0 left-0 h-full w-1/3 bg-brand-red"></div>
@@ -90,9 +90,10 @@
 				>
 					<span class="flex items-center gap-1.5 text-ink"
 						><i class="fi fi-rs-rotate-right" aria-hidden="true"></i>
-						{data.overview.quizzes?.draft || 0} SYNCING</span
+						{data.overview.quizzes?.draft || 0} DRAFT</span
 					>
-					<span class="text-muted">LIVE</span>
+					<span class="text-muted">{data.overview.quizzes?.total?.toLocaleString() || 0} TOTAL</span
+					>
 				</div>
 			</div>
 		</div>
