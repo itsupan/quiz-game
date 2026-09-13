@@ -437,6 +437,14 @@ describe('content immutability', () => {
 			.where(eq(questions.id, question.questionId));
 		await db.update(quizzes).set({ xpReward: 999 }).where(eq(quizzes.id, quiz.id));
 
+		// A perfect score, so the frozen 120 XP (not the since-edited 999) is awarded in full.
+		await saveAnswer(
+			db,
+			active!,
+			active!.questions[0].attemptQuestionId,
+			question.correctOptionId,
+			START
+		);
 		await finalizeAttempt(db, active!.attempt.id, 'SUBMITTED', after(5));
 		const result = await loadResult(db, started.value, learnerId);
 
@@ -639,6 +647,40 @@ describe('enforceDeadline and finalizeAttempt', () => {
 		expect(row.questionCount).toBe(2);
 		// Scored as of the deadline, not as of when this was checked.
 		expect(row.durationMs).toBe(100_000);
+	});
+
+	it('prorates XP by how many answers were correct, not a flat full reward', async () => {
+		const quiz = await createFixedQuiz(db, {
+			sections: [{ section: 'VOCAB_KANJI', questionCount: 4 }]
+		});
+		const started = await startAttempt(
+			db,
+			{ ...quiz, xpReward: 150 },
+			quiz.sections,
+			learnerId,
+			START
+		);
+		if (!started.ok) throw new Error(started.message);
+		const view = await loadAttempt(db, started.value, learnerId);
+		if (!view) throw new Error('did not load');
+
+		// Three of four right: round(3/4 * 150) = 113, not the full 150.
+		for (const question of view.questions.slice(0, 3)) {
+			await saveAnswer(db, view, question.attemptQuestionId, question.options[0].id, START);
+		}
+		await saveAnswer(
+			db,
+			view,
+			view.questions[3].attemptQuestionId,
+			view.questions[3].options[1].id,
+			START
+		);
+
+		await finalizeAttempt(db, view.attempt.id, 'SUBMITTED', after(5));
+		const result = await loadResult(db, started.value, learnerId);
+
+		expect(result?.attempt.rawScore).toBe(3);
+		expect(result?.attempt.xpAwarded).toBe(113);
 	});
 
 	it('does not re-score an attempt that was already finalized', async () => {

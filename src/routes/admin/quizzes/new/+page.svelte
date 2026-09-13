@@ -25,7 +25,8 @@
 			level: 'N4',
 			selectionMode: 'FIXED',
 			icon: 'book',
-			timeLimitSeconds: null
+			timeLimitSeconds: null,
+			xpReward: 0
 		}}
 	/>
 </div>

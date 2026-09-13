@@ -229,6 +229,24 @@ describe('parseQuizForm', () => {
 
 		expect(result.ok ? null : result.errors.timeLimitMinutes).toBeDefined();
 	});
+
+	it('accepts an XP reward and carries it through', () => {
+		const result = parseQuizForm(quizForm({ xpReward: '250' }));
+
+		expect(result.ok && result.value.xpReward).toBe(250);
+	});
+
+	it('defaults a blank XP reward to zero rather than leaving it unset', () => {
+		const result = parseQuizForm(quizForm());
+
+		expect(result.ok && result.value.xpReward).toBe(0);
+	});
+
+	it.each(['-1', '1.5', 'lots'])('rejects an XP reward of %s', (xpReward) => {
+		const result = parseQuizForm(quizForm({ xpReward }));
+
+		expect(result.ok ? null : result.errors.xpReward).toBeDefined();
+	});
 });
 
 describe('parseQuizSectionForm', () => {

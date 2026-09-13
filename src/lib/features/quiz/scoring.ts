@@ -88,8 +88,12 @@ export type ScoredAttempt = {
  *
  * A band with no questions served has `rawMax === 0`; dividing by it would put `NaN` in an
  * integer column, which SQLite would take without complaint.
+ *
+ * Also used to prorate a quiz's flat `xpReward` by how much of it a sitting actually
+ * earned — a learner who gets 1 of 4 right should not walk away with the same XP as one
+ * who got 4 of 4.
  */
-function scale(rawScore: number, rawMax: number, scaledMax: number): number {
+export function scale(rawScore: number, rawMax: number, scaledMax: number): number {
 	if (rawMax === 0) {
 		return 0;
 	}
