@@ -37,6 +37,7 @@ export const TEST_MIGRATIONS = [
 	'migrations/0005_attempt_revision.sql',
 	'migrations/0006_quiz_formats_and_groups.sql',
 	'migrations/0007_attempt_presentations.sql',
+	'migrations/0008_sturdy_mandroid.sql',
 	'migrations/0008_quiz_icon.sql'
 ] as const;
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { AttemptQuestionGroupView, ResultQuestionGroupView } from './attempts/types.server';
 	import Badge from '$lib/components/Badge.svelte';
+	import type { Stimulus } from './api/types';
 	import QuestionMedia from './QuestionMedia.svelte';
 
 	/**
@@ -16,7 +16,7 @@
 		revealStudyAids,
 		onaudioready
 	}: {
-		group: AttemptQuestionGroupView | ResultQuestionGroupView;
+		group: Stimulus;
 		revealStudyAids: boolean;
 		onaudioready?: () => void;
 	} = $props();
@@ -30,7 +30,7 @@
 
 <div class="flex h-full flex-col">
 	<div class="mb-8 flex items-center gap-3">
-		<Badge>{formatLabels[group.format]}</Badge>
+		<Badge>{formatLabels[group.type]}</Badge>
 		{#if group.title}
 			<h2 class="text-sm font-bold tracking-wide text-ink">{group.title}</h2>
 		{/if}
@@ -47,22 +47,22 @@
 		{onaudioready}
 	/>
 
-	{#if group.passageText}
+	{#if group.body}
 		<div class="flex-1 border-l-4 border-brand-red py-1 pl-6">
 			<p class="text-xl leading-loose font-medium whitespace-pre-line text-ink">
-				{group.passageText}
+				{group.body}
 			</p>
 		</div>
 	{/if}
 
-	{#if group.exampleText}
+	{#if group.example}
 		<div class="flex-1 border-l-4 border-brand-red py-1 pl-6">
-			<p class="text-2xl leading-relaxed font-bold text-ink">{group.exampleText}</p>
-			{#if revealStudyAids && group.exampleTransliteration}
-				<p class="mt-2 text-sm text-stone-500 italic">{group.exampleTransliteration}</p>
+			<p class="text-2xl leading-relaxed font-bold text-ink">{group.example.text}</p>
+			{#if revealStudyAids && group.example.transliteration}
+				<p class="mt-2 text-sm text-stone-500 italic">{group.example.transliteration}</p>
 			{/if}
-			{#if revealStudyAids && group.exampleTranslation}
-				<p class="mt-1 text-sm text-stone-500">{group.exampleTranslation}</p>
+			{#if revealStudyAids && group.example.translation}
+				<p class="mt-1 text-sm text-stone-500">{group.example.translation}</p>
 			{/if}
 		</div>
 	{/if}

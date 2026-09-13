@@ -1,58 +1,9 @@
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNotNull, lt } from 'drizzle-orm';
 
+import { currentWeek } from '$lib/features/analytics/analytics';
 import type { Database } from '$lib/server/db';
-import { attempts, quizzes, quizSections } from '$lib/server/db/schema';
-import { calculateStreakDays, type DashboardQuiz } from './dashboard';
-
-async function listPublishedQuizzes(db: Database): Promise<DashboardQuiz[]> {
-	const rows = await db
-		.select({
-			id: quizzes.id,
-			publicId: quizzes.publicId,
-			title: quizzes.title,
-			description: quizzes.description,
-			level: quizzes.level,
-			mode: quizzes.mode,
-			icon: quizzes.icon,
-			timeLimitSeconds: quizzes.timeLimitSeconds,
-			createdAt: quizzes.createdAt
-		})
-		.from(quizzes)
-		.where(eq(quizzes.status, 'PUBLISHED'))
-		.orderBy(desc(quizzes.createdAt));
-
-	if (rows.length === 0) return [];
-
-	const sections = await db
-		.select({ quizId: quizSections.quizId, section: quizSections.section })
-		.from(quizSections)
-		.where(
-			inArray(
-				quizSections.quizId,
-				rows.map((quiz) => quiz.id)
-			)
-		)
-		.orderBy(quizSections.position);
-
-	const sectionsByQuiz = new Map<number, (typeof sections)[number]['section'][]>();
-	for (const row of sections) {
-		const quizSections = sectionsByQuiz.get(row.quizId) ?? [];
-		quizSections.push(row.section);
-		sectionsByQuiz.set(row.quizId, quizSections);
-	}
-
-	return rows.map((quiz) => ({
-		publicId: quiz.publicId,
-		title: quiz.title,
-		description: quiz.description,
-		level: quiz.level,
-		mode: quiz.mode,
-		icon: quiz.icon,
-		timeLimitSeconds: quiz.timeLimitSeconds,
-		sections: sectionsByQuiz.get(quiz.id) ?? [],
-		createdAt: quiz.createdAt.toISOString()
-	}));
-}
+import { attempts } from '$lib/server/db/schema';
+import { calculateStreakDays, summarizeWeeklyActivity } from './dashboard';
 
 async function loadCompletionDates(db: Database, userId: number): Promise<Date[]> {
 	const rows = await db
@@ -70,11 +21,34 @@ async function loadCompletionDates(db: Database, userId: number): Promise<Date[]
 	return rows.flatMap((row) => (row.submittedAt ? [row.submittedAt] : []));
 }
 
-export async function loadDashboard(db: Database, userId: number, now: Date) {
-	const [quizzes, completionDates] = await Promise.all([
-		listPublishedQuizzes(db),
-		loadCompletionDates(db, userId)
-	]);
+export async function loadDashboardStreak(db: Database, userId: number, now: Date) {
+	return calculateStreakDays(await loadCompletionDates(db, userId), now);
+}
 
-	return { quizzes, streakDays: calculateStreakDays(completionDates, now) };
+export async function loadWeeklyActivity(db: Database, userId: number, now: Date) {
+	const period = currentWeek(now, 'UTC');
+	const rows = await db
+		.select({
+			submittedAt: attempts.submittedAt,
+			correctCount: attempts.correctCount,
+			questionCount: attempts.questionCount,
+			rawScore: attempts.rawScore,
+			rawMax: attempts.rawMax
+		})
+		.from(attempts)
+		.where(
+			and(
+				eq(attempts.userId, userId),
+				inArray(attempts.status, ['SUBMITTED', 'EXPIRED']),
+				isNotNull(attempts.submittedAt),
+				gte(attempts.submittedAt, period.start),
+				lt(attempts.submittedAt, period.end)
+			)
+		);
+
+	return summarizeWeeklyActivity(
+		rows.flatMap((row) => (row.submittedAt ? [{ ...row, submittedAt: row.submittedAt }] : [])),
+		period.start,
+		now
+	);
 }

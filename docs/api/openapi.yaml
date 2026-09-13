@@ -403,7 +403,7 @@ components:
       enum: [READING_PASSAGE, LISTENING_CLIP, CONCEPT_REVIEW]
     QuizBase:
       type: object
-      required: [id, title, description, level, mode, selectionMode, timeLimitSeconds]
+      required: [id, title, description, level, mode, selectionMode, icon, timeLimitSeconds]
       properties:
         id:
           $ref: '#/components/schemas/PublicId'
@@ -418,6 +418,10 @@ components:
         selectionMode:
           type: string
           enum: [FIXED, RANDOM]
+        icon:
+          type: string
+          enum:
+            [book, flask, calculator, headphones, microphone, brain, pencil, graduation-cap, trophy]
         timeLimitSeconds:
           type: [integer, 'null']
     QuizSummary:

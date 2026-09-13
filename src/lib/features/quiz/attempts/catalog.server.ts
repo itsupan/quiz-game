@@ -18,6 +18,7 @@ export async function loadQuizOverview(
 			mode: quizzes.mode,
 			level: quizzes.level,
 			selectionMode: quizzes.selectionMode,
+			icon: quizzes.icon,
 			timeLimitSeconds: quizzes.timeLimitSeconds
 		})
 		.from(quizzes)
