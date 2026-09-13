@@ -9,7 +9,6 @@ export type DashboardQuiz = {
 	icon: QuizIcon;
 	timeLimitSeconds: number | null;
 	sections: Section[];
-	createdAt: string;
 };
 
 export type QuizCardItem = {
@@ -79,4 +78,61 @@ export function calculateStreakDays(completions: Date[], now: Date): number {
 	}
 
 	return streak;
+}
+
+export const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
+
+export type DailyActivity = {
+	day: (typeof WEEKDAY_LABELS)[number];
+	questionCount: number;
+	isToday: boolean;
+};
+
+export type WeeklyActivity = {
+	days: DailyActivity[];
+	accuracyPercentage: number | null;
+	points: { earned: number; max: number };
+};
+
+type SubmittedAttemptRow = {
+	submittedAt: Date;
+	correctCount: number | null;
+	questionCount: number | null;
+	rawScore: number | null;
+	rawMax: number | null;
+};
+
+/** Buckets this week's submitted attempts into UTC calendar days, Monday through Sunday. */
+export function summarizeWeeklyActivity(
+	rows: SubmittedAttemptRow[],
+	weekStart: Date,
+	now: Date
+): WeeklyActivity {
+	const startDay = utcDay(weekStart);
+	const today = utcDay(now);
+	const questionsByDay = new Array(7).fill(0) as number[];
+	let correctTotal = 0;
+	let questionTotal = 0;
+	let rawScoreTotal = 0;
+	let rawMaxTotal = 0;
+
+	for (const row of rows) {
+		const offset = utcDay(row.submittedAt) - startDay;
+		if (offset >= 0 && offset < 7) questionsByDay[offset] += row.questionCount ?? 0;
+		correctTotal += row.correctCount ?? 0;
+		questionTotal += row.questionCount ?? 0;
+		rawScoreTotal += row.rawScore ?? 0;
+		rawMaxTotal += row.rawMax ?? 0;
+	}
+
+	return {
+		days: WEEKDAY_LABELS.map((day, index) => ({
+			day,
+			questionCount: questionsByDay[index],
+			isToday: startDay + index === today
+		})),
+		accuracyPercentage:
+			questionTotal === 0 ? null : Math.round((correctTotal / questionTotal) * 100),
+		points: { earned: rawScoreTotal, max: rawMaxTotal }
+	};
 }

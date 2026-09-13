@@ -1,15 +1,26 @@
 <script lang="ts">
-	let { userName, streakDays }: { userName: string; streakDays: number } = $props();
+	import type { WeeklyActivity } from './dashboard';
 
-	const cadence = [
-		{ id: 'mon', day: 'M', height: '45%', active: false },
-		{ id: 'tue', day: 'T', height: '65%', active: false },
-		{ id: 'wed', day: 'W', height: '85%', active: false },
-		{ id: 'thu', day: 'T', height: '50%', active: false },
-		{ id: 'fri', day: 'F', height: '95%', active: true },
-		{ id: 'sat', day: 'S', height: '70%', active: false },
-		{ id: 'sun', day: 'S', height: '90%', active: true }
-	];
+	let {
+		userName,
+		streakDays,
+		weeklyActivity
+	}: { userName: string; streakDays: number; weeklyActivity: WeeklyActivity } = $props();
+
+	/** A day with no practice still gets a sliver of bar — an empty track reads as broken, not as zero. */
+	const MIN_BAR_HEIGHT_PERCENT = 6;
+
+	const maxQuestionCount = $derived(
+		Math.max(1, ...weeklyActivity.days.map((day) => day.questionCount))
+	);
+	const cadence = $derived(
+		weeklyActivity.days.map((day, index) => ({
+			id: index,
+			day: day.day,
+			height: `${Math.max(MIN_BAR_HEIGHT_PERCENT, (day.questionCount / maxQuestionCount) * 100)}%`,
+			active: day.isToday
+		}))
+	);
 </script>
 
 <section aria-labelledby="overview-heading">
@@ -33,7 +44,9 @@
 			>
 				<svg class="h-6 w-6 fill-current" viewBox="0 0 24 24" aria-hidden="true">
 					<path
-						d="M12 23c-4.97 0-9-4.03-9-9 0-3.53 2.06-6.66 5.14-8.08C8.84 8.79 10.42 11 12 11c1.5 0 2.25-1.5 1.5-3.5 3.08 1.42 5.5 4.55 5.5 8.5 0 4.97-4.03 9-9 9z"
+						fill-rule="evenodd"
+						d="M12.963 2.286a.75.75 0 0 0-1.071-.136 9.742 9.742 0 0 0-3.539 6.176 7.547 7.547 0 0 1-1.705-1.715.75.75 0 0 0-1.152-.082A9 9 0 1 0 15.68 4.534a7.46 7.46 0 0 1-2.717-2.248ZM15.75 14.25a3.75 3.75 0 1 1-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 0 1 1.925-3.545 3.75 3.75 0 0 1 3.255 3.717Z"
+						clip-rule="evenodd"
 					></path>
 				</svg>
 			</div>
@@ -87,8 +100,17 @@
 				<div
 					class="flex items-center justify-between border-t border-stone-100 pt-3 text-xs font-bold tracking-wider text-ink uppercase"
 				>
-					<span>ACCURACY: <span class="text-brand-red">94.2%</span></span>
-					<span class="font-mono text-[11px] text-stone-500">180 / 180 PT</span>
+					<span>
+						ACCURACY:
+						<span class="text-brand-red">
+							{weeklyActivity.accuracyPercentage === null
+								? '—'
+								: `${weeklyActivity.accuracyPercentage}%`}
+						</span>
+					</span>
+					<span class="font-mono text-[11px] text-stone-500">
+						{weeklyActivity.points.earned} / {weeklyActivity.points.max} PT
+					</span>
 				</div>
 			</div>
 		</div>

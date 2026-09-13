@@ -38,14 +38,11 @@
 >
 	<header class="sticky top-0 z-30 w-full border-b border-ink bg-white">
 		<div
-			class="mx-auto flex h-16 max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8"
+			class="mx-auto flex h-16 max-w-[1536px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-10"
 		>
 			<div class="flex items-center gap-8 lg:gap-12">
-				<a href={resolve('/home')} class="flex items-center gap-2">
-					<span class="h-6 w-1.5 bg-brand-red"></span>
-					<span class="text-xl font-black tracking-[0.18em] text-brand-red uppercase select-none">
-						QUIZGAME
-					</span>
+				<a href={resolve('/home')} class="flex items-center">
+					<img src="/brand/quiz_game_logo.png" alt="QuizGame" class="h-11 w-auto" />
 				</a>
 
 				<nav aria-label={navLabel} class="hidden items-center gap-6 md:flex lg:gap-8">
@@ -221,7 +218,7 @@
 		</div>
 	</header>
 
-	<div class="mx-auto w-full max-w-[1280px] flex-1 px-4 py-8 sm:px-6 lg:px-8">
+	<div class="mx-auto w-full max-w-[1536px] flex-1 px-4 py-8 sm:px-6 lg:px-10">
 		{@render children()}
 	</div>
 </div>

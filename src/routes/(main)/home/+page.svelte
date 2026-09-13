@@ -11,6 +11,10 @@
 </svelte:head>
 
 <div class="space-y-8">
-	<DashboardOverview userName={data.user?.displayName ?? 'Student'} streakDays={data.streakDays} />
+	<DashboardOverview
+		userName={data.user?.displayName ?? 'Student'}
+		streakDays={data.streakDays}
+		weeklyActivity={data.weeklyActivity}
+	/>
 	<QuizCatalog quizzes={data.quizzes} />
 </div>

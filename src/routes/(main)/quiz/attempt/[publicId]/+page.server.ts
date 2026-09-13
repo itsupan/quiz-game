@@ -1,161 +1,112 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 
+import { readApiData, toActionFailure, toPageError } from '$lib/features/quiz/api/client';
 import {
-	enforceDeadline,
-	finalizeAttempt,
-	loadAttempt,
-	saveAnswer
-} from '$lib/features/quiz/attempts.server';
-import { sectionOpen } from '$lib/features/quiz/timing';
-import type { AttemptView } from '$lib/features/quiz/attempts.server';
+	activeQuestion,
+	getAttempt,
+	redirectForStatus,
+	requestedQuestion
+} from '$lib/features/quiz/api/navigation.server';
+import type { AttemptQuestion } from '$lib/features/quiz/api/types';
 import type { Actions, PageServerLoad } from './$types';
 
-/**
- * Loads the attempt and settles its clock before anything else happens — the one
- * chokepoint every route below calls first, on every load and every action.
- */
-async function openAttempt(locals: App.Locals, publicId: string, now: Date) {
-	const view = await loadAttempt(locals.db, publicId, locals.user!.id);
+export const load: PageServerLoad = async ({ fetch, params, url }) => {
+	try {
+		const attempt = await getAttempt(fetch, params.publicId);
+		redirectForStatus(attempt);
 
-	if (!view) {
-		error(404, 'That attempt does not exist.');
+		const number = requestedQuestion(attempt.progress.total, url.searchParams.get('q'));
+		const question = await readApiData<AttemptQuestion>(
+			fetch(`/api/v1/attempts/${params.publicId}/questions/${number}`)
+		);
+
+		if (!question.canAnswer) {
+			const next = activeQuestion(attempt);
+			if (next !== null && next !== number) {
+				redirect(303, `/quiz/attempt/${params.publicId}?q=${next}`);
+			}
+		}
+
+		return {
+			attempt,
+			question,
+			deadline: attempt.sectionExpiresAt ?? attempt.attemptExpiresAt,
+			deadlineKind: attempt.sectionExpiresAt ? ('section' as const) : ('attempt' as const)
+		};
+	} catch (cause) {
+		toPageError(cause);
 	}
-
-	const status = await enforceDeadline(locals.db, view, now);
-
-	if (status !== 'IN_PROGRESS') {
-		redirect(303, `/quiz/attempt/${publicId}/result`);
-	}
-
-	return view;
-}
-
-function requestedIndex(view: AttemptView, value: string | null) {
-	const requested = Number(value ?? '1');
-
-	return Math.min(
-		Math.max(1, Number.isFinite(requested) ? Math.trunc(requested) : 1),
-		view.questions.length
-	);
-}
-
-/** Finds the first later question whose section still accepts answers. */
-function nextOpenQuestion(view: AttemptView, currentIndex: number, now: Date) {
-	const next = view.questions.findIndex(
-		(question, index) =>
-			index >= currentIndex && sectionOpen(now, view.sectionDeadlines, question.section)
-	);
-
-	return next === -1 ? null : next + 1;
-}
-
-/**
- * A section deadline never leaves the learner stranded on a form the server refuses.
- * Move to the next open section, or close the sitting when every section's time is gone.
- */
-async function movePastClosedSection(
-	locals: App.Locals,
-	view: AttemptView,
-	currentIndex: number,
-	now: Date
-): Promise<never> {
-	const nextIndex = nextOpenQuestion(view, currentIndex, now);
-
-	if (nextIndex !== null) {
-		redirect(303, `/quiz/attempt/${view.attempt.publicId}?q=${nextIndex}`);
-	}
-
-	await finalizeAttempt(locals.db, view.attempt.id, 'EXPIRED', now);
-	redirect(303, `/quiz/attempt/${view.attempt.publicId}/result`);
-}
-
-export const load: PageServerLoad = async ({ locals, params, url }) => {
-	const now = new Date();
-	const view = await openAttempt(locals, params.publicId, now);
-	const index = requestedIndex(view, url.searchParams.get('q'));
-	const question = view.questions[index - 1];
-
-	if (!sectionOpen(now, view.sectionDeadlines, question.section)) {
-		return movePastClosedSection(locals, view, index, now);
-	}
-
-	const deadline =
-		view.sectionDeadlines.find((entry) => entry.section === question.section)?.deadline ??
-		view.attempt.expiresAt;
-	const deadlineKind =
-		deadline !== null &&
-		view.attempt.expiresAt !== null &&
-		deadline.getTime() < view.attempt.expiresAt.getTime()
-			? 'section'
-			: 'attempt';
-
-	return {
-		quiz: view.quiz,
-		deadline: deadline?.toISOString() ?? null,
-		deadlineKind,
-		index,
-		total: view.questions.length,
-		answeredCount: view.questions.filter((question) => question.selectedOptionId !== null).length,
-		question,
-		revealStudyAids: view.attempt.showStudyAidsDuringAttempt
-	};
 };
 
 export const actions: Actions = {
-	answer: async ({ locals, params, request, url }) => {
-		const now = new Date();
-		const view = await openAttempt(locals, params.publicId, now);
+	answer: async ({ fetch, params, request, url }) => {
+		const form = await request.formData();
+		const rawOption = form.get('selectedOptionNumber');
+		const selectedOptionNumber = rawOption === null || rawOption === '' ? null : Number(rawOption);
 
-		const data = await request.formData();
-		const attemptQuestionId = Number(data.get('attemptQuestionId'));
-		const rawOption = data.get('selectedOptionId');
-		const selectedOptionId = rawOption === null || rawOption === '' ? null : Number(rawOption);
-		const currentIndex = requestedIndex(view, url.searchParams.get('q'));
-		const nextIndex = Number(data.get('nextIndex') ?? currentIndex);
-		const submittedQuestion = view.questions.find(
-			(question) => question.attemptQuestionId === attemptQuestionId
-		);
-
-		if (
-			submittedQuestion &&
-			!sectionOpen(now, view.sectionDeadlines, submittedQuestion.section) &&
-			nextIndex > currentIndex
-		) {
-			return movePastClosedSection(locals, view, currentIndex, now);
+		if (selectedOptionNumber !== null && !Number.isInteger(selectedOptionNumber)) {
+			return fail(422, { message: 'Choose a valid answer option.' });
 		}
 
-		const written = await saveAnswer(locals.db, view, attemptQuestionId, selectedOptionId, now);
+		try {
+			const updated = await readApiData<AttemptQuestion>(
+				fetch(`/api/v1/attempts/${params.publicId}/answers/${form.get('questionNumber')}`, {
+					method: 'PUT',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ selectedOptionNumber })
+				})
+			);
 
-		if (!written.ok) {
-			return fail(409, { message: written.message });
+			if (form.get('finish') === 'true') {
+				await readApiData(
+					fetch(`/api/v1/attempts/${params.publicId}/submission`, { method: 'PUT' })
+				);
+				redirect(303, `/quiz/attempt/${params.publicId}/result`);
+			}
+
+			const total = updated.progress.total;
+			const current = requestedQuestion(total, url.searchParams.get('q'));
+			const rawNext = form.get('nextQuestion');
+			const next = typeof rawNext === 'string' ? requestedQuestion(total, rawNext) : current;
+			if (next !== current) {
+				redirect(303, `/quiz/attempt/${params.publicId}?q=${next}`);
+			}
+
+			return { ok: true };
+		} catch (cause) {
+			return toActionFailure(cause);
 		}
-
-		if (nextIndex !== currentIndex) {
-			redirect(303, `/quiz/attempt/${params.publicId}?q=${nextIndex}`);
-		}
-
-		return { ok: true, message: 'Saved.' };
 	},
 
-	advance: async ({ locals, params, url }) => {
-		const now = new Date();
-		const view = await openAttempt(locals, params.publicId, now);
-		const currentIndex = requestedIndex(view, url.searchParams.get('q'));
-		const question = view.questions[currentIndex - 1];
-
-		if (sectionOpen(now, view.sectionDeadlines, question.section)) {
-			redirect(303, `/quiz/attempt/${params.publicId}?q=${currentIndex}`);
+	advance: async ({ fetch, params }) => {
+		try {
+			const attempt = await getAttempt(fetch, params.publicId);
+			redirectForStatus(attempt);
+			const next = activeQuestion(attempt);
+			if (next !== null) redirect(303, `/quiz/attempt/${params.publicId}?q=${next}`);
+			return fail(409, { message: 'No quiz section is currently available.' });
+		} catch (cause) {
+			return toActionFailure(cause);
 		}
-
-		return movePastClosedSection(locals, view, currentIndex, now);
 	},
 
-	submit: async ({ locals, params }) => {
-		const now = new Date();
-		const view = await openAttempt(locals, params.publicId, now);
+	submit: async ({ fetch, params }) => {
+		try {
+			await readApiData(fetch(`/api/v1/attempts/${params.publicId}/submission`, { method: 'PUT' }));
+			redirect(303, `/quiz/attempt/${params.publicId}/result`);
+		} catch (cause) {
+			return toActionFailure(cause);
+		}
+	},
 
-		await finalizeAttempt(locals.db, view.attempt.id, 'SUBMITTED', now);
-
-		redirect(303, `/quiz/attempt/${params.publicId}/result`);
+	exit: async ({ fetch, params }) => {
+		try {
+			await readApiData(
+				fetch(`/api/v1/attempts/${params.publicId}/abandonment`, { method: 'PUT' })
+			);
+			redirect(303, '/home');
+		} catch (cause) {
+			return toActionFailure(cause);
+		}
 	}
 };

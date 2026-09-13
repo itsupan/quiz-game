@@ -1,41 +1,18 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import Badge from '$lib/components/Badge.svelte';
+	import { categoryLabel, RESULT_LABEL, RESULT_TONE } from '$lib/features/analytics/analytics';
+	import type { PageProps } from './$types';
 
-	// Mock Data
-	const progress = [
-		{ label: 'Vocabulary', value: 85, colorClass: 'bg-brand-red', textClass: 'text-brand-red' },
-		{ label: 'Grammar', value: 62, colorClass: 'bg-ink', textClass: 'text-ink' },
-		{ label: 'Listening', value: 40, colorClass: 'bg-stone-500', textClass: 'text-ink' }
-	];
+	let { data }: PageProps = $props();
 
-	const exams = [
-		{
-			date: '2023.10.24',
-			name: 'JLPT N5 Mock Exam Alpha',
-			category: 'Comprehensive',
-			score: 142,
-			maxScore: 180,
-			status: 'pass',
-			scoreClass: 'text-brand-red'
-		},
-		{
-			date: '2023.10.15',
-			name: 'Advanced Conjugation Drill',
-			category: 'Grammar',
-			score: 88,
-			maxScore: 100,
-			status: 'neutral',
-			scoreClass: 'text-ink'
-		},
-		{
-			date: '2023.10.02',
-			name: 'Kanji Set 04 - Nature',
-			category: 'Vocabulary',
-			score: 65,
-			maxScore: 100,
-			status: 'alert',
-			scoreClass: 'text-stone-500'
-		}
+	const dateFormat = new Intl.DateTimeFormat('en-CA');
+
+	/** Cycles through the same three accent colors the section order (vocab, grammar, listening) has always used. */
+	const PROGRESS_COLORS = [
+		{ colorClass: 'bg-brand-red', textClass: 'text-brand-red' },
+		{ colorClass: 'bg-ink', textClass: 'text-ink' },
+		{ colorClass: 'bg-stone-500', textClass: 'text-ink' }
 	];
 </script>
 
@@ -78,14 +55,19 @@
 			</div>
 
 			<div class="border border-ink bg-stone-50 p-6 md:p-8">
-				{#each progress as item (item.label)}
+				{#each data.overview.weeklyPerformance as item, i (item.category)}
 					<div class="mb-6 last:mb-0">
 						<div class="mb-2 flex justify-between font-bold">
 							<span class="text-sm text-ink">{item.label}</span>
-							<span class="text-sm {item.textClass}">{item.value}%</span>
+							<span class="text-sm {PROGRESS_COLORS[i].textClass}">
+								{item.percentage === null ? 'No data' : `${item.percentage}%`}
+							</span>
 						</div>
 						<div class="h-2 w-full bg-stone-200">
-							<div class="h-full {item.colorClass}" style="width: {item.value}%"></div>
+							<div
+								class="h-full {PROGRESS_COLORS[i].colorClass}"
+								style="width: {item.percentage ?? 0}%"
+							></div>
 						</div>
 					</div>
 				{/each}
@@ -101,51 +83,15 @@
 				</div>
 			</div>
 
-			<div class="mb-4 grid grid-cols-2 gap-4">
-				<div class="border border-ink bg-white p-4 md:p-6">
-					<div class="mb-2 text-[10px] font-bold tracking-widest text-stone-500 uppercase">
-						Learned
-					</div>
-					<div class="text-4xl font-black text-brand-red md:text-5xl">428</div>
-				</div>
-				<div class="border border-ink bg-white p-4 md:p-6">
-					<div class="mb-2 text-[10px] font-bold tracking-widest text-stone-500 uppercase">
-						Review
-					</div>
-					<div class="text-4xl font-black text-ink md:text-5xl">89</div>
-				</div>
-			</div>
-
-			<div class="flex items-center justify-between bg-ink p-5 md:p-6">
-				<div>
-					<div class="mb-1 text-[10px] font-bold tracking-widest text-stone-400 uppercase">
-						N4 Target
-					</div>
-					<div class="text-lg font-medium text-white md:text-xl">1500 kanji</div>
-				</div>
-
-				<!-- Circular Progress Ring -->
-				<div class="relative flex h-14 w-14 items-center justify-center md:h-16 md:w-16">
-					<svg class="absolute inset-0 h-full w-full -rotate-90 transform" viewBox="0 0 36 36">
-						<path
-							class="text-stone-800"
-							stroke-width="3"
-							stroke="currentColor"
-							fill="none"
-							d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-						/>
-						<path
-							class="text-brand-red"
-							stroke-dasharray="28, 100"
-							stroke-width="3"
-							stroke-linecap="round"
-							stroke="currentColor"
-							fill="none"
-							d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-						/>
-					</svg>
-					<span class="relative text-xs font-bold text-brand-red md:text-sm">28%</span>
-				</div>
+			<div
+				class="flex h-[calc(100%-2.5rem)] flex-col items-center justify-center gap-2 border border-ink bg-stone-50 p-6 text-center md:p-8"
+			>
+				<p class="text-sm font-bold text-stone-500 uppercase">Kanji tracking coming soon</p>
+				{#if data.overview.kanjiMastery.target.level}
+					<p class="text-xs font-bold text-stone-400 uppercase">
+						Target level: {data.overview.kanjiMastery.target.level}
+					</p>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -158,97 +104,79 @@
 				<h2 class="text-2xl font-black tracking-tight text-ink uppercase">Exam Scores</h2>
 			</div>
 			<a
-				href={resolve('/analytics')}
+				href={resolve('/analytics/exams')}
 				class="border-b border-ink pb-0.5 text-[10px] font-bold tracking-widest text-stone-500 uppercase transition-colors hover:text-ink"
 			>
 				View All Exams
 			</a>
 		</div>
 
-		<div class="w-full overflow-x-auto border-2 border-ink bg-white">
-			<table class="w-full min-w-[700px] text-left">
-				<thead class="bg-stone-50">
-					<tr>
-						<th
-							class="border-b border-ink px-6 py-4 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
-							>Date</th
-						>
-						<th
-							class="border-b border-ink px-6 py-4 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
-							>Exam Name</th
-						>
-						<th
-							class="border-b border-ink px-6 py-4 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
-							>Category</th
-						>
-						<th
-							class="border-b border-ink px-6 py-4 text-right text-[10px] font-bold tracking-widest text-stone-500 uppercase"
-							>Score</th
-						>
-						<th
-							class="border-b border-ink px-6 py-4 text-center text-[10px] font-bold tracking-widest text-stone-500 uppercase"
-							>Status</th
-						>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-line">
-					{#each exams as exam (exam.name)}
+		{#if data.overview.recentExams.length === 0}
+			<p
+				class="w-full border-2 border-ink bg-white p-8 text-center text-sm font-bold text-stone-500 uppercase"
+			>
+				No exams completed yet.
+			</p>
+		{:else}
+			<div class="w-full overflow-x-auto border-2 border-ink bg-white">
+				<table class="w-full min-w-[700px] text-left">
+					<thead class="bg-stone-50">
 						<tr>
-							<td class="px-6 py-5 text-sm font-bold tracking-wider text-ink">{exam.date}</td>
-							<td class="px-6 py-5 text-sm text-ink">{exam.name}</td>
-							<td class="px-6 py-5">
-								<span class="border border-line px-2 py-1 text-[10px] text-stone-600"
-									>{exam.category}</span
-								>
-							</td>
-							<td class="px-6 py-5 text-right font-bold">
-								<span class="text-2xl {exam.scoreClass}">{exam.score}</span>
-								<span class="text-sm text-stone-500">/{exam.maxScore}</span>
-							</td>
-							<td class="px-6 py-5 text-center">
-								{#if exam.status === 'pass'}
-									<svg
-										class="mx-auto h-6 w-6 text-brand-red"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-								{:else if exam.status === 'neutral'}
-									<svg
-										class="mx-auto h-6 w-6 text-stone-400"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<circle cx="12" cy="12" r="9" stroke-width="2" />
-									</svg>
-								{:else}
-									<svg
-										class="mx-auto h-6 w-6 text-brand-red"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-								{/if}
-							</td>
+							<th
+								class="border-b border-ink px-6 py-4 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+								>Date</th
+							>
+							<th
+								class="border-b border-ink px-6 py-4 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+								>Exam Name</th
+							>
+							<th
+								class="border-b border-ink px-6 py-4 text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+								>Category</th
+							>
+							<th
+								class="border-b border-ink px-6 py-4 text-right text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+								>Score</th
+							>
+							<th
+								class="border-b border-ink px-6 py-4 text-center text-[10px] font-bold tracking-widest text-stone-500 uppercase"
+								>Status</th
+							>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+					</thead>
+					<tbody class="divide-y divide-line">
+						{#each data.overview.recentExams as exam (exam.attemptId)}
+							<tr>
+								<td class="px-6 py-5 text-sm font-bold tracking-wider text-ink">
+									{dateFormat.format(new Date(exam.completedAt))}
+								</td>
+								<td class="px-6 py-5 text-sm text-ink">
+									<a
+										href={resolve('/(main)/quiz/attempt/[publicId]/result', {
+											publicId: exam.attemptId
+										})}
+										class="hover:text-brand-red hover:underline"
+									>
+										{exam.title}
+									</a>
+								</td>
+								<td class="px-6 py-5">
+									<span class="border border-line px-2 py-1 text-[10px] text-stone-600"
+										>{categoryLabel(exam.category)}</span
+									>
+								</td>
+								<td class="px-6 py-5 text-right font-bold">
+									<span class="text-2xl text-ink">{exam.score.earned}</span>
+									<span class="text-sm text-stone-500">/{exam.score.maximum}</span>
+								</td>
+								<td class="px-6 py-5 text-center">
+									<Badge tone={RESULT_TONE[exam.result]}>{RESULT_LABEL[exam.result]}</Badge>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
 	</div>
 </div>

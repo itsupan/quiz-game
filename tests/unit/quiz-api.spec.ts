@@ -106,7 +106,11 @@ describe('quiz API application facade', () => {
 		});
 
 		expect(page.items).toHaveLength(1);
-		expect(page.items[0]).toMatchObject({ id: quizPublicId, sections: ['VOCAB_KANJI'] });
+		expect(page.items[0]).toMatchObject({
+			id: quizPublicId,
+			icon: 'book',
+			sections: ['VOCAB_KANJI']
+		});
 		expect(page.nextCursor).toBeNull();
 	});
 

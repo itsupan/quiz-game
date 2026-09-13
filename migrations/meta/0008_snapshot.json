@@ -236,6 +236,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch())"
+        },
+        "jlpt_level": {
+          "name": "jlpt_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -273,6 +280,13 @@
             "status"
           ],
           "isUnique": false
+        },
+        "users_jlpt_level_idx": {
+          "name": "users_jlpt_level_idx",
+          "columns": [
+            "jlpt_level"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -286,6 +300,10 @@
         "users_status_check": {
           "name": "users_status_check",
           "value": "\"users\".\"status\" in ('ACTIVE', 'SUSPENDED')"
+        },
+        "users_jlpt_level_check": {
+          "name": "users_jlpt_level_check",
+          "value": "\"users\".\"jlpt_level\" in ('N5', 'N4', 'N3', 'N2', 'N1')"
         }
       }
     },

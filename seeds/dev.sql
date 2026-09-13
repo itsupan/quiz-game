@@ -10,6 +10,7 @@
 --   quiz 2  N3 MOCK_TEST      FIXED   3 scoring bands (60 each), 3 sections
 --   quiz 3  N3 JLPT_PRACTICE  RANDOM  no bands, draws 5 from the bank
 --   quiz 4  N5 JLPT_PRACTICE  FIXED   3 second first section, 8 second quiz clock
+--   quiz 5  N4 JLPT_PRACTICE  FIXED   every question/group format, image and audio
 --
 -- The questions linked to those published quizzes also cover every learner-facing
 -- presentation: STANDARD, VOCABULARY_MEANING, KANJI_READING, GRAMMAR_CLOZE,
@@ -28,10 +29,10 @@ ON CONFLICT(id) DO NOTHING;
 -- Keep a database seeded before learner levels existed useful for the level filter.
 UPDATE users SET jlpt_level = 'N4' WHERE id = 2 AND role = 'USER';
 
--- The bytes these rows describe live in R2, not here — `pnpm db:seed:media` puts
--- seeds/fixtures/sample-image.png and sample-audio.mp3 at these exact keys in the local
--- bucket. Without that step the rows exist but `/media/[publicId]` 404s them, the same
--- as a half-completed delete.
+-- The bytes these rows describe live in R2, not here — `pnpm db:seed:media` puts the
+-- matching files from seeds/fixtures/ at these exact keys in the local bucket. Without
+-- that step the rows exist but `/media/[publicId]` 404s them, the same as a
+-- half-completed delete. See seeds/fixtures/README.md for third-party attribution.
 INSERT INTO media_assets
 	(id, public_id, kind, r2_key, mime_type, byte_size, alt_text, transcript, original_filename, uploaded_by)
 VALUES
@@ -41,6 +42,30 @@ VALUES
 		NULL, '（音声）男の人と女の人が話しています。「では、これで会議を終わります。」',
 		'sample-audio.mp3', 1)
 ON CONFLICT(id) DO NOTHING;
+
+-- Real-world, openly licensed media used only by the all-types showcase. Separate rows
+-- preserve the tiny synthetic fixtures used by deterministic API and E2E tests.
+INSERT INTO media_assets
+	(public_id, kind, r2_key, mime_type, byte_size, duration_ms, width, height, alt_text,
+	 transcript, original_filename, uploaded_by)
+VALUES
+	('01JSEEDASSETJPG00000000000', 'IMAGE', '01JSEEDASSETJPG00000000000.jpg',
+		'image/jpeg', 365301, NULL, 1280, 960,
+		'青空の下にある赤レンガ造りの東京駅丸の内駅舎。前の広場を人々が歩いています。',
+		NULL, 'tokyo-station.jpg', 1),
+	('01JSEEDASSETJPN00000000000', 'AUDIO', '01JSEEDASSETJPN00000000000.ogg',
+		'audio/ogg', 12728, 830, NULL, NULL, NULL, '日本語（にほんご）', 'nihongo.ogg', 1)
+ON CONFLICT(public_id) DO UPDATE SET
+	kind = excluded.kind,
+	r2_key = excluded.r2_key,
+	mime_type = excluded.mime_type,
+	byte_size = excluded.byte_size,
+	duration_ms = excluded.duration_ms,
+	width = excluded.width,
+	height = excluded.height,
+	alt_text = excluded.alt_text,
+	transcript = excluded.transcript,
+	original_filename = excluded.original_filename;
 
 INSERT INTO quizzes (id, public_id, title, description, mode, level, selection_mode, time_limit_seconds, scaled_total_max, pass_mark_total, status, created_by, published_at) VALUES
 	(1, '01JSEEDQZN4EXAM00000000000', 'JLPT N4 模擬本試験', '本試験と同じ構成の N4 フルテストです。', 'FULL_EXAM', 'N4', 'FIXED', 6900, 180, 90, 'PUBLISHED', 1, unixepoch()),
@@ -111,8 +136,14 @@ WHERE id = 1;
 UPDATE questions
 SET format = 'VOCABULARY_MEANING', focus_text = '明確', focus_reading = 'めいかく'
 WHERE id = 5;
+-- `stem` held the full sentence from this row's original GRAMMAR_READING insert above;
+-- once GRAMMAR_CLOZE gave it a dedicated `context_text` for that sentence, the leftover
+-- `stem` just repeated it back verbatim under its own heading. `stem` is the one field
+-- every presentation type shows as its question line, so it needs to be an instruction
+-- here, not the passage `context_text` already renders.
 UPDATE questions
 SET format = 'GRAMMAR_CLOZE', group_id = 3, group_position = 1,
+	stem = '正しい 形を 選びなさい。',
 	context_text = '雨が ふって いる ので、試合は 中止に ___。',
 	context_transliteration = 'Ame ga futte iru node, shiai wa chuushi ni ___.',
 	prompt_translation = 'Choose the correct form to complete the sentence.'
@@ -265,3 +296,234 @@ SET quiz_section_id = (
 	SELECT id FROM quiz_sections WHERE quiz_id = 4 AND section = 'GRAMMAR_READING'
 )
 WHERE id = 12;
+
+-- Quiz 5: one short manual-test deck containing every learner-facing presentation.
+-- It includes dedicated real-world image and audio fixtures, while
+-- `pnpm db:setup:local` remains the only setup command a developer needs.
+INSERT INTO question_groups
+	(public_id, level, section, format, title, passage_text, body_translation, instruction,
+	 status, created_by)
+VALUES
+	('01JSEEDGRPN4READ0000000000', 'N4', 'GRAMMAR_READING', 'READING_PASSAGE',
+		'週末の予定',
+		'土曜日の朝、山田さんは九時に駅で友達と会います。それから、二人で電車に乗って美術館へ行きます。美術館を見た後で、近くのレストランで昼ごはんを食べる予定です。',
+		'On Saturday morning, Yamada will meet a friend at the station at nine. They will take the train to an art museum, then have lunch at a nearby restaurant.',
+		'文章を読んで、質問に答えなさい。', 'PUBLISHED', 1)
+ON CONFLICT(public_id) DO UPDATE SET
+	level = excluded.level,
+	section = excluded.section,
+	format = excluded.format,
+	title = excluded.title,
+	passage_text = excluded.passage_text,
+	body_translation = excluded.body_translation,
+	instruction = excluded.instruction,
+	status = excluded.status;
+
+INSERT INTO question_groups
+	(public_id, level, section, format, title, instruction, audio_media_id, status, created_by)
+VALUES
+	('01JSEEDGRPN4SND00000000000', 'N4', 'LISTENING', 'LISTENING_CLIP',
+		'ことばを聞く', '音声を聞いて、聞こえたことばを選びなさい。',
+		(SELECT id FROM media_assets WHERE public_id = '01JSEEDASSETJPN00000000000'),
+		'PUBLISHED', 1)
+ON CONFLICT(public_id) DO UPDATE SET
+	level = excluded.level,
+	section = excluded.section,
+	format = excluded.format,
+	title = excluded.title,
+	instruction = excluded.instruction,
+	audio_media_id = excluded.audio_media_id,
+	status = excluded.status;
+
+INSERT INTO questions
+	(public_id, level, section, format, stem, explanation, prompt_translation, focus_text,
+	 focus_reading, points, status, created_by)
+VALUES
+	('01JSEEDQ001700000000000000', 'N4', 'VOCAB_KANJI', 'VOCABULARY_MEANING',
+		'「準備」と 同じ 意味に いちばん 近い ものは どれですか。',
+		'「準備」は、何かをする前に必要なものをそろえることです。',
+		'Which choice is closest in meaning to 準備?', '準備', 'じゅんび', 1, 'PUBLISHED', 1)
+ON CONFLICT(public_id) DO UPDATE SET
+	level = excluded.level,
+	section = excluded.section,
+	format = excluded.format,
+	stem = excluded.stem,
+	explanation = excluded.explanation,
+	prompt_translation = excluded.prompt_translation,
+	focus_text = excluded.focus_text,
+	focus_reading = excluded.focus_reading,
+	status = excluded.status;
+
+INSERT INTO questions
+	(public_id, group_id, group_position, level, section, format, stem, explanation,
+	 prompt_translation, points, status, created_by)
+VALUES
+	('01JSEEDQ001800000000000000',
+		(SELECT id FROM question_groups WHERE public_id = '01JSEEDGRPN4READ0000000000'),
+		1, 'N4', 'GRAMMAR_READING', 'READING_COMPREHENSION',
+		'山田さんは 何時に 友達と 会いますか。',
+		'本文に「九時に駅で友達と会います」とあります。',
+		'What time will Yamada meet the friend?', 1, 'PUBLISHED', 1)
+ON CONFLICT(public_id) DO UPDATE SET
+	group_id = excluded.group_id,
+	group_position = excluded.group_position,
+	level = excluded.level,
+	section = excluded.section,
+	format = excluded.format,
+	stem = excluded.stem,
+	explanation = excluded.explanation,
+	prompt_translation = excluded.prompt_translation,
+	status = excluded.status;
+
+INSERT INTO questions
+	(public_id, level, section, format, stem, explanation, prompt_translation, points,
+	 image_media_id, status, created_by)
+VALUES
+	('01JSEEDQ001900000000000000', 'N4', 'VOCAB_KANJI', 'STANDARD',
+		'写真に 写っている 場所は どこですか。', '赤レンガの建物は東京駅の丸の内駅舎です。',
+		'Which place is shown in the photograph?', 1,
+		(SELECT id FROM media_assets WHERE public_id = '01JSEEDASSETJPG00000000000'),
+		'PUBLISHED', 1)
+ON CONFLICT(public_id) DO UPDATE SET
+	level = excluded.level,
+	section = excluded.section,
+	format = excluded.format,
+	stem = excluded.stem,
+	explanation = excluded.explanation,
+	prompt_translation = excluded.prompt_translation,
+	image_media_id = excluded.image_media_id,
+	status = excluded.status;
+
+INSERT INTO questions
+	(public_id, group_id, group_position, level, section, format, stem, explanation,
+	 prompt_translation, points, status, created_by)
+VALUES
+	('01JSEEDQ002000000000000000',
+		(SELECT id FROM question_groups WHERE public_id = '01JSEEDGRPN4SND00000000000'),
+		1, 'N4', 'LISTENING', 'LISTENING_COMPREHENSION',
+		'聞こえた ことばは どれですか。', '音声では「日本語（にほんご）」と言っています。',
+		'Which word did you hear?', 1, 'PUBLISHED', 1)
+ON CONFLICT(public_id) DO UPDATE SET
+	group_id = excluded.group_id,
+	group_position = excluded.group_position,
+	level = excluded.level,
+	section = excluded.section,
+	format = excluded.format,
+	stem = excluded.stem,
+	explanation = excluded.explanation,
+	prompt_translation = excluded.prompt_translation,
+	status = excluded.status;
+
+INSERT INTO question_options (question_id, body, is_correct, position)
+SELECT id, '用意すること', 1, 1 FROM questions WHERE public_id = '01JSEEDQ001700000000000000'
+UNION ALL
+SELECT id, '片づけること', 0, 2 FROM questions WHERE public_id = '01JSEEDQ001700000000000000'
+UNION ALL
+SELECT id, '休むこと', 0, 3 FROM questions WHERE public_id = '01JSEEDQ001700000000000000'
+UNION ALL
+SELECT id, '忘れること', 0, 4 FROM questions WHERE public_id = '01JSEEDQ001700000000000000'
+ON CONFLICT(question_id, position) DO UPDATE SET
+	body = excluded.body,
+	is_correct = excluded.is_correct;
+
+INSERT INTO question_options (question_id, body, is_correct, position)
+SELECT id, '午前九時', 1, 1 FROM questions WHERE public_id = '01JSEEDQ001800000000000000'
+UNION ALL
+SELECT id, '午前十時', 0, 2 FROM questions WHERE public_id = '01JSEEDQ001800000000000000'
+UNION ALL
+SELECT id, '正午', 0, 3 FROM questions WHERE public_id = '01JSEEDQ001800000000000000'
+UNION ALL
+SELECT id, '午後一時', 0, 4 FROM questions WHERE public_id = '01JSEEDQ001800000000000000'
+ON CONFLICT(question_id, position) DO UPDATE SET
+	body = excluded.body,
+	is_correct = excluded.is_correct;
+
+INSERT INTO question_options (question_id, body, is_correct, position)
+SELECT id, '東京駅', 1, 1 FROM questions WHERE public_id = '01JSEEDQ001900000000000000'
+UNION ALL
+SELECT id, '京都駅', 0, 2 FROM questions WHERE public_id = '01JSEEDQ001900000000000000'
+UNION ALL
+SELECT id, '新宿駅', 0, 3 FROM questions WHERE public_id = '01JSEEDQ001900000000000000'
+UNION ALL
+SELECT id, '大阪駅', 0, 4 FROM questions WHERE public_id = '01JSEEDQ001900000000000000'
+ON CONFLICT(question_id, position) DO UPDATE SET
+	body = excluded.body,
+	is_correct = excluded.is_correct;
+
+INSERT INTO question_options (question_id, body, is_correct, position)
+SELECT id, '日本語', 1, 1 FROM questions WHERE public_id = '01JSEEDQ002000000000000000'
+UNION ALL
+SELECT id, '日本人', 0, 2 FROM questions WHERE public_id = '01JSEEDQ002000000000000000'
+UNION ALL
+SELECT id, '日本', 0, 3 FROM questions WHERE public_id = '01JSEEDQ002000000000000000'
+UNION ALL
+SELECT id, '英語', 0, 4 FROM questions WHERE public_id = '01JSEEDQ002000000000000000'
+ON CONFLICT(question_id, position) DO UPDATE SET
+	body = excluded.body,
+	is_correct = excluded.is_correct;
+
+INSERT INTO quizzes
+	(public_id, title, description, mode, level, selection_mode, icon,
+	 show_study_aids_during_attempt, xp_reward, status, created_by, published_at)
+VALUES
+	('01JSEEDQZN4TYPEDECK0000000', 'N4 全問題タイプ確認クイズ',
+		'標準・語彙・漢字・文法・読解・聴解と、画像・音声を一度に確認できます。',
+		'JLPT_PRACTICE', 'N4', 'FIXED', 'flask', true, 25, 'PUBLISHED', 1, unixepoch())
+ON CONFLICT(public_id) DO UPDATE SET
+	title = excluded.title,
+	description = excluded.description,
+	mode = excluded.mode,
+	level = excluded.level,
+	selection_mode = excluded.selection_mode,
+	icon = excluded.icon,
+	show_study_aids_during_attempt = excluded.show_study_aids_during_attempt,
+	xp_reward = excluded.xp_reward,
+	status = excluded.status,
+	published_at = excluded.published_at;
+
+INSERT INTO quiz_sections (quiz_id, section, position, time_limit_seconds, draw_count)
+VALUES
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'), 'VOCAB_KANJI', 1, NULL, NULL),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'), 'GRAMMAR_READING', 2, NULL, NULL),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'), 'LISTENING', 3, NULL, NULL)
+ON CONFLICT(quiz_id, section) DO UPDATE SET
+	position = excluded.position,
+	time_limit_seconds = excluded.time_limit_seconds,
+	draw_count = excluded.draw_count;
+
+INSERT INTO quiz_questions (quiz_id, quiz_section_id, question_id, position)
+VALUES
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'VOCAB_KANJI'), 2, 1),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'VOCAB_KANJI'), 1, 2),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'VOCAB_KANJI'),
+		(SELECT id FROM questions WHERE public_id = '01JSEEDQ001700000000000000'), 3),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'VOCAB_KANJI'), 14, 4),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'VOCAB_KANJI'),
+		(SELECT id FROM questions WHERE public_id = '01JSEEDQ001900000000000000'), 5),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'GRAMMAR_READING'), 3, 1),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'GRAMMAR_READING'),
+		(SELECT id FROM questions WHERE public_id = '01JSEEDQ001800000000000000'), 2),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'LISTENING'), 4, 1),
+	((SELECT id FROM quizzes WHERE public_id = '01JSEEDQZN4TYPEDECK0000000'),
+		(SELECT section.id FROM quiz_sections section INNER JOIN quizzes quiz ON quiz.id = section.quiz_id
+		 WHERE quiz.public_id = '01JSEEDQZN4TYPEDECK0000000' AND section.section = 'LISTENING'),
+		(SELECT id FROM questions WHERE public_id = '01JSEEDQ002000000000000000'), 2)
+ON CONFLICT(quiz_id, question_id) DO UPDATE SET
+	quiz_section_id = excluded.quiz_section_id,
+	position = excluded.position;

@@ -6,7 +6,7 @@
 	import Notice from '$lib/components/Notice.svelte';
 	import QuestionBody from '$lib/features/quiz/QuestionBody.svelte';
 	import QuestionContextPanel from '$lib/features/quiz/QuestionContextPanel.svelte';
-	import type { ResultQuestionView } from '$lib/features/quiz/attempts.server';
+	import { stimulusFor, type ResultQuestion } from '$lib/features/quiz/api/types';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -29,13 +29,13 @@
 		incorrect: 'Incorrect'
 	} as const;
 
-	function statusOf(question: ResultQuestionView): keyof typeof statusLabels {
+	function statusOf(question: ResultQuestion): keyof typeof statusLabels {
 		if (question.isCorrect) return 'correct';
-		return question.selectedOptionId === null ? 'unanswered' : 'incorrect';
+		return question.selectedOptionNumber === null ? 'unanswered' : 'incorrect';
 	}
 </script>
 
-{#snippet statusBadge(question: ResultQuestionView)}
+{#snippet statusBadge(question: ResultQuestion)}
 	{@const status = statusOf(question)}
 	<div
 		class="flex items-center justify-between border-b border-line px-6 py-3 {status === 'correct'
@@ -68,12 +68,13 @@
 	</div>
 {/snippet}
 
-{#snippet reviewFeedback(question: ResultQuestionView)}
-	{#if question.selectedOptionId === null}
+{#snippet reviewFeedback(question: ResultQuestion)}
+	{#if question.selectedOptionNumber === null}
 		<Notice tone="warning">You left this one unanswered.</Notice>
 	{:else if !question.isCorrect}
 		<Notice tone="danger">
-			You chose {question.options.find((option) => option.id === question.selectedOptionId)?.body}.
+			You chose {question.options.find((option) => option.number === question.selectedOptionNumber)
+				?.body}.
 		</Notice>
 	{/if}
 
@@ -227,21 +228,23 @@
 
 	{#if visibleQuestions.length > 0}
 		<div class="flex flex-col gap-6">
-			{#each visibleQuestions as question (question.attemptQuestionId)}
+			{#each visibleQuestions as question (question.number)}
 				<Card>
 					{@render statusBadge(question)}
 
-					{#if question.group}
+					{@const stimulus = stimulusFor(question)}
+					{#if stimulus}
 						<div class="grid grid-cols-1 lg:grid-cols-2">
 							<div class="border-b border-line bg-stone-50 p-6 lg:border-r lg:border-b-0">
-								<QuestionContextPanel group={question.group} revealStudyAids={true} />
+								<QuestionContextPanel group={stimulus} revealStudyAids={true} />
 							</div>
 							<div class="p-6">
 								<QuestionBody
 									{question}
 									revealStudyAids={true}
-									name="reviewOption-{question.attemptQuestionId}"
-									selectedOptionId={question.correctOptionId}
+									name="reviewOption-{question.number}"
+									selectedOptionId={question.selectedOptionNumber}
+									correctOptionNumber={question.correctOptionNumber}
 									disabled
 								/>
 								<div class="mt-4">
@@ -254,8 +257,9 @@
 							<QuestionBody
 								{question}
 								revealStudyAids={true}
-								name="reviewOption-{question.attemptQuestionId}"
-								selectedOptionId={question.correctOptionId}
+								name="reviewOption-{question.number}"
+								selectedOptionId={question.selectedOptionNumber}
+								correctOptionNumber={question.correctOptionNumber}
 								disabled
 							/>
 							<div class="mt-4">

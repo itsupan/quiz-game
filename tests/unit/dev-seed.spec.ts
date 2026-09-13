@@ -7,8 +7,15 @@ import { applyTestMigrations } from '$lib/server/db/test-harness';
 
 const DEV_SEED = readFileSync('seeds/dev.sql', 'utf8');
 
-function values(sqlite: DatabaseSync, query: string, column: string): string[] {
-	return (sqlite.prepare(query).all() as Record<string, string>[]).map((row) => row[column]).sort();
+function values(
+	sqlite: DatabaseSync,
+	query: string,
+	column: string,
+	...parameters: string[]
+): string[] {
+	return (sqlite.prepare(query).all(...parameters) as Record<string, string>[])
+		.map((row) => row[column])
+		.sort();
 }
 
 describe('development seed', () => {
@@ -71,6 +78,79 @@ describe('development seed', () => {
 				'format'
 			)
 		).toEqual([...GROUP_FORMATS].sort());
+	});
+
+	it('provides one showcase quiz with every presentation plus image and audio', () => {
+		sqlite.exec(DEV_SEED);
+
+		const quizId = '01JSEEDQZN4TYPEDECK0000000';
+		expect(
+			values(
+				sqlite,
+				`SELECT DISTINCT question.format
+				 FROM questions question
+				 INNER JOIN quiz_questions quiz_question ON quiz_question.question_id = question.id
+				 INNER JOIN quizzes quiz ON quiz.id = quiz_question.quiz_id
+				 WHERE quiz.public_id = ?`,
+				'format',
+				quizId
+			)
+		).toEqual([...QUESTION_FORMATS].sort());
+		expect(
+			values(
+				sqlite,
+				`SELECT DISTINCT question_group.format
+				 FROM question_groups question_group
+				 INNER JOIN questions question ON question.group_id = question_group.id
+				 INNER JOIN quiz_questions quiz_question ON quiz_question.question_id = question.id
+				 INNER JOIN quizzes quiz ON quiz.id = quiz_question.quiz_id
+				 WHERE quiz.public_id = ?`,
+				'format',
+				quizId
+			)
+		).toEqual([...GROUP_FORMATS].sort());
+		expect(
+			values(
+				sqlite,
+				`SELECT DISTINCT media.kind
+				 FROM quizzes quiz
+				 INNER JOIN quiz_questions quiz_question ON quiz_question.quiz_id = quiz.id
+				 INNER JOIN questions question ON question.id = quiz_question.question_id
+				 LEFT JOIN question_groups question_group ON question_group.id = question.group_id
+				 INNER JOIN media_assets media ON media.id IN (
+					question.image_media_id,
+					question.audio_media_id,
+					question_group.image_media_id,
+					question_group.audio_media_id
+				 )
+				 WHERE quiz.public_id = ?`,
+				'kind',
+				quizId
+			)
+		).toEqual(['AUDIO', 'IMAGE']);
+		expect(
+			values(
+				sqlite,
+				`SELECT DISTINCT media.public_id
+					 FROM quizzes quiz
+					 INNER JOIN quiz_questions quiz_question ON quiz_question.quiz_id = quiz.id
+					 INNER JOIN questions question ON question.id = quiz_question.question_id
+					 LEFT JOIN question_groups question_group ON question_group.id = question.group_id
+					 INNER JOIN media_assets media ON media.id IN (
+						question.image_media_id,
+						question.audio_media_id,
+						question_group.image_media_id,
+						question_group.audio_media_id
+					 )
+					 WHERE quiz.public_id = ?
+					  AND media.public_id IN (
+						'01JSEEDASSETJPG00000000000',
+						'01JSEEDASSETJPN00000000000'
+					  )`,
+				'public_id',
+				quizId
+			)
+		).toEqual(['01JSEEDASSETJPG00000000000', '01JSEEDASSETJPN00000000000']);
 	});
 
 	it('gives each fixed section questions and each random section a sufficient bank', () => {

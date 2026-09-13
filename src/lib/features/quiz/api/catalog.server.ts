@@ -55,6 +55,7 @@ export async function listPublishedQuizzes(db: Database, filters: CatalogFilters
 			level: quizzes.level,
 			mode: quizzes.mode,
 			selectionMode: quizzes.selectionMode,
+			icon: quizzes.icon,
 			timeLimitSeconds: quizzes.timeLimitSeconds
 		})
 		.from(quizzes)
@@ -99,6 +100,7 @@ export async function getPublishedQuiz(db: Database, quizId: string) {
 		mode: quiz.mode,
 		level: quiz.level,
 		selectionMode: quiz.selectionMode,
+		icon: quiz.icon,
 		timeLimitSeconds: quiz.timeLimitSeconds,
 		sections: quiz.sections
 	};

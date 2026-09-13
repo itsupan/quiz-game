@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { AttemptQuestionView, ResultQuestionView } from './attempts/types.server';
 	import Badge from '$lib/components/Badge.svelte';
+	import { stimulusFor, type AttemptQuestion, type ResultQuestion } from './api/types';
 	import OptionList from './OptionList.svelte';
 	import QuestionMedia from './QuestionMedia.svelte';
 
@@ -18,29 +18,40 @@
 		revealStudyAids,
 		name,
 		selectedOptionId,
+		correctOptionNumber,
 		disabled = false,
 		/** Off on the attempt page — its own sticky status bar already names the section. */
 		showSectionBadge = true,
 		onaudioready
 	}: {
-		question: AttemptQuestionView | ResultQuestionView;
+		question: AttemptQuestion | ResultQuestion;
 		revealStudyAids: boolean;
 		name: string;
 		selectedOptionId: number | null;
+		/** Only passed by the result review list — see `OptionList` for what it switches on. */
+		correctOptionNumber?: number | null;
 		disabled?: boolean;
 		showSectionBadge?: boolean;
 		onaudioready?: () => void;
 	} = $props();
 
 	/** Withheld for KANJI_READING: the reading is exactly what the options are testing. */
-	const showFocusReading = $derived(
-		question.focusReading !== null && question.format === 'VOCABULARY_MEANING'
+	const presentation = $derived(question.presentation);
+	const focus = $derived(
+		presentation.type === 'VOCABULARY_MEANING' || presentation.type === 'KANJI_READING'
+			? presentation.focus
+			: null
 	);
-
-	const clozeParts = $derived(question.contextText?.split(/_{2,}/) ?? []);
+	const context = $derived(presentation.type === 'GRAMMAR_CLOZE' ? presentation.context : null);
+	const group = $derived(stimulusFor(question));
+	const showFocusReading = $derived(
+		focus?.reading !== null && presentation.type === 'VOCABULARY_MEANING'
+	);
+	const clozeParts = $derived(context?.text?.split(/_{2,}/) ?? []);
+	const options = $derived(question.options);
 </script>
 
-<div class="flex flex-col gap-6">
+<div class="flex flex-col gap-4">
 	<div>
 		{#if showSectionBadge}
 			<div class="mb-3 flex items-center gap-2">
@@ -48,22 +59,22 @@
 			</div>
 		{/if}
 		<h2 class="text-xl leading-snug font-bold text-ink">{question.stem}</h2>
-		{#if revealStudyAids && question.promptTranslation}
-			<p class="mt-2 text-sm text-stone-500 italic">{question.promptTranslation}</p>
+		{#if revealStudyAids && presentation.prompt.translation}
+			<p class="mt-2 text-sm text-stone-500 italic">{presentation.prompt.translation}</p>
 		{/if}
 	</div>
 
-	{#if question.focusText}
-		<div class="border-2 border-ink bg-paper px-8 py-6 text-center">
-			<p class="text-4xl font-black tracking-wide text-ink">{question.focusText}</p>
+	{#if focus?.text}
+		<div class="border-2 border-ink bg-paper px-6 py-4 text-center">
+			<p class="text-4xl font-black tracking-wide text-ink">{focus.text}</p>
 			{#if showFocusReading}
-				<p class="mt-2 text-sm font-bold text-stone-500">{question.focusReading}</p>
+				<p class="mt-2 text-sm font-bold text-stone-500">{focus.reading}</p>
 			{/if}
 		</div>
 	{/if}
 
-	{#if question.contextText}
-		<div class="border-2 border-ink bg-paper px-6 py-5">
+	{#if context?.text}
+		<div class="border-2 border-ink bg-paper px-5 py-4">
 			<p class="text-xl leading-relaxed font-bold text-ink">
 				{#each clozeParts as part, i (i)}
 					{part}{#if i < clozeParts.length - 1}<span
@@ -72,13 +83,13 @@
 						>{/if}
 				{/each}
 			</p>
-			{#if revealStudyAids && question.contextTransliteration}
-				<p class="mt-3 text-sm text-stone-500 italic">{question.contextTransliteration}</p>
+			{#if revealStudyAids && context.transliteration}
+				<p class="mt-3 text-sm text-stone-500 italic">{context.transliteration}</p>
 			{/if}
 		</div>
 	{/if}
 
-	{#if !question.group}
+	{#if !group}
 		<QuestionMedia
 			image={question.image}
 			audio={question.audio}
@@ -87,5 +98,7 @@
 		/>
 	{/if}
 
-	<OptionList {name} options={question.options} {selectedOptionId} {disabled} />
+	{#key question.number}
+		<OptionList {name} {options} {selectedOptionId} {correctOptionNumber} {disabled} />
+	{/key}
 </div>

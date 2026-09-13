@@ -17,16 +17,24 @@
 		message,
 		confirmLabel = label,
 		formaction,
+		form,
 		name,
-		value
+		value,
+		disabled = false,
+		triggerVariant = 'danger',
+		open = $bindable(false)
 	}: {
 		label: string;
 		title: string;
 		message: string;
 		confirmLabel?: string;
 		formaction?: string;
+		form?: string;
 		name?: string;
 		value?: string;
+		disabled?: boolean;
+		triggerVariant?: 'danger' | 'ghost';
+		open?: boolean;
 	} = $props();
 
 	// A title can contain spaces, so it cannot double as an element id.
@@ -35,6 +43,23 @@
 	let dialog: HTMLDialogElement;
 	let trigger: HTMLButtonElement;
 	let confirmed = false;
+	const triggerClasses = $derived(
+		`min-h-8 cursor-pointer border-2 px-3 text-xs font-bold tracking-wider uppercase transition-colors focus-visible:outline-3 focus-visible:outline-offset-4 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 ${
+			triggerVariant === 'ghost'
+				? 'border-line-strong bg-white text-muted hover:border-danger hover:text-danger'
+				: 'border-danger bg-danger-soft text-danger'
+		}`
+	);
+
+	$effect(() => {
+		if (!dialog) return;
+
+		if (open && !dialog.open) {
+			dialog.showModal();
+		} else if (!open && dialog.open) {
+			dialog.close();
+		}
+	});
 
 	function intercept(event: MouseEvent) {
 		if (confirmed) {
@@ -47,12 +72,17 @@
 		}
 
 		event.preventDefault();
-		dialog.showModal();
+		open = true;
+	}
+
+	function close() {
+		open = false;
+		dialog.close();
 	}
 
 	function proceed() {
 		confirmed = true;
-		dialog.close();
+		close();
 		// Re-clicking the original button keeps its formaction, name and value, which a
 		// requestSubmit() on the form would drop.
 		trigger.click();
@@ -66,9 +96,11 @@
 -->
 <button
 	bind:this={trigger}
-	class="min-h-8 cursor-pointer border-2 border-danger bg-danger-soft px-3 text-xs font-bold tracking-wider text-danger uppercase"
+	class={triggerClasses}
 	type="submit"
+	{disabled}
 	{formaction}
+	{form}
 	{name}
 	{value}
 	onclick={intercept}
@@ -80,6 +112,7 @@
 	bind:this={dialog}
 	aria-labelledby={headingId}
 	class="max-w-[26rem] border-2 border-ink p-5 text-ink shadow-hard"
+	onclose={() => (open = false)}
 >
 	<h2 id={headingId} class="text-lg font-black tracking-tight uppercase">{title}</h2>
 	<p class="mt-0 mb-5 text-sm text-muted">{message}</p>
@@ -87,7 +120,7 @@
 		<button
 			type="button"
 			class="min-h-8 cursor-pointer border-2 border-line-strong bg-white px-3 text-xs font-bold tracking-wider text-ink uppercase"
-			onclick={() => dialog.close()}>Cancel</button
+			onclick={close}>Cancel</button
 		>
 		<button
 			type="button"
