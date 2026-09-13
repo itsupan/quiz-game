@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-
-	import Button from '$lib/components/Button.svelte';
-	import Field from '$lib/components/Field.svelte';
 	import { JLPT_LEVELS, QUIZ_ICONS, QUIZ_MODES, SELECTION_MODES } from '$lib/domain/enums';
 
-	/** Human-readable labels for the `QUIZ_ICONS` presets, in the same order. */
 	const ICON_LABELS: Record<(typeof QUIZ_ICONS)[number], string> = {
 		book: 'Book',
 		flask: 'Flask',
@@ -18,13 +14,6 @@
 		trophy: 'Trophy'
 	};
 
-	/**
-	 * Quiz details, shared by the create and edit pages.
-	 *
-	 * Time limits are entered in minutes and stored in seconds. The schema is in seconds
-	 * because the server computes `expires_at` from it; nobody configures a 6900-second
-	 * exam.
-	 */
 	let {
 		action = '',
 		submitLabel,
@@ -64,102 +53,194 @@
 		initial.timeLimitSeconds === null ? null : Math.round(initial.timeLimitSeconds / 60)
 	);
 
-	/**
-	 * The selects are two-way bound rather than given a one-way `value`.
-	 *
-	 * A one-way `value={...}` is re-asserted whenever the component re-renders — including
-	 * during hydration — so a choice made in the moment between the server HTML arriving
-	 * and hydration finishing is silently reverted. Seeded once from the props, then owned
-	 * by the person filling the form in.
-	 */
 	let mode = $state(untrack(() => field('mode', initial.mode)));
 	let level = $state(untrack(() => field('level', initial.level)));
 	let selectionMode = $state(untrack(() => field('selectionMode', initial.selectionMode)));
 	let icon = $state(untrack(() => field('icon', initial.icon)));
 </script>
 
-<form method="POST" {action}>
-	<section class="mb-5 border-2 border-ink bg-white p-5">
-		<Field id="title" label="Title" error={errors.title} required>
-			{#snippet control(props)}
-				<input {...props} type="text" name="title" value={field('title', initial.title)} required />
-			{/snippet}
-		</Field>
+<form
+	id="quiz-form"
+	method="POST"
+	{action}
+	class="flex max-w-4xl flex-col gap-6 border border-ink bg-stone-50 p-6"
+>
+	<!-- Title -->
+	<div>
+		<label class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase" for="title"
+			>Quiz Title</label
+		>
+		<input
+			id="title"
+			type="text"
+			name="title"
+			required
+			value={field('title', initial.title)}
+			class="w-full border border-ink bg-white px-4 py-3 text-sm transition-colors outline-none focus:border-brand-red"
+			placeholder="Enter a descriptive title..."
+		/>
+		{#if errors.title}
+			<p class="mt-1 text-xs text-brand-red">{errors.title}</p>
+		{/if}
+	</div>
 
-		<Field id="description" label="Description" error={errors.description}>
-			{#snippet control(props)}
-				<textarea {...props} name="description"
-					>{field('description', initial.description)}</textarea
-				>
-			{/snippet}
-		</Field>
+	<!-- Description -->
+	<div>
+		<label
+			class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
+			for="description">Description</label
+		>
+		<textarea
+			id="description"
+			name="description"
+			class="min-h-[100px] w-full resize-y border border-ink bg-white px-4 py-3 text-sm transition-colors outline-none focus:border-brand-red"
+			placeholder="Optional summary or instructions for the learner..."
+			>{field('description', initial.description)}</textarea
+		>
+		{#if errors.description}
+			<p class="mt-1 text-xs text-brand-red">{errors.description}</p>
+		{/if}
+	</div>
 
-		<div class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-x-4">
-			<Field id="mode" label="Mode" error={errors.mode} required>
-				{#snippet control(props)}
-					<select {...props} name="mode" bind:value={mode}>
-						{#each QUIZ_MODES as mode (mode)}<option value={mode}>{mode}</option>{/each}
-					</select>
-				{/snippet}
-			</Field>
-
-			<Field id="level" label="JLPT level" error={errors.level} required>
-				{#snippet control(props)}
-					<select {...props} name="level" bind:value={level}>
-						{#each JLPT_LEVELS as level (level)}<option value={level}>{level}</option>{/each}
-					</select>
-				{/snippet}
-			</Field>
-
-			<Field
-				id="selectionMode"
-				label="Questions"
-				hint="FIXED serves a set list; RANDOM draws from the bank."
-				error={errors.selectionMode}
-				required
+	<!-- Quick Settings Row -->
+	<div class="grid gap-6 md:grid-cols-2">
+		<!-- JLPT LEVEL -->
+		<div>
+			<label class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
+				>JLPT LEVEL</label
 			>
-				{#snippet control(props)}
-					<select {...props} name="selectionMode" bind:value={selectionMode}>
-						{#each SELECTION_MODES as option (option)}<option value={option}>{option}</option
-							>{/each}
-					</select>
-				{/snippet}
-			</Field>
-
-			<Field
-				id="timeLimitMinutes"
-				label="Time limit (minutes)"
-				hint="Required for a mock test or full exam. Blank means untimed."
-				error={errors.timeLimitMinutes}
-			>
-				{#snippet control(props)}
-					<input
-						{...props}
-						type="number"
-						name="timeLimitMinutes"
-						min="1"
-						value={field('timeLimitMinutes', initialMinutes)}
-					/>
-				{/snippet}
-			</Field>
-
-			<Field
-				id="icon"
-				label="Card icon"
-				hint="Shown on the dashboard quiz card."
-				error={errors.icon}
-				required
-			>
-				{#snippet control(props)}
-					<select {...props} name="icon" bind:value={icon}>
-						{#each QUIZ_ICONS as option (option)}
-							<option value={option}>{ICON_LABELS[option]}</option>
-						{/each}
-					</select>
-				{/snippet}
-			</Field>
+			<div class="flex flex-wrap gap-2">
+				{#each JLPT_LEVELS as l (l)}
+					<label class="cursor-pointer">
+						<input
+							type="radio"
+							name="level"
+							value={l}
+							bind:group={level}
+							class="peer visually-hidden"
+						/>
+						<div
+							class="border border-ink bg-white px-3 py-1.5 text-[10px] font-bold tracking-widest text-ink uppercase transition-colors peer-checked:border-brand-red peer-checked:bg-brand-red peer-checked:text-white hover:bg-stone-50"
+						>
+							{l}
+						</div>
+					</label>
+				{/each}
+			</div>
+			{#if errors.level}
+				<p class="mt-1 text-xs text-brand-red">{errors.level}</p>
+			{/if}
 		</div>
-	</section>
 
-	<Button type="submit" size="md">{submitLabel}</Button>
+		<!-- Mode -->
+		<div>
+			<label class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase" for="mode"
+				>Quiz Mode</label
+			>
+			<div class="relative flex items-center border border-ink bg-white">
+				<select
+					id="mode"
+					name="mode"
+					bind:value={mode}
+					class="w-full appearance-none border-none bg-transparent px-3 py-2 text-sm outline-none"
+				>
+					{#each QUIZ_MODES as m (m)}
+						<option value={m}>{m}</option>
+					{/each}
+				</select>
+				<i
+					class="fi fi-rs-angle-down pointer-events-none absolute right-3 text-muted"
+					aria-hidden="true"
+				></i>
+			</div>
+			{#if errors.mode}
+				<p class="mt-1 text-xs text-brand-red">{errors.mode}</p>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Configuration Row -->
+	<div class="grid gap-6 md:grid-cols-3">
+		<div>
+			<label
+				class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
+				for="selectionMode">Questions</label
+			>
+			<div class="relative flex items-center border border-ink bg-white">
+				<select
+					id="selectionMode"
+					name="selectionMode"
+					bind:value={selectionMode}
+					class="w-full appearance-none border-none bg-transparent px-3 py-2 text-sm outline-none"
+				>
+					{#each SELECTION_MODES as option (option)}
+						<option value={option}>{option}</option>
+					{/each}
+				</select>
+				<i
+					class="fi fi-rs-angle-down pointer-events-none absolute right-3 text-muted"
+					aria-hidden="true"
+				></i>
+			</div>
+			<p class="mt-1 text-[10px] text-muted">FIXED lists vs. RANDOM draw.</p>
+			{#if errors.selectionMode}
+				<p class="mt-1 text-xs text-brand-red">{errors.selectionMode}</p>
+			{/if}
+		</div>
+
+		<div>
+			<label
+				class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
+				for="timeLimitMinutes">Time Limit (Min)</label
+			>
+			<input
+				id="timeLimitMinutes"
+				type="number"
+				name="timeLimitMinutes"
+				min="1"
+				value={field('timeLimitMinutes', initialMinutes)}
+				class="w-full border border-ink bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-brand-red"
+				placeholder="Untimed..."
+			/>
+			<p class="mt-1 text-[10px] text-muted">Blank means untimed.</p>
+			{#if errors.timeLimitMinutes}
+				<p class="mt-1 text-xs text-brand-red">{errors.timeLimitMinutes}</p>
+			{/if}
+		</div>
+
+		<div>
+			<label class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase" for="icon"
+				>Card Icon</label
+			>
+			<div class="relative flex items-center border border-ink bg-white">
+				<select
+					id="icon"
+					name="icon"
+					bind:value={icon}
+					class="w-full appearance-none border-none bg-transparent px-3 py-2 text-sm outline-none"
+				>
+					{#each QUIZ_ICONS as option (option)}
+						<option value={option}>{ICON_LABELS[option]}</option>
+					{/each}
+				</select>
+				<i
+					class="fi fi-rs-angle-down pointer-events-none absolute right-3 text-muted"
+					aria-hidden="true"
+				></i>
+			</div>
+			<p class="mt-1 text-[10px] text-muted">Shown on the dashboard card.</p>
+			{#if errors.icon}
+				<p class="mt-1 text-xs text-brand-red">{errors.icon}</p>
+			{/if}
+		</div>
+	</div>
+
+	<div class="flex justify-end pt-4">
+		<button
+			type="submit"
+			class="border border-brand-red bg-brand-red px-8 py-3 text-[10px] font-bold tracking-widest text-white uppercase transition-colors hover:bg-brand-red-dark"
+		>
+			{submitLabel}
+		</button>
+	</div>
 </form>

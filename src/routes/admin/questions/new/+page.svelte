@@ -15,7 +15,6 @@
 {/if}
 
 <QuestionForm
-	submitLabel="Create question"
 	errors={form?.errors ?? {}}
 	values={form?.values ?? {}}
 	submitted={form?.submitted}

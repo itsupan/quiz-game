@@ -1,4 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
+import { enumFilter } from '$lib/features/admin/query-filters';
 import { recordAudit } from '$lib/features/admin/audit.server';
 import {
 	countAdmins,
@@ -7,13 +8,14 @@ import {
 	updateUserRole,
 	updateUserStatus
 } from '$lib/features/admin/users/users.server';
-import { USER_ROLES, USER_STATUS } from '$lib/domain/enums';
-import type { UserRole, UserStatus } from '$lib/domain/enums';
+import { JLPT_LEVELS, USER_ROLES, USER_STATUS } from '$lib/domain/enums';
+import type { JlptLevel, UserRole, UserStatus } from '$lib/domain/enums';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const filters = {
 		search: url.searchParams.get('search') || undefined,
+		level: enumFilter<JlptLevel>(url, 'level', JLPT_LEVELS),
 		page: Number(url.searchParams.get('page')) || 1
 	};
 

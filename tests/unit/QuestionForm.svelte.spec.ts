@@ -32,7 +32,10 @@ describe('QuestionForm', () => {
 			.element(screen.getByLabelText('Option 1', { exact: true }))
 			.toHaveValue('びょういん');
 
-		const keys = screen.getByRole('radio').elements();
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption');
 
 		expect(keys).toHaveLength(3);
 		expect(keys.filter((key) => (key as HTMLInputElement).checked)).toHaveLength(1);
@@ -43,9 +46,12 @@ describe('QuestionForm', () => {
 		// `question_options_one_correct_idx` enforces in SQLite. There is no UI state in
 		// which two options are marked.
 		const screen = render(QuestionForm, props());
-		const keys = screen.getByRole('radio').elements() as HTMLInputElement[];
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption') as HTMLInputElement[];
 
-		await screen.getByRole('radio').nth(2).click();
+		await screen.getByRole('radio', { name: 'Mark option 3 as correct' }).click();
 
 		expect(keys.map((key) => key.checked)).toEqual([false, false, true]);
 	});
@@ -89,7 +95,12 @@ describe('QuestionForm', () => {
 
 		await screen.getByRole('button', { name: 'Add option' }).click();
 
-		expect(screen.getByRole('radio').elements()).toHaveLength(4);
+		expect(
+			screen
+				.getByRole('radio')
+				.elements()
+				.filter((el) => (el as HTMLInputElement).name === 'correctOption')
+		).toHaveLength(4);
 		await expect.element(screen.getByLabelText('Option 4', { exact: true })).toBeInTheDocument();
 	});
 
@@ -125,7 +136,10 @@ describe('QuestionForm', () => {
 
 		await screen.getByRole('button', { name: 'Remove option 1' }).click();
 
-		const keys = screen.getByRole('radio').elements() as HTMLInputElement[];
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption') as HTMLInputElement[];
 
 		expect(keys.map((key) => key.checked)).toEqual([true, false]);
 	});
@@ -152,7 +166,12 @@ describe('QuestionForm', () => {
 	it('starts a new question with four empty options', async () => {
 		const screen = render(QuestionForm, props({ initial: { ...initial, options: [] } }));
 
-		expect(screen.getByRole('radio').elements()).toHaveLength(4);
+		expect(
+			screen
+				.getByRole('radio')
+				.elements()
+				.filter((el) => (el as HTMLInputElement).name === 'correctOption')
+		).toHaveLength(4);
 	});
 });
 
@@ -177,7 +196,10 @@ describe('QuestionForm after a rejected submit', () => {
 			.element(screen.getByLabelText('Option 3', { exact: true }))
 			.toHaveValue('a row they added');
 
-		const keys = screen.getByRole('radio').elements() as HTMLInputElement[];
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption') as HTMLInputElement[];
 
 		expect(keys.map((key) => key.checked)).toEqual([false, false, true]);
 	});
@@ -197,7 +219,10 @@ describe('QuestionForm after a rejected submit', () => {
 			})
 		);
 
-		const keys = screen.getByRole('radio').elements() as HTMLInputElement[];
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption') as HTMLInputElement[];
 
 		expect(keys.some((key) => key.checked)).toBe(false);
 	});

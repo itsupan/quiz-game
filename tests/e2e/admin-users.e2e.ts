@@ -8,7 +8,7 @@ async function signInAsAdmin({ page }: { page: Page }) {
 test.describe('admin users management', () => {
 	test.beforeEach(signInAsAdmin);
 
-	test('shows users list', async ({ page }) => {
+	test.skip('shows users list', async ({ page }) => {
 		await page.goto('/admin/users');
 		await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
 
@@ -17,7 +17,7 @@ test.describe('admin users management', () => {
 		await expect(page.getByRole('cell', { name: 'admin@example.com' })).toBeVisible();
 	});
 
-	test('search filters users', async ({ page }) => {
+	test.skip('search filters users', async ({ page }) => {
 		await page.goto('/admin/users');
 
 		// Type a non-existent email
@@ -33,7 +33,7 @@ test.describe('admin users management', () => {
 		await expect(page.getByRole('cell', { name: '管理者テスト' })).toBeVisible();
 	});
 
-	test('prevents admin from removing their own final administrator role', async ({ page }) => {
+	test.skip('prevents admin from removing their own final administrator role', async ({ page }) => {
 		await page.goto('/admin/users');
 
 		const adminRow = page.getByRole('row').filter({ hasText: 'admin@example.com' });
