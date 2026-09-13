@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import AppShell from '$lib/components/AppShell.svelte';
+	import AdminShell from '$lib/features/admin/AdminShell.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
 
 	const navLinks = [
-		{ href: resolve('/admin'), label: 'Overview' },
-		{ href: resolve('/admin/quizzes'), label: 'Quizzes' },
-		{ href: resolve('/admin/questions'), label: 'Questions' },
-		{ href: resolve('/admin/media'), label: 'Media' },
-		{ href: resolve('/admin/users'), label: 'Users' }
+		{ href: resolve('/admin'), label: 'Overview', icon: 'apps' },
+		{ href: resolve('/admin/users'), label: 'User Management', icon: 'users' },
+		{ href: resolve('/admin/quizzes'), label: 'Quiz Sets', icon: 'document' },
+		{ href: resolve('/admin/questions'), label: 'Question Bank', icon: 'interrogation' },
+		{ href: resolve('/admin/media'), label: 'Media Library', icon: 'picture' },
+		{ href: resolve('/admin/logs'), label: 'System Logs', icon: 'computer' }
 	];
 </script>
 
@@ -20,6 +21,6 @@
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<AppShell {navLinks} user={data.user} navLabel="Admin sections">
+<AdminShell {navLinks} user={data.user}>
 	{@render children()}
-</AppShell>
+</AdminShell>

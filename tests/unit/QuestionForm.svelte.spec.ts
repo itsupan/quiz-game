@@ -9,8 +9,6 @@ const initial = {
 	level: 'N4',
 	section: 'VOCAB_KANJI',
 	points: 1,
-	imageMediaId: null,
-	audioMediaId: null,
 	options: [
 		{ id: 1, body: 'びょういん', isCorrect: true },
 		{ id: 2, body: 'びよういん', isCorrect: false },
@@ -32,7 +30,10 @@ describe('QuestionForm', () => {
 			.element(screen.getByLabelText('Option 1', { exact: true }))
 			.toHaveValue('びょういん');
 
-		const keys = screen.getByRole('radio').elements();
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption');
 
 		expect(keys).toHaveLength(3);
 		expect(keys.filter((key) => (key as HTMLInputElement).checked)).toHaveLength(1);
@@ -43,9 +44,12 @@ describe('QuestionForm', () => {
 		// `question_options_one_correct_idx` enforces in SQLite. There is no UI state in
 		// which two options are marked.
 		const screen = render(QuestionForm, props());
-		const keys = screen.getByRole('radio').elements() as HTMLInputElement[];
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption') as HTMLInputElement[];
 
-		await screen.getByRole('radio').nth(2).click();
+		await screen.getByRole('radio', { name: 'Mark option 3 as correct' }).click();
 
 		expect(keys.map((key) => key.checked)).toEqual([false, false, true]);
 	});
@@ -89,7 +93,12 @@ describe('QuestionForm', () => {
 
 		await screen.getByRole('button', { name: 'Add option' }).click();
 
-		expect(screen.getByRole('radio').elements()).toHaveLength(4);
+		expect(
+			screen
+				.getByRole('radio')
+				.elements()
+				.filter((el) => (el as HTMLInputElement).name === 'correctOption')
+		).toHaveLength(4);
 		await expect.element(screen.getByLabelText('Option 4', { exact: true })).toBeInTheDocument();
 	});
 
@@ -125,7 +134,10 @@ describe('QuestionForm', () => {
 
 		await screen.getByRole('button', { name: 'Remove option 1' }).click();
 
-		const keys = screen.getByRole('radio').elements() as HTMLInputElement[];
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption') as HTMLInputElement[];
 
 		expect(keys.map((key) => key.checked)).toEqual([true, false]);
 	});
@@ -152,7 +164,12 @@ describe('QuestionForm', () => {
 	it('starts a new question with four empty options', async () => {
 		const screen = render(QuestionForm, props({ initial: { ...initial, options: [] } }));
 
-		expect(screen.getByRole('radio').elements()).toHaveLength(4);
+		expect(
+			screen
+				.getByRole('radio')
+				.elements()
+				.filter((el) => (el as HTMLInputElement).name === 'correctOption')
+		).toHaveLength(4);
 	});
 });
 
@@ -177,7 +194,10 @@ describe('QuestionForm after a rejected submit', () => {
 			.element(screen.getByLabelText('Option 3', { exact: true }))
 			.toHaveValue('a row they added');
 
-		const keys = screen.getByRole('radio').elements() as HTMLInputElement[];
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption') as HTMLInputElement[];
 
 		expect(keys.map((key) => key.checked)).toEqual([false, false, true]);
 	});
@@ -197,61 +217,64 @@ describe('QuestionForm after a rejected submit', () => {
 			})
 		);
 
-		const keys = screen.getByRole('radio').elements() as HTMLInputElement[];
+		const keys = screen
+			.getByRole('radio')
+			.elements()
+			.filter((el) => (el as HTMLInputElement).name === 'correctOption') as HTMLInputElement[];
 
 		expect(keys.some((key) => key.checked)).toBe(false);
 	});
 });
 
-describe('QuestionForm media pickers', () => {
-	const media = [
-		{ id: 7, kind: 'IMAGE' as const, label: 'timetable.png' },
-		{ id: 9, kind: 'AUDIO' as const, label: 'clip.mp3' }
-	];
+describe('QuestionForm media', () => {
+	it('offers an upload field rather than a list of existing files', async () => {
+		const screen = render(QuestionForm, props());
 
-	it('preselects the media already attached to the question', async () => {
-		// Regression: the select value is a string and the option values were numbers, so
-		// Svelte's strict comparison matched nothing, the picker rendered blank, and
-		// saving an unchanged question detached its media.
-		const screen = render(
-			QuestionForm,
-			props({ media, initial: { ...initial, imageMediaId: 7, audioMediaId: 9 } })
+		await expect.element(screen.getByLabelText('Upload image')).toBeInTheDocument();
+		await expect.element(screen.getByLabelText('Upload audio')).toBeInTheDocument();
+		expect((await screen.getByLabelText('Upload image').element()).getAttribute('type')).toBe(
+			'file'
 		);
-
-		await expect.element(screen.getByLabelText('Image')).toHaveValue('7');
-		await expect.element(screen.getByLabelText('Audio')).toHaveValue('9');
 	});
 
-	it('selects nothing when no media is attached', async () => {
-		const screen = render(QuestionForm, props({ media }));
-
-		await expect.element(screen.getByLabelText('Image')).toHaveValue('');
-	});
-
-	it('keeps the chosen media after a rejected submit', async () => {
+	it('shows a preview and a remove option when a question already has media', async () => {
 		const screen = render(
 			QuestionForm,
 			props({
-				media,
-				errors: { stem: 'Enter the question text.' },
-				values: { imageMediaId: '7' },
-				initial: { ...initial, imageMediaId: null }
+				currentImage: { url: '/media/img-1', description: 'A timetable' },
+				currentAudio: { url: '/media/aud-1', description: 'Someone reading the timetable' }
 			})
 		);
 
-		await expect.element(screen.getByLabelText('Image')).toHaveValue('7');
+		await expect.element(screen.getByLabelText('Remove this image')).toBeInTheDocument();
+		await expect.element(screen.getByLabelText('Remove this audio')).toBeInTheDocument();
+		await expect.element(screen.getByLabelText('Replace image')).toBeInTheDocument();
+		await expect.element(screen.getByLabelText('Alt text')).toHaveValue('A timetable');
+		await expect
+			.element(screen.getByLabelText('Transcript'))
+			.toHaveValue('Someone reading the timetable');
 	});
 
-	it('offers each asset only in the picker for its kind', async () => {
-		const screen = render(QuestionForm, props({ media }));
+	it('keeps typed alt text after a rejected submit', async () => {
+		const screen = render(
+			QuestionForm,
+			props({
+				errors: { stem: 'Enter the question text.' },
+				values: { imageAltText: 'typed while the submit failed' }
+			})
+		);
 
-		const image = (await screen.getByLabelText('Image').element()) as unknown as HTMLSelectElement;
-		const audio = (await screen.getByLabelText('Audio').element()) as unknown as HTMLSelectElement;
+		await expect
+			.element(screen.getByLabelText('Alt text'))
+			.toHaveValue('typed while the submit failed');
+	});
 
-		expect([...image.options].map((option) => option.textContent)).toEqual([
-			'None',
-			'timetable.png'
-		]);
-		expect([...audio.options].map((option) => option.textContent)).toEqual(['None', 'clip.mp3']);
+	it('shows the upload error beside the field it belongs to', async () => {
+		const screen = render(
+			QuestionForm,
+			props({ errors: { imageFile: 'That file is too large.' } })
+		);
+
+		await expect.element(screen.getByText('That file is too large.')).toBeInTheDocument();
 	});
 });

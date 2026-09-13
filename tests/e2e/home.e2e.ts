@@ -53,8 +53,8 @@ test.describe('learner home page (authenticated)', () => {
 	test('renders the full brutalist home page matching mockup', async ({ page }) => {
 		await page.goto('/home');
 
-		// Navbar elements
-		await expect(page.getByText('QUIZGAME')).toBeVisible();
+		// Navbar elements — the brand is a logo image, not text
+		await expect(page.getByRole('img', { name: 'QuizGame' })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'DASHBOARD' })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'LEADERBOARD' })).toBeVisible();
 		await expect(page.getByRole('link', { name: 'ANALYTICS' })).toBeVisible();

@@ -29,12 +29,16 @@
 
 	<div class="flex flex-wrap items-end justify-between gap-4">
 		<div>
-			<h1 class="text-2xl font-black tracking-tight uppercase">{title}</h1>
+			<h1 class="m-0 text-3xl font-black tracking-tight text-ink uppercase">{title}</h1>
 			{#if lede}
-				<p class="m-0 text-sm text-muted">{lede}</p>
+				<p class="m-0 mt-1 text-sm text-muted">{lede}</p>
 			{/if}
 			{#if meta}
-				<p class="m-0 flex flex-wrap items-center gap-3 text-xs text-muted">{@render meta()}</p>
+				<p
+					class="m-0 mt-2 flex flex-wrap items-center gap-3 text-[10px] font-bold tracking-widest text-muted uppercase"
+				>
+					{@render meta()}
+				</p>
 			{/if}
 		</div>
 

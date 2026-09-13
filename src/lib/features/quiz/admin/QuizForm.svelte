@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-
 	import Button from '$lib/components/Button.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import { JLPT_LEVELS, QUIZ_ICONS, QUIZ_MODES, SELECTION_MODES } from '$lib/domain/enums';
 
-	/** Human-readable labels for the `QUIZ_ICONS` presets, in the same order. */
 	const ICON_LABELS: Record<(typeof QUIZ_ICONS)[number], string> = {
 		book: 'Book',
 		flask: 'Flask',
@@ -18,13 +16,6 @@
 		trophy: 'Trophy'
 	};
 
-	/**
-	 * Quiz details, shared by the create and edit pages.
-	 *
-	 * Time limits are entered in minutes and stored in seconds. The schema is in seconds
-	 * because the server computes `expires_at` from it; nobody configures a 6900-second
-	 * exam.
-	 */
 	let {
 		action = '',
 		submitLabel,
@@ -64,102 +55,142 @@
 		initial.timeLimitSeconds === null ? null : Math.round(initial.timeLimitSeconds / 60)
 	);
 
-	/**
-	 * The selects are two-way bound rather than given a one-way `value`.
-	 *
-	 * A one-way `value={...}` is re-asserted whenever the component re-renders — including
-	 * during hydration — so a choice made in the moment between the server HTML arriving
-	 * and hydration finishing is silently reverted. Seeded once from the props, then owned
-	 * by the person filling the form in.
-	 */
 	let mode = $state(untrack(() => field('mode', initial.mode)));
 	let level = $state(untrack(() => field('level', initial.level)));
 	let selectionMode = $state(untrack(() => field('selectionMode', initial.selectionMode)));
 	let icon = $state(untrack(() => field('icon', initial.icon)));
 </script>
 
-<form method="POST" {action}>
-	<section class="mb-5 border-2 border-ink bg-white p-5">
-		<Field id="title" label="Title" error={errors.title} required>
-			{#snippet control(props)}
-				<input {...props} type="text" name="title" value={field('title', initial.title)} required />
-			{/snippet}
-		</Field>
-
-		<Field id="description" label="Description" error={errors.description}>
-			{#snippet control(props)}
-				<textarea {...props} name="description"
-					>{field('description', initial.description)}</textarea
-				>
-			{/snippet}
-		</Field>
-
-		<div class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-x-4">
-			<Field id="mode" label="Mode" error={errors.mode} required>
-				{#snippet control(props)}
-					<select {...props} name="mode" bind:value={mode}>
-						{#each QUIZ_MODES as mode (mode)}<option value={mode}>{mode}</option>{/each}
-					</select>
-				{/snippet}
-			</Field>
-
-			<Field id="level" label="JLPT level" error={errors.level} required>
-				{#snippet control(props)}
-					<select {...props} name="level" bind:value={level}>
-						{#each JLPT_LEVELS as level (level)}<option value={level}>{level}</option>{/each}
-					</select>
-				{/snippet}
-			</Field>
-
-			<Field
-				id="selectionMode"
-				label="Questions"
-				hint="FIXED serves a set list; RANDOM draws from the bank."
-				error={errors.selectionMode}
+<form id="quiz-form" method="POST" {action} class="flex max-w-4xl flex-col gap-6">
+	<Field id="title" label="Quiz title" required error={errors.title}>
+		{#snippet control(props)}
+			<input
+				{...props}
+				type="text"
+				name="title"
 				required
-			>
-				{#snippet control(props)}
-					<select {...props} name="selectionMode" bind:value={selectionMode}>
-						{#each SELECTION_MODES as option (option)}<option value={option}>{option}</option
-							>{/each}
-					</select>
-				{/snippet}
-			</Field>
+				value={field('title', initial.title)}
+				class="w-full border-2 border-ink bg-white px-4 py-3 text-sm transition-colors outline-none focus:border-brand-red"
+				placeholder="Enter a descriptive title..."
+			/>
+		{/snippet}
+	</Field>
 
-			<Field
-				id="timeLimitMinutes"
-				label="Time limit (minutes)"
-				hint="Required for a mock test or full exam. Blank means untimed."
-				error={errors.timeLimitMinutes}
+	<Field id="description" label="Description" error={errors.description}>
+		{#snippet control(props)}
+			<textarea
+				{...props}
+				name="description"
+				class="min-h-[100px] w-full resize-y border-2 border-ink bg-white px-4 py-3 text-sm transition-colors outline-none focus:border-brand-red"
+				placeholder="Optional summary or instructions for the learner..."
+				>{field('description', initial.description)}</textarea
 			>
-				{#snippet control(props)}
-					<input
-						{...props}
-						type="number"
-						name="timeLimitMinutes"
-						min="1"
-						value={field('timeLimitMinutes', initialMinutes)}
-					/>
-				{/snippet}
-			</Field>
+		{/snippet}
+	</Field>
 
-			<Field
-				id="icon"
-				label="Card icon"
-				hint="Shown on the dashboard quiz card."
-				error={errors.icon}
-				required
+	<!-- Quick Settings Row -->
+	<div class="grid gap-6 md:grid-cols-2">
+		<div>
+			<span class="mb-2 block text-[10px] font-bold tracking-widest text-ink uppercase"
+				>JLPT level</span
 			>
-				{#snippet control(props)}
-					<select {...props} name="icon" bind:value={icon}>
-						{#each QUIZ_ICONS as option (option)}
-							<option value={option}>{ICON_LABELS[option]}</option>
-						{/each}
-					</select>
-				{/snippet}
-			</Field>
+			<div class="flex flex-wrap gap-2">
+				{#each JLPT_LEVELS as l (l)}
+					<label class="cursor-pointer">
+						<input
+							type="radio"
+							name="level"
+							value={l}
+							bind:group={level}
+							class="peer visually-hidden"
+						/>
+						<div
+							class="border-2 border-ink bg-white px-3 py-1.5 text-[10px] font-bold tracking-widest text-ink uppercase transition-colors peer-checked:border-brand-red peer-checked:bg-brand-red peer-checked:text-white hover:bg-stone-50"
+						>
+							{l}
+						</div>
+					</label>
+				{/each}
+			</div>
+			{#if errors.level}
+				<p class="mt-1 text-xs font-semibold text-danger">{errors.level}</p>
+			{/if}
 		</div>
-	</section>
 
-	<Button type="submit" size="md">{submitLabel}</Button>
+		<Field id="mode" label="Quiz mode" error={errors.mode}>
+			{#snippet control(props)}
+				<select
+					{...props}
+					name="mode"
+					bind:value={mode}
+					class="w-full appearance-none border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+				>
+					{#each QUIZ_MODES as m (m)}
+						<option value={m}>{m}</option>
+					{/each}
+				</select>
+			{/snippet}
+		</Field>
+	</div>
+
+	<!-- Configuration Row -->
+	<div class="grid gap-6 md:grid-cols-3">
+		<Field
+			id="selectionMode"
+			label="Questions"
+			hint="FIXED lists vs. RANDOM draw."
+			error={errors.selectionMode}
+		>
+			{#snippet control(props)}
+				<select
+					{...props}
+					name="selectionMode"
+					bind:value={selectionMode}
+					class="w-full appearance-none border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+				>
+					{#each SELECTION_MODES as option (option)}
+						<option value={option}>{option}</option>
+					{/each}
+				</select>
+			{/snippet}
+		</Field>
+
+		<Field
+			id="timeLimitMinutes"
+			label="Time limit (min)"
+			hint="Blank means untimed."
+			error={errors.timeLimitMinutes}
+		>
+			{#snippet control(props)}
+				<input
+					{...props}
+					type="number"
+					name="timeLimitMinutes"
+					min="1"
+					value={field('timeLimitMinutes', initialMinutes)}
+					class="w-full border-2 border-ink bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-brand-red"
+					placeholder="Untimed..."
+				/>
+			{/snippet}
+		</Field>
+
+		<Field id="icon" label="Card icon" hint="Shown on the dashboard card." error={errors.icon}>
+			{#snippet control(props)}
+				<select
+					{...props}
+					name="icon"
+					bind:value={icon}
+					class="w-full appearance-none border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+				>
+					{#each QUIZ_ICONS as option (option)}
+						<option value={option}>{ICON_LABELS[option]}</option>
+					{/each}
+				</select>
+			{/snippet}
+		</Field>
+	</div>
+
+	<div class="flex justify-end pt-4">
+		<Button type="submit" variant="primary" size="md">{submitLabel}</Button>
+	</div>
 </form>

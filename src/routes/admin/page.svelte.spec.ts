@@ -15,6 +15,7 @@ const overview = (overrides: Partial<PageData['overview']> = {}): PageData['over
 const props = (data: PageData['overview']): PageProps => ({
 	data: {
 		overview: data,
+		recentActivity: [],
 		user: { displayName: '管理者テスト', avatarUrl: null, role: 'ADMIN' }
 	},
 	params: {},
@@ -27,8 +28,7 @@ describe('admin overview', () => {
 
 		await expect.element(screen.getByTestId('total-quizzes')).toHaveTextContent('3');
 		await expect.element(screen.getByTestId('total-questions')).toHaveTextContent('13');
-		await expect.element(screen.getByTestId('total-learners')).toHaveTextContent('2');
-		await expect.element(screen.getByTestId('total-attempts')).toHaveTextContent('0');
+		await expect.element(screen.getByTestId('total-users')).toHaveTextContent('2');
 	});
 
 	it('renders a zero as a zero, not as an empty tile', async () => {
@@ -42,27 +42,9 @@ describe('admin overview', () => {
 	it('breaks each total down by status', async () => {
 		const screen = render(
 			Page,
-			props(overview({ questions: { total: 13, published: 9, draft: 4 } }))
+			props(overview({ quizzes: { total: 13, published: 9, draft: 4 } }))
 		);
 
-		const questions = screen.getByRole('listitem').filter({ hasText: 'Questions' });
-
-		await expect.element(questions.getByText('9')).toBeInTheDocument();
-		await expect.element(questions.getByText('4')).toBeInTheDocument();
-	});
-
-	it('links the areas that have a management screen', async () => {
-		const screen = render(Page, props(overview()));
-
-		await expect
-			.element(screen.getByRole('link', { name: 'Quizzes' }))
-			.toHaveAttribute('href', '/admin/quizzes');
-		await expect
-			.element(screen.getByRole('link', { name: 'Questions' }))
-			.toHaveAttribute('href', '/admin/questions');
-
-		// Learners and attempts have no screens yet — user management is issue #15 — so
-		// they are counts, not dead links.
-		expect(screen.getByRole('link', { name: 'Learners' }).elements()).toHaveLength(0);
+		await expect.element(screen.getByText('4 SYNCING')).toBeInTheDocument();
 	});
 });

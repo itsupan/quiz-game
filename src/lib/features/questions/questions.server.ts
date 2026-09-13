@@ -142,6 +142,25 @@ export async function getQuestion(db: Database, publicId: string) {
 		return null;
 	}
 
+	return loadQuestionDetail(db, question);
+}
+
+/**
+ * Same shape as `getQuestion`, keyed by the internal id rather than the public one — for
+ * server-side callers that already hold a row id (attaching to a quiz section, bulk
+ * import) and would otherwise pay for a redundant lookup by public id.
+ */
+export async function getQuestionById(db: Database, id: number) {
+	const [question] = await db.select().from(questions).where(eq(questions.id, id));
+
+	if (!question) {
+		return null;
+	}
+
+	return loadQuestionDetail(db, question);
+}
+
+async function loadQuestionDetail(db: Database, question: Question) {
 	const options = await db
 		.select()
 		.from(questionOptions)

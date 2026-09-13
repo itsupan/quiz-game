@@ -1,13 +1,16 @@
 import { error, fail } from '@sveltejs/kit';
 
 import { recordAudit } from '$lib/features/admin/audit.server';
+import { requireMediaBucket } from '$lib/features/media/media.server';
+import { resolveQuestionMedia } from '$lib/features/questions/question-media.server';
+import { echoValues, parseQuestionForm } from '$lib/features/questions/validation';
 import {
-	attachQuestion,
+	createQuestionForSection,
 	deleteSection,
 	detachQuestion,
 	getQuiz,
-	listAttachableQuestions,
 	listAttachedQuestions,
+	publishAndAttachQuestion,
 	quizPublishBlockersFor,
 	setQuizStatus,
 	updateQuiz,
@@ -45,12 +48,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		quiz,
 		sections,
 		// A RANDOM quiz draws from the bank at attempt start, so its paper is empty by
-		// design and the picker below has nothing to offer.
+		// design.
 		attached: quiz.selectionMode === 'FIXED' ? await listAttachedQuestions(locals.db, quiz.id) : [],
-		attachable:
-			quiz.selectionMode === 'FIXED'
-				? await listAttachableQuestions(locals.db, quiz, sections)
-				: {},
 		// Scoring bands are a later epic, so sections here carry no `scoring_band_id` and
 		// the quiz reports a raw score only.
 		blockers: await blockersFor(locals, quiz, sections)
@@ -112,22 +111,87 @@ export const actions: Actions = {
 		return { ok: true, message: 'Section removed.' };
 	},
 
-	attachQuestion: async ({ locals, params, request }) => {
+	/**
+	 * Authoring a question straight from the quiz page, instead of the separate bank
+	 * flow. Always lands as a DRAFT in the bank — never attached, never published — so
+	 * `publishAndAttach` below stays the one explicit step that makes anything live,
+	 * exactly like a question authored through the standalone bank page.
+	 */
+	createQuestion: async ({ locals, params, platform, request }) => {
+		const { quiz, sections } = await load404(locals, params.publicId);
+		const data = await request.formData();
+		const quizSectionId = Number(data.get('quizSectionId'));
+		const section = sections.find((candidate) => candidate.id === quizSectionId);
+
+		if (!section) {
+			error(404, 'That section does not belong to this quiz.');
+		}
+
+		const parsed = parseQuestionForm(data);
+
+		if (!parsed.ok) {
+			return fail(400, {
+				quizSectionId,
+				errors: parsed.errors,
+				values: parsed.values,
+				submitted: parsed.submitted
+			});
+		}
+
+		const media = await resolveQuestionMedia(
+			locals.db,
+			requireMediaBucket(platform),
+			locals.user?.id ?? null,
+			data,
+			{ imageMediaId: null, audioMediaId: null }
+		);
+
+		if (!media.ok) {
+			return fail(400, {
+				quizSectionId,
+				errors: media.errors,
+				values: echoValues(data),
+				submitted: {
+					options: parsed.value.options.map(({ id, body }) => ({ id, body })),
+					correctOption: parsed.value.options.findIndex((option) => option.isCorrect)
+				}
+			});
+		}
+
+		const created = await createQuestionForSection(locals.db, locals.user?.id ?? null, {
+			...parsed.value,
+			...media.value,
+			level: quiz.level,
+			section: section.section
+		});
+
+		if (!created.ok) {
+			return fail(400, { quizSectionId, message: created.message });
+		}
+
+		return { ok: true, quizSectionId, created: created.value };
+	},
+
+	/** The one explicit "make it live" click — publishes the draft and puts it on the paper. */
+	publishAndAttach: async ({ locals, params, request }) => {
 		const { quiz } = await load404(locals, params.publicId);
 		const data = await request.formData();
+		const quizSectionId = Number(data.get('quizSectionId'));
+		const questionId = Number(data.get('questionId'));
 
-		const written = await attachQuestion(
+		const written = await publishAndAttachQuestion(
 			locals.db,
+			locals.user?.id ?? null,
 			quiz,
-			Number(data.get('quizSectionId')),
-			Number(data.get('questionId'))
+			quizSectionId,
+			questionId
 		);
 
 		if (!written.ok) {
-			return fail(409, { message: written.message });
+			return fail(409, { quizSectionId, message: written.message });
 		}
 
-		return { ok: true, message: 'Question added to the paper.' };
+		return { ok: true, quizSectionId, message: 'Published and added to the paper.' };
 	},
 
 	detachQuestion: async ({ locals, params, request }) => {

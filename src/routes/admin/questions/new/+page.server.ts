@@ -1,16 +1,13 @@
 import { fail, redirect } from '@sveltejs/kit';
 
-import { listMediaChoices } from '$lib/features/questions/media-choices.server';
-import { checkMediaSlots, createQuestion } from '$lib/features/questions/questions.server';
+import { requireMediaBucket } from '$lib/features/media/media.server';
+import { resolveQuestionMedia } from '$lib/features/questions/question-media.server';
+import { createQuestion } from '$lib/features/questions/questions.server';
 import { echoValues, parseQuestionForm } from '$lib/features/questions/validation';
-import type { Actions, PageServerLoad } from './$types';
-
-export const load: PageServerLoad = async ({ locals }) => {
-	return { media: await listMediaChoices(locals.db) };
-};
+import type { Actions } from './$types';
 
 export const actions: Actions = {
-	default: async ({ locals, request }) => {
+	default: async ({ locals, platform, request }) => {
 		const data = await request.formData();
 		const parsed = parseQuestionForm(data);
 
@@ -22,13 +19,17 @@ export const actions: Actions = {
 			});
 		}
 
-		// Checked before the write so an unknown or mismatched asset is a message beside
-		// the picker rather than a foreign-key failure surfacing as a 500.
-		const mediaErrors = await checkMediaSlots(locals.db, parsed.value);
+		const media = await resolveQuestionMedia(
+			locals.db,
+			requireMediaBucket(platform),
+			locals.user?.id ?? null,
+			data,
+			{ imageMediaId: null, audioMediaId: null }
+		);
 
-		if (Object.keys(mediaErrors).length > 0) {
+		if (!media.ok) {
 			return fail(400, {
-				errors: mediaErrors,
+				errors: media.errors,
 				values: echoValues(data),
 				submitted: {
 					options: parsed.value.options.map(({ id, body }) => ({ id, body })),
@@ -37,7 +38,10 @@ export const actions: Actions = {
 			});
 		}
 
-		const created = await createQuestion(locals.db, locals.user?.id ?? null, parsed.value);
+		const created = await createQuestion(locals.db, locals.user?.id ?? null, {
+			...parsed.value,
+			...media.value
+		});
 
 		if (!created.ok) {
 			return fail(400, { message: created.message });

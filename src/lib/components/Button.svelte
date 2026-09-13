@@ -11,6 +11,8 @@
 		disabled?: boolean;
 		/** Submit this button to a named form action instead of the form's own. */
 		formaction?: string;
+		/** Associates this button with a `<form>` elsewhere in the document by id. */
+		form?: string;
 		name?: string;
 		value?: string;
 		ariaLabel?: string;
@@ -26,6 +28,7 @@
 		href,
 		disabled = false,
 		formaction,
+		form,
 		name,
 		value,
 		ariaLabel,
@@ -65,6 +68,7 @@
 		{type}
 		{disabled}
 		{formaction}
+		{form}
 		{name}
 		{value}
 		aria-label={ariaLabel}

@@ -1,5 +1,7 @@
 import { fail } from '@sveltejs/kit';
+
 import { recordAudit } from '$lib/features/admin/audit.server';
+import { enumFilter } from '$lib/features/admin/query-filters';
 import {
 	deleteMedia,
 	getMediaAssetById,
@@ -8,16 +10,16 @@ import {
 	updateMediaDescription,
 	uploadMedia
 } from '$lib/features/media/media.server';
+import { MEDIA_KINDS, type MediaKind } from '$lib/domain/enums';
 import type { Actions, PageServerLoad } from './$types';
 
-const optional = (data: FormData, field: string) => {
-	const value = String(data.get(field) ?? '').trim();
-
-	return value === '' ? null : value;
-};
-
 export const load: PageServerLoad = async ({ locals, url }) => {
-	return await listMedia(locals.db, { page: Number(url.searchParams.get('page')) || 1 });
+	const filters = {
+		kind: enumFilter<MediaKind>(url, 'kind', MEDIA_KINDS),
+		page: Number(url.searchParams.get('page')) || 1
+	};
+
+	return { ...(await listMedia(locals.db, filters)), filters };
 };
 
 export const actions: Actions = {
@@ -25,56 +27,60 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const file = data.get('file');
 
-		if (!(file instanceof File)) {
+		if (!(file instanceof File) || file.size === 0) {
 			return fail(400, { message: 'Choose a file to upload.' });
 		}
+
+		const altText = String(data.get('altText') ?? '').trim() || null;
+		const transcript = String(data.get('transcript') ?? '').trim() || null;
 
 		const uploaded = await uploadMedia(
 			locals.db,
 			requireMediaBucket(platform),
 			locals.user?.id ?? null,
 			file,
-			{
-				altText: optional(data, 'altText'),
-				transcript: optional(data, 'transcript')
-			}
+			{ altText, transcript }
 		);
 
 		if (!uploaded.ok) {
 			return fail(400, { message: uploaded.message });
 		}
 
-		return {
-			ok: true,
-			message: `Uploaded ${uploaded.value.originalFilename ?? uploaded.value.r2Key}.`
-		};
+		await recordAudit(locals.db, {
+			actorUserId: locals.user?.id ?? null,
+			action: 'MEDIA_UPLOADED',
+			entityType: 'media_asset',
+			entityId: uploaded.value.id,
+			after: { kind: uploaded.value.kind, originalFilename: uploaded.value.originalFilename }
+		});
+
+		return { ok: true, message: `Uploaded “${uploaded.value.originalFilename ?? 'file'}”.` };
 	},
 
-	/**
-	 * Alt text and transcripts are edited here rather than on the question, because they
-	 * describe the file and are reused everywhere it is attached. Describing an asset
-	 * once unblocks publication for every question using it.
-	 */
-	describe: async ({ locals, request }) => {
+	updateDescription: async ({ locals, request }) => {
 		const data = await request.formData();
-		const asset = await getMediaAssetById(locals.db, Number(data.get('assetId')));
+		const assetId = Number(data.get('assetId'));
+		const asset = await getMediaAssetById(locals.db, assetId);
 
 		if (!asset) {
 			return fail(404, { message: 'That file no longer exists.' });
 		}
 
+		const altText = String(data.get('altText') ?? '').trim() || null;
+		const transcript = String(data.get('transcript') ?? '').trim() || null;
+
 		await updateMediaDescription(locals.db, asset.id, {
-			altText: asset.kind === 'IMAGE' ? optional(data, 'altText') : asset.altText,
-			transcript: asset.kind === 'AUDIO' ? optional(data, 'transcript') : asset.transcript
+			altText: asset.kind === 'IMAGE' ? altText : asset.altText,
+			transcript: asset.kind === 'AUDIO' ? transcript : asset.transcript
 		});
 
-		return { ok: true, message: 'Description saved.' };
+		return { ok: true, message: 'Saved.' };
 	},
 
-	/** The one genuine delete in the dashboard. Everything else is archived. */
 	delete: async ({ locals, platform, request }) => {
 		const data = await request.formData();
-		const asset = await getMediaAssetById(locals.db, Number(data.get('assetId')));
+		const assetId = Number(data.get('assetId'));
+		const asset = await getMediaAssetById(locals.db, assetId);
 
 		if (!asset) {
 			return fail(404, { message: 'That file no longer exists.' });
@@ -91,9 +97,9 @@ export const actions: Actions = {
 			action: 'MEDIA_DELETED',
 			entityType: 'media_asset',
 			entityId: asset.id,
-			before: { r2Key: asset.r2Key, originalFilename: asset.originalFilename, kind: asset.kind }
+			before: { originalFilename: asset.originalFilename }
 		});
 
-		return { ok: true, message: 'File deleted.' };
+		return { ok: true, message: 'Deleted.' };
 	}
 };

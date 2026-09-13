@@ -7,6 +7,12 @@ export {
 } from './paper.server';
 export type { AttachedQuestion } from './paper.server';
 export {
+	createQuestionForSection,
+	publishAndAttachMany,
+	publishAndAttachQuestion
+} from './authoring.server';
+export type { BulkAttachResult, CreatedDraftQuestion } from './authoring.server';
+export {
 	quizPublishBlockers,
 	quizPublishBlockersFor,
 	sectionPublishCounts

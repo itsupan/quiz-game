@@ -1,32 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
-
 import { recordAudit } from '$lib/features/admin/audit.server';
-import { enumFilter } from '$lib/features/admin/query-filters';
-import {
-	getQuestion,
-	listQuestions,
-	setQuestionStatus
-} from '$lib/features/questions/questions.server';
-import {
-	CONTENT_STATUS,
-	JLPT_LEVELS,
-	SECTIONS,
-	type ContentStatus,
-	type JlptLevel,
-	type Section
-} from '$lib/domain/enums';
-import type { Actions, PageServerLoad } from './$types';
-
-export const load: PageServerLoad = async ({ locals, url }) => {
-	const filters = {
-		level: enumFilter<JlptLevel>(url, 'level', JLPT_LEVELS),
-		section: enumFilter<Section>(url, 'section', SECTIONS),
-		status: enumFilter<ContentStatus>(url, 'status', CONTENT_STATUS),
-		page: Number(url.searchParams.get('page')) || 1
-	};
-
-	return { ...(await listQuestions(locals.db, filters)), filters };
-};
+import { getQuestion, setQuestionStatus } from '$lib/features/questions/questions.server';
+import type { Actions } from './$types';
 
 export const actions: Actions = {
 	/**

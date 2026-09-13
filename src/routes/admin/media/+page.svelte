@@ -1,158 +1,202 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import ConfirmSubmit from '$lib/components/ConfirmSubmit.svelte';
-	import Badge from '$lib/components/Badge.svelte';
+	import { enhance } from '$app/forms';
 	import Button from '$lib/components/Button.svelte';
+	import Card from '$lib/components/Card.svelte';
+	import Badge from '$lib/components/Badge.svelte';
+	import ConfirmSubmit from '$lib/components/ConfirmSubmit.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Notice from '$lib/components/Notice.svelte';
+	import FilterBar from '$lib/features/admin/FilterBar.svelte';
+	import Pagination from '$lib/features/admin/Pagination.svelte';
 	import PageHeader from '$lib/features/admin/PageHeader.svelte';
+	import { MEDIA_KINDS } from '$lib/domain/enums';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
 
-	const dateFormat = new Intl.DateTimeFormat('en-CA');
-
-	const size = (bytes: number) =>
-		bytes < 1024 * 1024
-			? `${Math.round(bytes / 1024)} KB`
-			: `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-
-	const described = (asset: (typeof data.items)[number]) =>
-		asset.kind === 'IMAGE' ? Boolean(asset.altText?.trim()) : Boolean(asset.transcript?.trim());
+	function pageHref(number: number) {
+		const query = new URLSearchParams({
+			...Object.fromEntries(page.url.searchParams),
+			page: String(number)
+		});
+		return resolve(`/admin/media?${query}`);
+	}
 </script>
 
-<PageHeader
-	title="Media"
-	lede="{data.total} file{data.total === 1
-		? ''
-		: 's'}. Images and audio live in R2; only their metadata is stored in the database."
-/>
+<div class="mx-auto max-w-[1400px] px-8 py-8">
+	<PageHeader
+		title="Media Library"
+		lede="Upload images and audio here, then reference the Media ID when authoring a question — by hand or through a CSV import."
+	/>
 
-{#if form?.message}
-	<Notice tone={form.ok ? 'success' : 'danger'} alert>{form.message}</Notice>
-{/if}
+	{#if form?.message}
+		<Notice tone={form.ok ? 'success' : 'danger'} alert>{form.message}</Notice>
+	{/if}
 
-<form
-	method="POST"
-	action="?/upload"
-	enctype="multipart/form-data"
-	class="mb-7 border-2 border-ink bg-white p-5"
-	use:enhance
->
-	<h2 class="mt-0 text-lg font-black tracking-tight uppercase">Upload a file</h2>
-
-	<Field
-		id="file"
-		label="File"
-		hint="PNG, JPEG or WebP up to 10 MB; MP3, M4A or OGG up to 50 MB."
-		required
-	>
-		{#snippet control(props)}
-			<input
-				{...props}
-				type="file"
-				name="file"
-				accept="image/png,image/jpeg,image/webp,audio/mpeg,audio/mp4,audio/ogg"
-				required
-			/>
-		{/snippet}
-	</Field>
-
-	<div class="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-x-4">
-		<Field
-			id="altText"
-			label="Alt text (images)"
-			hint="Describes the image for anyone who cannot see it. Required before a question using it can be published."
+	<details class="mb-6 border-2 border-ink bg-stone-50 open:pb-2">
+		<summary class="cursor-pointer px-5 py-4 text-sm font-black tracking-tight uppercase"
+			>Upload a file</summary
 		>
-			{#snippet control(props)}
-				<input {...props} type="text" name="altText" />
-			{/snippet}
-		</Field>
-
-		<Field
-			id="transcript"
-			label="Transcript (audio)"
-			hint="The spoken text. Required before a listening question using it can be published."
+		<form
+			method="POST"
+			action="?/upload"
+			enctype="multipart/form-data"
+			use:enhance
+			class="grid gap-4 px-5 pb-5 md:grid-cols-3"
 		>
-			{#snippet control(props)}
-				<textarea {...props} name="transcript"></textarea>
-			{/snippet}
-		</Field>
-	</div>
+			<Field id="file" label="File" required>
+				{#snippet control(props)}
+					<input
+						{...props}
+						type="file"
+						name="file"
+						accept="image/png,image/jpeg,image/webp,audio/mpeg,audio/mp4,audio/ogg"
+						required
+						class="w-full border-2 border-ink bg-white px-3 py-2 text-sm outline-none"
+					/>
+				{/snippet}
+			</Field>
+			<Field
+				id="altText"
+				label="Alt text"
+				hint="Images only — required before a question using it can publish."
+			>
+				{#snippet control(props)}
+					<input
+						{...props}
+						type="text"
+						name="altText"
+						class="w-full border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+						placeholder="Describes the image for a screen reader"
+					/>
+				{/snippet}
+			</Field>
+			<Field
+				id="transcript"
+				label="Transcript"
+				hint="Audio only — required before a question using it can publish."
+			>
+				{#snippet control(props)}
+					<textarea
+						{...props}
+						name="transcript"
+						class="min-h-10 w-full resize-y border-2 border-ink bg-white px-3 py-2 text-sm outline-none focus:border-brand-red"
+						placeholder="What is said in the clip"></textarea>
+				{/snippet}
+			</Field>
+			<div class="md:col-span-3">
+				<Button type="submit" size="md">Upload</Button>
+				<span class="ml-3 text-xs text-muted"
+					>PNG, JPEG, WebP (10 MB max) or MP3, M4A, OGG (50 MB max).</span
+				>
+			</div>
+		</form>
+	</details>
 
-	<Button type="submit" size="md">Upload</Button>
-</form>
+	<FilterBar>
+		<label>
+			Kind
+			<select name="kind" onchange={(e) => e.currentTarget.form?.submit()}>
+				<option value="">All</option>
+				{#each MEDIA_KINDS as kind (kind)}
+					<option value={kind} selected={data.filters.kind === kind}>{kind}</option>
+				{/each}
+			</select>
+		</label>
+	</FilterBar>
 
-{#if data.items.length === 0}
-	<p class="border-2 border-dashed border-line p-10 text-center text-muted" data-testid="empty">
-		No files uploaded yet.
-	</p>
-{:else}
-	<ul class="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-4 p-0">
-		{#each data.items as asset (asset.publicId)}
-			<li>
-				<article class="h-full border-2 border-ink bg-white p-5">
-					<header>
-						<h3 class="mt-0 text-base font-black tracking-tight break-words">
-							{asset.originalFilename ?? asset.r2Key}
-						</h3>
-						<p class="mt-0 mb-3 text-xs text-muted">
-							{asset.kind.toLowerCase()} · {size(asset.byteSize)} · added
-							{dateFormat.format(asset.createdAt)}
-							{#if !described(asset)}
-								<Badge tone="warning">not described</Badge>
-							{/if}
-						</p>
-					</header>
+	{#if data.items.length === 0}
+		<p
+			class="border-2 border-dashed border-line p-8 text-center text-sm font-bold tracking-widest text-muted uppercase"
+		>
+			No media uploaded yet.
+		</p>
+	{:else}
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			{#each data.items as asset (asset.id)}
+				<Card class="flex flex-col gap-3 p-4">
+					<div class="flex items-center justify-between">
+						<Badge tone={asset.kind === 'IMAGE' ? 'success' : 'neutral'}>{asset.kind}</Badge>
+						<ConfirmSubmit
+							label="Delete"
+							title="Delete this file?"
+							message="This permanently removes the file. It's refused while any question or passage still uses it."
+							confirmLabel="Delete"
+							form="delete-{asset.id}"
+						/>
+					</div>
 
 					{#if asset.kind === 'IMAGE'}
 						<img
-							class="mb-3 block max-h-40 border border-line"
-							src={resolve('/media/[publicId]', { publicId: asset.publicId })}
+							src="/media/{asset.publicId}"
 							alt={asset.altText ?? ''}
+							class="h-32 w-full border border-line-strong object-cover"
 						/>
 					{:else}
-						<audio
-							class="mb-3 w-full"
-							controls
-							src={resolve('/media/[publicId]', { publicId: asset.publicId })}
-						></audio>
+						<audio controls src="/media/{asset.publicId}" class="w-full"></audio>
 					{/if}
 
-					<form method="POST" action="?/describe" use:enhance>
-						<input type="hidden" name="assetId" value={asset.id} />
+					<p
+						class="m-0 truncate text-sm font-semibold text-ink"
+						title={asset.originalFilename ?? ''}
+					>
+						{asset.originalFilename ?? asset.r2Key}
+					</p>
 
+					<label class="flex flex-col gap-1 text-xs font-bold tracking-widest text-muted uppercase">
+						Media ID
+						<input
+							readonly
+							value={asset.id}
+							onclick={(e) => e.currentTarget.select()}
+							class="border border-line-strong bg-stone-50 px-2 py-1 text-sm font-normal tracking-normal text-ink normal-case"
+						/>
+					</label>
+
+					<form
+						id="describe-{asset.id}"
+						method="POST"
+						action="?/updateDescription"
+						use:enhance
+						class="flex flex-col gap-2"
+					>
+						<input type="hidden" name="assetId" value={asset.id} />
 						{#if asset.kind === 'IMAGE'}
 							<Field id="altText-{asset.id}" label="Alt text">
 								{#snippet control(props)}
-									<input {...props} type="text" name="altText" value={asset.altText ?? ''} />
+									<input
+										{...props}
+										type="text"
+										name="altText"
+										value={asset.altText ?? ''}
+										class="w-full border border-line-strong bg-white px-2 py-1 text-sm outline-none focus:border-brand-red"
+									/>
 								{/snippet}
 							</Field>
 						{:else}
 							<Field id="transcript-{asset.id}" label="Transcript">
 								{#snippet control(props)}
-									<textarea {...props} name="transcript">{asset.transcript ?? ''}</textarea>
+									<textarea
+										{...props}
+										name="transcript"
+										class="min-h-10 w-full resize-y border border-line-strong bg-white px-2 py-1 text-sm outline-none focus:border-brand-red"
+										>{asset.transcript ?? ''}</textarea
+									>
 								{/snippet}
 							</Field>
 						{/if}
-
-						<div class="mt-2 flex justify-end gap-2">
-							<Button type="submit" variant="ghost" size="sm">Save description</Button>
-						</div>
+						<Button type="submit" variant="ghost" size="sm">Save</Button>
 					</form>
 
-					<form method="POST" action="?/delete" class="mt-2 flex justify-end gap-2" use:enhance>
+					<form id="delete-{asset.id}" method="POST" action="?/delete" use:enhance class="hidden">
 						<input type="hidden" name="assetId" value={asset.id} />
-						<ConfirmSubmit
-							label="Delete"
-							title="Delete this file?"
-							message="This removes the file from storage permanently and cannot be undone. It is refused while any question or passage still uses it."
-							confirmLabel="Delete permanently"
-						/>
 					</form>
-				</article>
-			</li>
-		{/each}
-	</ul>
-{/if}
+				</Card>
+			{/each}
+		</div>
+
+		<Pagination page={data.page} pageCount={data.pageCount} href={pageHref} />
+	{/if}
+</div>

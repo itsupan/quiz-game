@@ -1,0 +1,625 @@
+<!doctype html>
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+		<title>Admin Dashboard - QUIZGAME</title>
+		<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@700;800&amp;family=Plus+Jakarta+Sans:wght@400;700&amp;family=Space+Grotesk:wght@600&amp;display=swap"
+			rel="stylesheet"
+		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+			rel="stylesheet"
+		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+			rel="stylesheet"
+		/>
+		<script id="tailwind-config">
+			tailwind.config = {
+				darkMode: 'class',
+				theme: {
+					extend: {
+						colors: {
+							'on-primary-fixed': '#410001',
+							'surface-container': '#eeeeee',
+							'inverse-primary': '#ffb4aa',
+							'primary-fixed-dim': '#ffb4aa',
+							'error-container': '#ffdad6',
+							'tertiary-container': '#717272',
+							'secondary-fixed-dim': '#c8c6c5',
+							'inverse-surface': '#2f3131',
+							'on-tertiary-fixed-variant': '#454747',
+							'on-background': '#1a1c1c',
+							'on-primary-container': '#fff7f6',
+							'on-error-container': '#93000a',
+							'on-primary-fixed-variant': '#930007',
+							'primary-fixed': '#ffdad5',
+							'surface-dim': '#dadada',
+							'on-secondary-fixed': '#1c1b1b',
+							outline: '#946e69',
+							'on-surface-variant': '#5f3f3b',
+							'secondary-container': '#e2dfde',
+							'tertiary-fixed': '#e2e2e2',
+							'secondary-fixed': '#e5e2e1',
+							'on-secondary': '#ffffff',
+							'on-error': '#ffffff',
+							'inverse-on-surface': '#f0f1f1',
+							'surface-container-high': '#e8e8e8',
+							'surface-bright': '#f9f9f9',
+							'surface-tint': '#c0000d',
+							primary: '#b7000c',
+							'on-primary': '#ffffff',
+							'surface-variant': '#e2e2e2',
+							surface: '#f9f9f9',
+							'on-surface': '#1a1c1c',
+							'surface-container-lowest': '#ffffff',
+							secondary: '#5f5e5e',
+							'on-secondary-container': '#636262',
+							background: '#f9f9f9',
+							'primary-container': '#e60012',
+							'tertiary-fixed-dim': '#c6c6c7',
+							tertiary: '#585a5a',
+							'on-tertiary-container': '#f8f8f8',
+							'surface-container-highest': '#e2e2e2',
+							'on-secondary-fixed-variant': '#474746',
+							'on-tertiary': '#ffffff',
+							'outline-variant': '#e9bcb6',
+							'surface-container-low': '#f3f3f4',
+							'on-tertiary-fixed': '#1a1c1c',
+							error: '#ba1a1a'
+						},
+						borderRadius: {
+							DEFAULT: '0.25rem',
+							lg: '0.5rem',
+							xl: '0.75rem',
+							full: '9999px'
+						},
+						spacing: {
+							lg: '24px',
+							'margin-mobile': '16px',
+							sm: '8px',
+							md: '16px',
+							xs: '4px',
+							'margin-desktop': '64px',
+							xl: '48px',
+							xxl: '80px',
+							unit: '4px',
+							gutter: '20px'
+						},
+						fontFamily: {
+							'body-lg': ['Plus Jakarta Sans'],
+							'japanese-display': ['sans-serif'],
+							'display-num': ['Hanken Grotesk'],
+							'label-caps': ['Space Grotesk'],
+							'headline-lg-mobile': ['Hanken Grotesk'],
+							'body-md': ['Plus Jakarta Sans'],
+							'headline-md': ['Plus Jakarta Sans'],
+							'headline-lg': ['Hanken Grotesk'],
+							'japanese-body': ['sans-serif']
+						},
+						fontSize: {
+							'body-lg': ['18px', { lineHeight: '28px', fontWeight: '400' }],
+							'japanese-display': ['40px', { lineHeight: '1.2', fontWeight: '700' }],
+							'display-num': [
+								'48px',
+								{ lineHeight: '48px', letterSpacing: '-0.02em', fontWeight: '800' }
+							],
+							'label-caps': [
+								'12px',
+								{ lineHeight: '16px', letterSpacing: '0.1em', fontWeight: '600' }
+							],
+							'headline-lg-mobile': ['24px', { lineHeight: '32px', fontWeight: '700' }],
+							'body-md': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+							'headline-md': ['20px', { lineHeight: '28px', fontWeight: '700' }],
+							'headline-lg': ['32px', { lineHeight: '40px', fontWeight: '700' }],
+							'japanese-body': ['16px', { lineHeight: '1.8', fontWeight: '500' }]
+						}
+					}
+				}
+			};
+		</script>
+		<style>
+			/* Custom Button Press Effect */
+			.btn-press:active {
+				transform: translate(2px, 2px);
+			}
+			.btn-ghost-layer {
+				position: absolute;
+				top: 2px;
+				left: 2px;
+				right: -2px;
+				bottom: -2px;
+				background-color: transparent;
+				border: 2px solid #1a1c1c;
+				z-index: -1;
+				transition: all 0.1s ease;
+			}
+			.btn-wrapper:active .btn-ghost-layer {
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+			}
+		</style>
+	</head>
+	<body
+		class="bg-background text-on-background font-body-md selection:bg-primary selection:text-on-primary overflow-x-hidden antialiased"
+	>
+		<!-- JSON Component: SideNavBar -->
+		<nav
+			class="bg-surface-container border-on-background fixed left-0 z-40 flex h-screen w-64 flex-col border-r"
+		>
+			<!-- Header -->
+			<div class="p-lg border-on-background flex flex-col items-start space-y-4 border-b">
+				<div class="border-on-background bg-surface relative h-16 w-16 overflow-hidden border-2">
+					<img
+						alt="Admin Avatar"
+						class="h-full w-full object-cover grayscale"
+						data-alt="A minimalist vector illustration of an admin avatar, bold solid colors, white background, Japanese graphic design style, red accent."
+						src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoBVuiSYNih2LI1PlQ9vqAaTZo1ju_kpHhEqY8EyA1giTlWakMByt-wu3kXKh-qr7ykNwZb6N92y3N0UEa99OGiuRq-LbOIRpizgcdaPqcewgrxuEdylBBnYW6GA7JFXP0pqJwajkuFTJ5Y7imyjU85rpUyno7FZNK-bJchcqMmEXHTkeBCL_Wu3hztSK45a0s0OhfMrzNL9P3FwsYshC3HWFGK2vCKRMiw9zmVMhvqkrHBzgpuMkynQ"
+					/>
+				</div>
+				<div>
+					<h1 class="text-headline-md font-headline-md text-primary tracking-tight uppercase">
+						Admin Portal
+					</h1>
+					<p class="text-label-caps font-label-caps text-on-surface-variant mt-1 uppercase">
+						System Control
+					</p>
+				</div>
+			</div>
+			<!-- CTA -->
+			<div class="p-md border-on-background border-b">
+				<div class="btn-wrapper relative inline-block w-full">
+					<button
+						class="btn-press bg-primary text-on-primary font-label-caps py-sm px-md border-primary hover:bg-primary-container relative z-10 flex w-full items-center justify-between border uppercase transition-colors"
+					>
+						<span>Create New Set</span>
+						<span class="material-symbols-outlined text-sm">add</span>
+					</button>
+					<div class="btn-ghost-layer"></div>
+				</div>
+			</div>
+			<!-- Main Navigation -->
+			<div class="py-md flex-grow overflow-y-auto">
+				<ul class="px-sm space-y-1">
+					<!-- Active Item: Overview -->
+					<li>
+						<a
+							class="px-md py-sm bg-primary text-on-primary border-primary flex translate-x-1 items-center space-x-3 border font-bold transition-all"
+							href="#"
+						>
+							<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1"
+								>dashboard</span
+							>
+							<span class="font-label-caps tracking-wider uppercase">Overview</span>
+						</a>
+					</li>
+					<!-- Inactive Items -->
+					<li>
+						<a
+							class="px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:bg-primary-fixed group hover:border-on-background flex items-center space-x-3 border border-transparent transition-all"
+							href="#"
+						>
+							<span class="material-symbols-outlined group-hover:text-primary transition-colors"
+								>group</span
+							>
+							<span class="font-label-caps group-hover:text-on-background tracking-wider uppercase"
+								>User Management</span
+							>
+						</a>
+					</li>
+					<li>
+						<a
+							class="px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:bg-primary-fixed group hover:border-on-background flex items-center space-x-3 border border-transparent transition-all"
+							href="#"
+						>
+							<span class="material-symbols-outlined group-hover:text-primary transition-colors"
+								>library_books</span
+							>
+							<span class="font-label-caps group-hover:text-on-background tracking-wider uppercase"
+								>Quiz Sets</span
+							>
+						</a>
+					</li>
+					<li>
+						<a
+							class="px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:bg-primary-fixed group hover:border-on-background flex items-center space-x-3 border border-transparent transition-all"
+							href="#"
+						>
+							<span class="material-symbols-outlined group-hover:text-primary transition-colors"
+								>quiz</span
+							>
+							<span class="font-label-caps group-hover:text-on-background tracking-wider uppercase"
+								>Question Bank</span
+							>
+						</a>
+					</li>
+					<li>
+						<a
+							class="px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:bg-primary-fixed group hover:border-on-background flex items-center space-x-3 border border-transparent transition-all"
+							href="#"
+						>
+							<span class="material-symbols-outlined group-hover:text-primary transition-colors"
+								>terminal</span
+							>
+							<span class="font-label-caps group-hover:text-on-background tracking-wider uppercase"
+								>System Logs</span
+							>
+						</a>
+					</li>
+				</ul>
+			</div>
+			<!-- Footer Navigation -->
+			<div class="border-on-background py-md px-sm border-t">
+				<ul class="space-y-1">
+					<li>
+						<a
+							class="px-md py-sm text-on-surface-variant hover:bg-surface-variant group hover:border-on-background flex items-center space-x-3 border border-transparent transition-all"
+							href="#"
+						>
+							<span class="material-symbols-outlined group-hover:text-on-background">settings</span>
+							<span class="font-label-caps group-hover:text-on-background tracking-wider uppercase"
+								>Settings</span
+							>
+						</a>
+					</li>
+					<li>
+						<a
+							class="px-md py-sm text-on-surface-variant hover:bg-surface-variant group hover:border-on-background flex items-center space-x-3 border border-transparent transition-all"
+							href="#"
+						>
+							<span class="material-symbols-outlined text-primary">logout</span>
+							<span class="font-label-caps text-primary tracking-wider uppercase">Logout</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</nav>
+		<!-- Main Content Area -->
+		<main class="p-margin-desktop ml-64 min-h-screen">
+			<!-- Styled Header (Based on Reference Image) -->
+			<header class="mb-xl flex items-end">
+				<div class="flex items-center">
+					<!-- Solid Red Block -->
+					<div class="bg-primary mr-sm h-16 w-12 flex-shrink-0"></div>
+					<!-- Large Number Indicator -->
+					<div
+						class="text-display-num font-display-num text-primary mr-sm leading-none tracking-tighter"
+					>
+						02
+					</div>
+					<!-- Diagonal Divider -->
+					<div
+						class="text-display-num font-display-num text-tertiary mr-md leading-none font-light"
+					>
+						/
+					</div>
+					<!-- Titles -->
+					<div class="border-primary flex flex-col justify-end border-b-2 pb-1">
+						<div
+							class="text-label-caps font-label-caps text-on-surface-variant mb-1 tracking-widest uppercase"
+						>
+							System Overview
+						</div>
+						<h2
+							class="text-headline-lg font-headline-lg text-on-background leading-none tracking-tight uppercase"
+						>
+							Dashboard
+						</h2>
+					</div>
+				</div>
+				<!-- Atmospheric Japanese text accent -->
+				<div class="ml-auto hidden text-right lg:block">
+					<div
+						class="text-label-caps font-label-caps text-primary tracking-[0.2em] uppercase opacity-70"
+					>
+						Guanli Mianban
+					</div>
+					<div class="text-label-caps font-label-caps text-tertiary mt-1 uppercase">
+						Status: Online
+					</div>
+				</div>
+			</header>
+			<!-- Statistics Bento Grid -->
+			<section class="gap-md mb-xxl grid grid-cols-1 md:grid-cols-3">
+				<!-- Stat Card 1 -->
+				<div
+					class="bg-surface-container border-on-background p-lg group relative overflow-hidden border"
+				>
+					<div
+						class="border-on-background bg-surface absolute top-0 right-0 flex h-12 w-12 items-center justify-center border-b border-l"
+					>
+						<span class="material-symbols-outlined text-primary">group</span>
+					</div>
+					<div class="relative z-10">
+						<div class="font-label-caps text-on-surface-variant mb-md tracking-wider uppercase">
+							Total Students
+						</div>
+						<div class="font-display-num text-on-background text-6xl tracking-tighter">1,248</div>
+						<div class="mt-md bg-on-background/20 relative h-px w-full">
+							<div class="bg-primary absolute top-0 left-0 h-full w-3/4"></div>
+						</div>
+						<div
+							class="mt-sm text-label-caps font-label-caps flex items-center justify-between uppercase"
+						>
+							<span class="text-primary flex items-center"
+								><span class="material-symbols-outlined mr-1 text-[14px]">trending_up</span>
+								+12%</span
+							>
+							<span class="text-tertiary">This Week</span>
+						</div>
+					</div>
+				</div>
+				<!-- Stat Card 2 -->
+				<div
+					class="bg-surface-container border-on-background p-lg group relative overflow-hidden border"
+				>
+					<div
+						class="border-on-background bg-surface absolute top-0 right-0 flex h-12 w-12 items-center justify-center border-b border-l"
+					>
+						<span class="material-symbols-outlined text-primary">library_books</span>
+					</div>
+					<div class="relative z-10">
+						<div class="font-label-caps text-on-surface-variant mb-md tracking-wider uppercase">
+							Active Quizzes
+						</div>
+						<div class="font-display-num text-on-background text-6xl tracking-tighter">42</div>
+						<div class="mt-md bg-on-background/20 relative h-px w-full">
+							<div class="bg-primary absolute top-0 left-0 h-full w-1/2"></div>
+						</div>
+						<div
+							class="mt-sm text-label-caps font-label-caps flex items-center justify-between uppercase"
+						>
+							<span class="text-on-background flex items-center"
+								><span class="material-symbols-outlined mr-1 text-[14px]">sync</span> 3
+								Syncing</span
+							>
+							<span class="text-tertiary">Live</span>
+						</div>
+					</div>
+				</div>
+				<!-- Stat Card 3 -->
+				<div
+					class="bg-primary text-on-primary border-on-background p-lg group relative overflow-hidden border"
+				>
+					<!-- Background Graphic Element -->
+					<div class="absolute -right-8 -bottom-8 rotate-12 transform opacity-20">
+						<span
+							class="material-symbols-outlined text-[120px]"
+							style="font-variation-settings: 'FILL' 1"
+							>quiz</span
+						>
+					</div>
+					<div class="relative z-10">
+						<div class="font-label-caps text-primary-fixed-dim mb-md tracking-wider uppercase">
+							Questions Bank
+						</div>
+						<div class="font-display-num text-on-primary text-6xl tracking-tighter">8,902</div>
+						<div class="mt-md bg-on-primary/30 relative h-px w-full">
+							<div class="bg-on-primary absolute top-0 left-0 h-full w-full"></div>
+						</div>
+						<div
+							class="mt-sm text-label-caps font-label-caps text-on-primary flex items-center justify-between uppercase"
+						>
+							<span class="opacity-80">This Month</span>
+						</div>
+					</div>
+				</div>
+			</section>
+			<!-- Two Column Layout for Activity and Quick Actions -->
+			<div class="gap-lg grid grid-cols-1 lg:grid-cols-3">
+				<!-- Recent Activity Table (Spans 2 columns) -->
+				<section class="border-on-background bg-surface flex flex-col border lg:col-span-2">
+					<div
+						class="border-on-background px-lg py-md bg-surface-container-low flex items-center justify-between border-b-2"
+					>
+						<div class="flex items-center">
+							<span class="material-symbols-outlined text-primary mr-sm">history</span>
+							<h3 class="text-headline-md font-headline-md tracking-tight uppercase">
+								Recent Activity
+							</h3>
+						</div>
+						<div class="btn-wrapper relative inline-block">
+							<button
+								class="btn-press bg-surface text-on-background border-on-background font-label-caps px-sm py-xs hover:bg-surface-variant relative z-10 border text-[10px] uppercase transition-colors"
+							>
+								View All
+							</button>
+							<div class="btn-ghost-layer"></div>
+						</div>
+					</div>
+					<div class="flex-grow overflow-x-auto">
+						<table class="w-full border-collapse text-left">
+							<thead>
+								<tr
+									class="border-on-background bg-surface-container text-label-caps font-label-caps text-on-surface-variant border-b uppercase"
+								>
+									<th class="py-sm px-lg w-12 font-normal tracking-wider">No.</th>
+									<th class="py-sm px-lg font-normal tracking-wider">Action</th>
+									<th class="py-sm px-lg font-normal tracking-wider">User</th>
+									<th class="py-sm px-lg text-right font-normal tracking-wider">Time</th>
+								</tr>
+							</thead>
+							<tbody class="text-body-md">
+								<tr
+									class="border-on-background/30 hover:bg-surface-container-low group border-b transition-colors"
+								>
+									<td class="py-md px-lg font-display-num text-tertiary">01</td>
+									<td class="py-md px-lg group-hover:text-primary font-medium transition-colors">
+										Published "Advanced Kanji Pt. 3"
+									</td>
+									<td class="py-md px-lg flex items-center space-x-2">
+										<div
+											class="bg-surface-variant border-on-background h-6 w-6 overflow-hidden rounded-none border"
+										>
+											<img
+												alt="User"
+												class="h-full w-full object-cover grayscale"
+												data-alt="Small thumbnail avatar of a user, minimalist style, light background"
+												src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9nidk8lR_KzLIrKXcfoUNNwTRiVWVHQopk5bFC6OTfuhC4pcWzhoukHN9IWkW4kwV7qCSUP4erDSCmjID3hWDd1B1sx0JSRJzuY_qSqeov5Nt8YdUaLx0k7pcguy-NOjKlIZC0fpqeX9WroyPtpf9U-ou3ByG05F9S2kuZe6bY96aYcQRVsTWdEvJAMZu-bzdHmnvRNPUT6mQa0yhLBp4YQJSe954A6S9dDU9-9KPyNcIcpyG_ZGwFw"
+											/>
+										</div>
+										<span class="text-sm">Admin_Taro</span>
+									</td>
+									<td class="py-md px-lg text-tertiary text-right font-mono text-sm">10:42 AM</td>
+								</tr>
+								<tr
+									class="border-on-background/30 hover:bg-surface-container-low group border-b transition-colors"
+								>
+									<td class="py-md px-lg font-display-num text-tertiary">02</td>
+									<td class="py-md px-lg group-hover:text-primary font-medium transition-colors">
+										Flagged 5 questions for review
+									</td>
+									<td class="py-md px-lg flex items-center space-x-2">
+										<div
+											class="bg-surface-variant border-on-background h-6 w-6 overflow-hidden rounded-none border"
+										>
+											<img
+												alt="User"
+												class="h-full w-full object-cover grayscale"
+												data-alt="Small thumbnail avatar of a user, minimalist style, light background"
+												src="https://lh3.googleusercontent.com/aida-public/AB6AXuAndIsgHAMIcZIbUYZ7v9f9KweVFWtKHbTMIO8tZZlK_9TMwwtRTxJyXhbVF_l1qp_HDhtHxHoxPSeM4I_2OcgOMpP6g2yOdmPgKDyRBTegfvBz9uEa_HFLbeThvvoLVYcfowxH0thUXpt1LEsWR3kHBhLO4jNbMuowZmNPLNjU3QJlbHYutApowTqLXcM_rnO1f5vvhNQZU83FV7lTlLc3WkL9CWpGLe8IZY2MPkxKtRMxkfy2SNh6EQ"
+											/>
+										</div>
+										<span class="text-sm">System</span>
+									</td>
+									<td class="py-md px-lg text-tertiary text-right font-mono text-sm">09:15 AM</td>
+								</tr>
+								<tr
+									class="border-on-background/30 hover:bg-surface-container-low group border-b transition-colors"
+								>
+									<td class="py-md px-lg font-display-num text-tertiary">03</td>
+									<td class="py-md px-lg group-hover:text-primary font-medium transition-colors">
+										New batch upload: N4 Vocabulary
+									</td>
+									<td class="py-md px-lg flex items-center space-x-2">
+										<div
+											class="bg-surface-variant border-on-background h-6 w-6 overflow-hidden rounded-none border"
+										>
+											<img
+												alt="User"
+												class="h-full w-full object-cover grayscale"
+												data-alt="Small thumbnail avatar of a user, minimalist style, light background"
+												src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfptE2BItYEH254ZYLa1PQGJuaWnKiTTQzsuQ6d3cbZfTE18GSPlsOk6Q8p1zWiChCol9VQF9RvTVVqdV5sZDaKaErAhhNIrnLl65OFDPvJXICRVyvVg8FA6vLLegcIvrAvPVtJhbcgqFcN8xb1AqDbnHcVennYK-uEOgCVVkXoBrfnctajHtWa97rvwV9pO6xDV1r_bRlGXytwv9WNTvVoH-aEETKo_zZT41YLofP6Twx3eWYCX-ziQ"
+											/>
+										</div>
+										<span class="text-sm">Admin_Hanako</span>
+									</td>
+									<td class="py-md px-lg text-tertiary text-right font-mono text-sm">Yesterday</td>
+								</tr>
+								<tr class="hover:bg-surface-container-low group transition-colors">
+									<td class="py-md px-lg font-display-num text-tertiary">04</td>
+									<td class="py-md px-lg group-hover:text-primary font-medium transition-colors">
+										Server backup completed
+									</td>
+									<td class="py-md px-lg flex items-center space-x-2">
+										<div
+											class="bg-surface-variant border-on-background h-6 w-6 overflow-hidden rounded-none border"
+										>
+											<img
+												alt="User"
+												class="h-full w-full object-cover grayscale"
+												data-alt="Small thumbnail avatar of a system icon, minimalist style, light background"
+												src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGHrjK4shqefQr5sAwQj_20Tq6migUKMXqc2jibsFnbxoOxE8O4BMHej-Ux69CTeP1mAdOwir5II5vqu29sYFGpQcSYFqY11P97UBZMFSBD6HO3uRf42mXk-8iosq0UddKpSY222tl7W0QZlIZFaFYE0Hp6UgEdJcKWuj-LSUMkCo8p-rIGfLWrOuCi02edwyrIBTaQCRCxLH2ILhA2OCLsMdobWS4NwtwhNCjjQPP7P_k-sMsbNFnDA"
+											/>
+										</div>
+										<span class="text-sm">System</span>
+									</td>
+									<td class="py-md px-lg text-tertiary text-right font-mono text-sm">Yesterday</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</section>
+				<!-- Quick Management Panel (Spans 1 column) -->
+				<section class="border-on-background bg-surface-container relative border-2">
+					<!-- Decorative Corner -->
+					<div
+						class="bg-primary border-on-background absolute top-0 right-0 z-10 h-8 w-8 border-b-2 border-l-2"
+					></div>
+					<div class="p-lg border-on-background border-b">
+						<h3
+							class="text-headline-md font-headline-md flex items-center tracking-tight uppercase"
+						>
+							<span class="material-symbols-outlined mr-2">bolt</span> Quick Actions
+						</h3>
+					</div>
+					<div class="p-lg space-y-md">
+						<!-- Action Item -->
+						<div class="group cursor-pointer">
+							<div class="border-on-background pb-sm flex items-center justify-between border-b">
+								<div class="flex items-center space-x-3">
+									<div
+										class="bg-surface border-on-background group-hover:bg-primary group-hover:text-on-primary flex h-8 w-8 items-center justify-center border transition-colors"
+									>
+										<span class="material-symbols-outlined text-sm">edit_document</span>
+									</div>
+									<span class="font-label-caps text-sm tracking-wider uppercase"
+										>Draft New Quiz</span
+									>
+								</div>
+								<span
+									class="material-symbols-outlined text-tertiary group-hover:text-primary transform transition-all group-hover:translate-x-1"
+									>arrow_forward</span
+								>
+							</div>
+						</div>
+						<!-- Action Item -->
+						<div class="group cursor-pointer">
+							<div class="border-on-background pb-sm flex items-center justify-between border-b">
+								<div class="flex items-center space-x-3">
+									<div
+										class="bg-surface border-on-background group-hover:bg-primary group-hover:text-on-primary flex h-8 w-8 items-center justify-center border transition-colors"
+									>
+										<span class="material-symbols-outlined text-sm">group_add</span>
+									</div>
+									<span class="font-label-caps text-sm tracking-wider uppercase"
+										>Invite Admins</span
+									>
+								</div>
+								<span
+									class="material-symbols-outlined text-tertiary group-hover:text-primary transform transition-all group-hover:translate-x-1"
+									>arrow_forward</span
+								>
+							</div>
+						</div>
+						<!-- Action Item -->
+						<div class="group cursor-pointer">
+							<div class="border-on-background pb-sm flex items-center justify-between border-b">
+								<div class="flex items-center space-x-3">
+									<div
+										class="bg-surface border-on-background group-hover:bg-primary group-hover:text-on-primary flex h-8 w-8 items-center justify-center border transition-colors"
+									>
+										<span class="material-symbols-outlined text-sm">bar_chart</span>
+									</div>
+									<span class="font-label-caps text-sm tracking-wider uppercase"
+										>Generate Report</span
+									>
+								</div>
+								<span
+									class="material-symbols-outlined text-tertiary group-hover:text-primary transform transition-all group-hover:translate-x-1"
+									>arrow_forward</span
+								>
+							</div>
+						</div>
+					</div>
+					<!-- System Status Block at bottom -->
+					<div
+						class="p-md bg-surface border-on-background absolute bottom-0 left-0 flex w-full items-center justify-between border-t"
+					>
+						<span class="font-label-caps text-xs tracking-widest uppercase">System Health</span>
+						<div class="flex items-center space-x-2">
+							<div class="bg-primary h-2 w-2 animate-pulse rounded-full"></div>
+							<span class="text-on-surface-variant font-mono text-xs">OPTIMAL</span>
+						</div>
+					</div>
+				</section>
+			</div>
+		</main>
+	</body>
+</html>
