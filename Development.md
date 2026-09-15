@@ -21,6 +21,7 @@ We have integrated SonarCloud for automated code analysis to track code health, 
 - The configuration is defined in `sonar-project.properties`.
 - The analysis is automatically triggered in our CI/CD pipeline on new pull requests and commits to the `main` or `development` branch.
 - **Viewing Reports**: Developers can view and interpret the cloud reports by visiting the SonarCloud dashboard. Look for the `quiz-game` project to see detailed metrics on code quality, security vulnerabilities, and test coverage. Address any issues flagged in your Pull Request before merging.
+
 # Development
 
 Notes on how parts of the app work, for whoever works on them next.
