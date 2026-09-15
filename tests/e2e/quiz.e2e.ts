@@ -73,15 +73,19 @@ test.describe('taking a quiz', () => {
 		// The initial payload for a fresh attempt must not carry an answer key.
 		expect(await page.content()).not.toMatch(/is_?correct/i);
 
+		// There is no Prev/Next: choosing an answer saves it and moves on by itself.
+		await expect(page.getByRole('button', { name: 'Next' })).toHaveCount(0);
+		const questionNav = page.getByRole('navigation', { name: 'Questions' });
+
 		// Q1: 病院 — びょういん is correct.
 		await page.getByRole('radio', { name: 'びょういん', exact: true }).check();
-		await page.getByRole('button', { name: 'Next' }).click();
 		await expect(page.getByText('1 answered')).toBeVisible();
 		await expect(progress).toHaveAttribute('aria-valuenow', '2');
 
-		// Q2: left unanswered on purpose, to exercise the skip path.
+		// Q2: left unanswered on purpose, to exercise the skip path via the navigator.
 		await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
-		await page.getByRole('button', { name: 'Next' }).click();
+		await questionNav.getByRole('link', { name: 'Question 3', exact: true }).click();
+		await expect(progress).toHaveAttribute('aria-valuenow', '3');
 
 		// Q3: the image question. Real alt text, real bytes from /media/[publicId].
 		const image = page.getByRole('img', { name: '赤い正方形のサンプル画像。' });
@@ -92,11 +96,17 @@ test.describe('taking a quiz', () => {
 		expect(imageResponse.headers()['content-type']).toBe('image/png');
 
 		await page.getByRole('radio', { name: '赤', exact: true }).check();
-		await page.getByRole('button', { name: 'Next' }).click();
+		await expect(progress).toHaveAttribute('aria-valuenow', '4');
 
 		// Q4: grammar, correct.
 		await page.getByRole('radio', { name: 'なりました' }).check();
-		await page.getByRole('button', { name: 'Next' }).click();
+		await expect(progress).toHaveAttribute('aria-valuenow', '5');
+
+		// Going back through the navigator shows the answer saved on that question.
+		await questionNav.getByRole('link', { name: 'Question 1, answered' }).click();
+		await expect(page.getByRole('radio', { name: 'びょういん', exact: true })).toBeChecked();
+		await questionNav.getByRole('link', { name: /^Question 5/ }).click();
+		await expect(progress).toHaveAttribute('aria-valuenow', '5');
 
 		// Q5: the listening question. Audio renders, replay works, and — the acceptance
 		// criterion this exists for — the transcript is nowhere in the page while the
