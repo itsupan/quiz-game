@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { untrack } from 'svelte';
 	import Badge from '$lib/components/Badge.svelte';
@@ -160,7 +161,7 @@
 						{@const isCurrent = item.number === data.question.number}
 						<li>
 							<a
-								href={`?q=${item.number}`}
+								href={resolve(`/quiz/attempt/${data.attempt.id}?q=${item.number}`)}
 								aria-current={isCurrent ? 'page' : undefined}
 								aria-label={`Question ${item.number}${item.answered ? ', answered' : ''}`}
 								data-sveltekit-noscroll
