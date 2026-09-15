@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import { untrack } from 'svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import Button from '$lib/components/Button.svelte';
@@ -36,6 +38,56 @@
 	function onaudioready() {
 		if (data.question.canAnswer) optionsDisabled = false;
 	}
+
+	/**
+	 * One tap answers: choosing an option saves it and moves on to the next question (or,
+	 * on the last one, saves in place). The pause lets the selected highlight register
+	 * before the page changes; a second pick inside it simply replaces the first.
+	 */
+	const ADVANCE_DELAY_MS = 250;
+	let answerFormEl: HTMLFormElement | undefined = $state();
+	let nextQuestionEl: HTMLInputElement | undefined = $state();
+	let advanceTimer: ReturnType<typeof setTimeout> | undefined;
+	let saving = false;
+	let pendingSave = false;
+
+	function saveAnswer() {
+		if (saving) {
+			pendingSave = true;
+			return;
+		}
+		answerFormEl?.requestSubmit();
+	}
+
+	function onanswerchange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		if (target.name !== 'selectedOptionNumber' || optionsDisabled) return;
+
+		const { number, links } = data.question;
+		if (nextQuestionEl) nextQuestionEl.value = String(links.next ? number + 1 : number);
+
+		clearTimeout(advanceTimer);
+		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		advanceTimer = setTimeout(saveAnswer, reduceMotion ? 0 : ADVANCE_DELAY_MS);
+	}
+
+	const enhanceAnswer: SubmitFunction = ({ submitter }) => {
+		// Review & submit carries its own intent; only the automatic save is serialized.
+		if (!submitter) saving = true;
+		clearTimeout(advanceTimer);
+
+		return async ({ update }) => {
+			// Keep the just-checked radio: a form reset would clear it before the reload lands.
+			await update({ reset: false });
+			saving = false;
+			if (pendingSave) {
+				pendingSave = false;
+				saveAnswer();
+			}
+		};
+	};
+
+	$effect(() => () => clearTimeout(advanceTimer));
 
 	let submitFormEl: HTMLFormElement | undefined = $state();
 	let advanceFormEl: HTMLFormElement | undefined = $state();
@@ -102,6 +154,28 @@
 					style={`width: ${progressPercent}%`}
 				></div>
 			</div>
+
+			<nav aria-label="Questions" class="-mx-1 overflow-x-auto px-1 pt-0.5 pb-1">
+				<ol class="m-0 flex list-none gap-1.5 p-0">
+					{#each data.attempt.questions as item (item.number)}
+						{@const isCurrent = item.number === data.question.number}
+						<li>
+							<a
+								href={resolve(`/quiz/attempt/${data.attempt.id}?q=${item.number}`)}
+								aria-current={isCurrent ? 'page' : undefined}
+								aria-label={`Question ${item.number}${item.answered ? ', answered' : ''}`}
+								data-sveltekit-noscroll
+								class="flex h-7 min-w-7 items-center justify-center border px-1.5 text-xs font-black transition-colors {isCurrent
+									? 'border-brand-red bg-brand-red text-white'
+									: item.answered
+										? 'border-ink bg-ink text-white hover:bg-stone-700'
+										: 'border-stone-300 bg-white text-stone-500 hover:border-ink hover:text-ink'}"
+								>{item.number}</a
+							>
+						</li>
+					{/each}
+				</ol>
+			</nav>
 		</div>
 
 		<div class="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
@@ -131,6 +205,53 @@
 		</form>
 	{/if}
 
+	{#snippet answerForm(audioReady?: () => void)}
+		<form
+			id="active-answer-form"
+			method="POST"
+			action="?/answer"
+			bind:this={answerFormEl}
+			use:enhance={enhanceAnswer}
+			onchange={onanswerchange}
+			class="flex flex-col gap-6"
+		>
+			<input type="hidden" name="questionNumber" value={data.question.number} />
+			<input
+				type="hidden"
+				name="nextQuestion"
+				value={String(data.question.number)}
+				bind:this={nextQuestionEl}
+			/>
+
+			<QuestionBody
+				question={data.question}
+				revealStudyAids={true}
+				name="selectedOptionNumber"
+				selectedOptionId={data.question.selectedOptionNumber}
+				disabled={optionsDisabled}
+				showSectionBadge={false}
+				onaudioready={audioReady}
+			/>
+
+			{#if !data.question.links.next}
+				<div class="flex items-center justify-end border-t border-line pt-4">
+					<ConfirmSubmit
+						label="Review & submit"
+						title="Submit this attempt?"
+						message={data.question.progress.answered < data.question.progress.total
+							? 'Any questions left blank are scored as unanswered. You can review saved answers before confirming.'
+							: 'You can review your answers on the result page afterwards, but this attempt closes once submitted.'}
+						confirmLabel="Submit attempt"
+						formaction="?/answer"
+						name="finish"
+						value="true"
+						disabled={optionsDisabled}
+					/>
+				</div>
+			{/if}
+		</form>
+	{/snippet}
+
 	<Card raised>
 		<!--
 			A reading passage or a listening clip earns a shared context panel — the material
@@ -146,134 +267,19 @@
 				</div>
 
 				<div class="p-5 lg:p-6">
-					<form
-						id="active-answer-form"
-						method="POST"
-						action="?/answer"
-						use:enhance
-						class="flex flex-col gap-6"
-					>
-						<input type="hidden" name="questionNumber" value={data.question.number} />
-
-						<QuestionBody
-							question={data.question}
-							revealStudyAids={true}
-							name="selectedOptionNumber"
-							selectedOptionId={data.question.selectedOptionNumber}
-							disabled={optionsDisabled}
-							showSectionBadge={false}
-						/>
-
-						<div class="flex items-center justify-between border-t border-line pt-4">
-							{#if data.question.links.previous}
-								<Button
-									type="submit"
-									name="nextQuestion"
-									value={String(data.question.number - 1)}
-									variant="secondary"
-									disabled={optionsDisabled}
-								>
-									&larr; Prev
-								</Button>
-							{:else}
-								<span></span>
-							{/if}
-
-							{#if data.question.links.next}
-								<Button
-									type="submit"
-									name="nextQuestion"
-									value={String(data.question.number + 1)}
-									disabled={optionsDisabled}
-								>
-									Next →
-								</Button>
-							{:else}
-								<ConfirmSubmit
-									label="Review & submit"
-									title="Submit this attempt?"
-									message={data.question.progress.answered < data.question.progress.total
-										? 'Any questions left blank are scored as unanswered. You can review saved answers before confirming.'
-										: 'You can review your answers on the result page afterwards, but this attempt closes once submitted.'}
-									confirmLabel="Submit attempt"
-									formaction="?/answer"
-									name="finish"
-									value="true"
-									disabled={optionsDisabled}
-								/>
-							{/if}
-						</div>
-					</form>
+					{@render answerForm()}
 				</div>
 			</div>
 		{:else}
 			<div class="p-5 lg:p-6">
-				<form
-					id="active-answer-form"
-					method="POST"
-					action="?/answer"
-					use:enhance
-					class="flex flex-col gap-6"
-				>
-					<input type="hidden" name="questionNumber" value={data.question.number} />
-
-					<QuestionBody
-						question={data.question}
-						revealStudyAids={true}
-						name="selectedOptionNumber"
-						selectedOptionId={data.question.selectedOptionNumber}
-						disabled={optionsDisabled}
-						showSectionBadge={false}
-						{onaudioready}
-					/>
-
-					<div class="flex items-center justify-between border-t border-line pt-4">
-						{#if data.question.links.previous}
-							<Button
-								type="submit"
-								name="nextQuestion"
-								value={String(data.question.number - 1)}
-								variant="secondary"
-								disabled={optionsDisabled}
-							>
-								&larr; Prev
-							</Button>
-						{:else}
-							<span></span>
-						{/if}
-
-						{#if data.question.links.next}
-							<Button
-								type="submit"
-								name="nextQuestion"
-								value={String(data.question.number + 1)}
-								disabled={optionsDisabled}
-							>
-								Next →
-							</Button>
-						{:else}
-							<ConfirmSubmit
-								label="Review & submit"
-								title="Submit this attempt?"
-								message={data.question.progress.answered < data.question.progress.total
-									? 'Any questions left blank are scored as unanswered. You can review saved answers before confirming.'
-									: 'You can review your answers on the result page afterwards, but this attempt closes once submitted.'}
-								confirmLabel="Submit attempt"
-								formaction="?/answer"
-								name="finish"
-								value="true"
-								disabled={optionsDisabled}
-							/>
-						{/if}
-					</div>
-				</form>
+				{@render answerForm(onaudioready)}
 			</div>
 		{/if}
 	</Card>
 
 	<p class="text-xs font-medium text-stone-500">
-		Your answer is saved when you move to another question. Submit from the final question when you
-		are ready.
+		Your answer is saved as soon as you choose it. Use the question numbers above to go back, and
+		submit from the final question when you are ready.
 	</p>
 
 	<form method="POST" action="?/submit" bind:this={submitFormEl} use:enhance hidden></form>

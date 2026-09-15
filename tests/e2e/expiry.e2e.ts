@@ -24,10 +24,9 @@ test.describe('timer expiry', () => {
 		await expect(page).toHaveURL(/\/quiz\/attempt\//);
 		await expect(page.getByText('Question 1 of 2')).toBeVisible();
 
-		// Answer and move on well within the first section's own three-second clock — this
-		// single action both saves the answer and completes the section.
+		// Answer well within the first section's own three-second clock — choosing the option
+		// alone saves the answer, moves on, and completes the section.
 		await page.getByRole('radio', { name: 'ほん' }).check();
-		await page.getByRole('button', { name: 'Next' }).click();
 
 		await expect(page.getByText('Question 2 of 2')).toBeVisible();
 		await expect(page.getByText('GRAMMAR READING')).toBeVisible();
