@@ -11,6 +11,8 @@
 	import Countdown from '$lib/features/quiz/Countdown.svelte';
 	import QuestionBody from '$lib/features/quiz/QuestionBody.svelte';
 	import QuestionContextPanel from '$lib/features/quiz/QuestionContextPanel.svelte';
+	import SoundToggle from '$lib/features/sound/SoundToggle.svelte';
+	import { playSfx } from '$lib/features/sound/sound.svelte';
 	import { stimulusFor } from '$lib/features/quiz/api/types';
 	import type { PageProps } from './$types';
 
@@ -77,6 +79,8 @@
 		const target = event.target as HTMLInputElement;
 		if (target.name !== 'selectedOptionNumber' || optionsDisabled) return;
 
+		playSfx('swish');
+
 		const { number, links } = data.question;
 		if (nextQuestionEl) nextQuestionEl.value = String(links.next ? number + 1 : number);
 
@@ -113,8 +117,9 @@
 		cancelPendingAnswer();
 	});
 
-	const enhanceAnswer: SubmitFunction = () => {
+	const enhanceAnswer: SubmitFunction = ({ formData }) => {
 		cancelPendingAnswer();
+		if (formData.get('finish') === 'true') playSfx('strike');
 		saving = true;
 
 		return async ({ update }) => {
@@ -143,6 +148,7 @@
 		if (data.deadlineKind === 'section') {
 			advanceFormEl?.requestSubmit();
 		} else {
+			playSfx('strike');
 			submitFormEl?.requestSubmit();
 		}
 	}
@@ -223,8 +229,13 @@
 				{saving ? 'Saving…' : ''}
 			</span>
 			{#if data.deadline}
-				<Countdown deadline={new Date(data.deadline)} {onexpire} />
+				<Countdown
+					deadline={new Date(data.deadline)}
+					{onexpire}
+					onlowtime={() => playSfx('drum')}
+				/>
 			{/if}
+			<SoundToggle />
 			<ConfirmSubmit
 				label="Exit quiz"
 				title="Exit this quiz?"

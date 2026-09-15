@@ -4,6 +4,8 @@
 	import MemberProfile from './MemberProfile.svelte';
 	import TeamCrest from './TeamCrest.svelte';
 	import type { TeamMember } from './team';
+	import SoundToggle from '$lib/features/sound/SoundToggle.svelte';
+	import { MUSIC_URL, soundSettings } from '$lib/features/sound/sound.svelte';
 
 	type Props = {
 		members: readonly TeamMember[];
@@ -11,6 +13,47 @@
 
 	let { members }: Props = $props();
 	let pageRoot: HTMLElement;
+	let musicEl: HTMLAudioElement;
+
+	/**
+	 * Browsers refuse audible autoplay, so the music waits for the visitor's first
+	 * interaction with the page. A press on the toggle itself is left to the toggle, so
+	 * muting straight away never plays a blip first.
+	 */
+	let musicStarted = $state(false);
+	const MUSIC_VOLUME = 0.35;
+
+	$effect(() => {
+		if (!musicEl) return;
+
+		if (musicStarted && !soundSettings.muted) {
+			musicEl.volume = MUSIC_VOLUME;
+			musicEl.play().catch(() => {});
+		} else {
+			musicEl.pause();
+		}
+	});
+
+	onMount(() => {
+		function startMusic(event: Event) {
+			if ((event.target as Element | null)?.closest?.('[data-music-toggle]')) return;
+			musicStarted = true;
+			removeListeners();
+		}
+
+		function removeListeners() {
+			window.removeEventListener('pointerdown', startMusic);
+			window.removeEventListener('keydown', startMusic);
+		}
+
+		window.addEventListener('pointerdown', startMusic);
+		window.addEventListener('keydown', startMusic);
+
+		return () => {
+			removeListeners();
+			musicEl?.pause();
+		};
+	});
 
 	onMount(() => {
 		const sections = pageRoot.querySelectorAll<HTMLElement>('[data-reveal]');
@@ -39,6 +82,11 @@
 </script>
 
 <div class="team-page" bind:this={pageRoot}>
+	<audio bind:this={musicEl} src={MUSIC_URL} loop preload="none"></audio>
+	<div class="music-toggle" data-music-toggle>
+		<SoundToggle onchange={() => (musicStarted = true)} />
+	</div>
+
 	<section class="hero" aria-labelledby="team-title">
 		<div class="hero-pattern" aria-hidden="true"></div>
 		<div class="sun" aria-hidden="true"></div>
@@ -129,6 +177,14 @@
 </div>
 
 <style>
+	.music-toggle {
+		position: fixed;
+		bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+		left: 1rem;
+		z-index: 30;
+		box-shadow: 3px 3px 0 var(--color-ink);
+	}
+
 	.team-page {
 		--display-size: clamp(2.4rem, 6.5vw, 6.75rem);
 		width: 100vw;

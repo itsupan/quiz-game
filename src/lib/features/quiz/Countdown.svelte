@@ -14,14 +14,18 @@
 	 */
 	let {
 		deadline,
-		onexpire
+		onexpire,
+		onlowtime
 	}: {
 		deadline: Date | null;
 		onexpire?: () => void;
+		/** Fires once per deadline when it first drops under a minute (not at zero). */
+		onlowtime?: () => void;
 	} = $props();
 
 	let now = $state(new Date());
 	let firedDeadlineMs: number | null = null;
+	let lowTimeDeadlineMs: number | null = null;
 
 	$effect(() => {
 		if (!deadline) return;
@@ -35,6 +39,14 @@
 
 	const remaining = $derived(remainingMs(now, deadline));
 	const underAMinute = $derived(remaining !== null && remaining < 60_000);
+
+	$effect(() => {
+		if (!deadline || !underAMinute || remaining === 0) return;
+		if (lowTimeDeadlineMs === deadline.getTime()) return;
+
+		lowTimeDeadlineMs = deadline.getTime();
+		onlowtime?.();
+	});
 
 	$effect(() => {
 		if (deadline && firedDeadlineMs !== deadline.getTime() && isExpired(now, deadline)) {
