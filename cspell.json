@@ -151,7 +151,8 @@
 		"JBADXP",
 		"unbanded",
 		"unjudged",
-		"scoreable"
+		"scoreable",
+		"onanswerchange"
 	],
 	"ignorePaths": [
 		"node_modules/**",
