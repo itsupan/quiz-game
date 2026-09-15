@@ -152,7 +152,11 @@
 		"unbanded",
 		"unjudged",
 		"scoreable",
-		"onanswerchange"
+		"onanswerchange",
+		"itsupan",
+		"onlowtime",
+		"katana",
+		"licence"
 	],
 	"ignorePaths": [
 		"node_modules/**",
