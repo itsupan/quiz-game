@@ -150,14 +150,43 @@ export async function getAttemptQuestion(
 	);
 }
 
-export async function putAttemptAnswer(
+/**
+ * The attempt summary and one question, built from a single attempt load.
+ *
+ * `pickQuestion` receives the attempt's question count, since the page clamps the
+ * requested number into range before it knows which question to build.
+ */
+export async function getAttemptWithQuestion(
+	db: Database,
+	attemptId: string,
+	pickQuestion: (total: number) => number,
+	userId: number,
+	now: Date
+) {
+	const view = await loadOwnedSettledAttempt(db, attemptId, userId, now);
+	const attempt = toAttemptDto(view, now);
+	if (attempt.status !== 'IN_PROGRESS') return { attempt, question: null };
+
+	return {
+		attempt,
+		question: toQuestionDto(view, pickQuestion(view.questions.length), now)
+	};
+}
+
+/**
+ * Validates and saves one answer, returning the attempt as it was loaded before the write.
+ *
+ * Split from `putAttemptAnswer` so the page action, which redirects or reloads straight
+ * afterwards anyway, does not pay for a second full attempt load it would throw away.
+ */
+export async function writeOwnedAnswer(
 	db: Database,
 	attemptId: string,
 	questionNumber: number,
 	selectedOptionNumber: number | null,
 	userId: number,
 	now: Date
-) {
+): Promise<AttemptView> {
 	const view = await loadOwnedSettledAttempt(db, attemptId, userId, now);
 	if (view.attempt.status !== 'IN_PROGRESS') {
 		apiProblem(409, 'attempt_closed', 'Attempt closed', `The attempt is ${view.attempt.status}.`);
@@ -198,6 +227,19 @@ export async function putAttemptAnswer(
 	if (!written.ok) {
 		apiProblem(409, 'attempt_closed', 'Answer rejected', written.message);
 	}
+
+	return view;
+}
+
+export async function putAttemptAnswer(
+	db: Database,
+	attemptId: string,
+	questionNumber: number,
+	selectedOptionNumber: number | null,
+	userId: number,
+	now: Date
+) {
+	await writeOwnedAnswer(db, attemptId, questionNumber, selectedOptionNumber, userId, now);
 
 	const refreshed = await loadOwnedSettledAttempt(db, attemptId, userId, now);
 	return toQuestionDto(refreshed, questionNumber, now);

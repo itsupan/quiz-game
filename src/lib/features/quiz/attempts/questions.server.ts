@@ -20,9 +20,12 @@ export async function loadFrozenOptions(
 	db: Database,
 	attemptId: number
 ): Promise<Map<number, FrozenOption[]>> {
-	const byPosition = new Map<number, FrozenOption[]>();
+	return groupFrozenOptions(await frozenOptionsQuery(db, attemptId));
+}
 
-	const rows = await db
+/** The unexecuted query behind `loadFrozenOptions`, so callers can put it in a `db.batch`. */
+export function frozenOptionsQuery(db: Database, attemptId: number) {
+	return db
 		.select({
 			questionPosition: attemptQuestionOptions.questionPosition,
 			id: attemptQuestionOptions.id,
@@ -32,6 +35,12 @@ export async function loadFrozenOptions(
 		.from(attemptQuestionOptions)
 		.where(eq(attemptQuestionOptions.attemptId, attemptId))
 		.orderBy(attemptQuestionOptions.position);
+}
+
+export function groupFrozenOptions(
+	rows: Awaited<ReturnType<typeof frozenOptionsQuery>>
+): Map<number, FrozenOption[]> {
+	const byPosition = new Map<number, FrozenOption[]>();
 
 	for (const { questionPosition, ...option } of rows) {
 		const options = byPosition.get(questionPosition) ?? [];

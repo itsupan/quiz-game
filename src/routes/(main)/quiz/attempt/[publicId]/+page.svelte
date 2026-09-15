@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { beforeNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import { untrack } from 'svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Card from '$lib/components/Card.svelte';
@@ -11,6 +11,8 @@
 	import Countdown from '$lib/features/quiz/Countdown.svelte';
 	import QuestionBody from '$lib/features/quiz/QuestionBody.svelte';
 	import QuestionContextPanel from '$lib/features/quiz/QuestionContextPanel.svelte';
+	import SoundToggle from '$lib/features/sound/SoundToggle.svelte';
+	import { playSfx } from '$lib/features/sound/sound.svelte';
 	import { stimulusFor } from '$lib/features/quiz/api/types';
 	import type { PageProps } from './$types';
 
@@ -24,38 +26,52 @@
 	);
 
 	/**
-	 * Listening choices start disabled in SSR as well as in the browser. The media
-	 * component opens them only after `canplay`, so slow and broken audio cannot be skipped
-	 * merely by submitting the server-rendered form before hydration.
+	 * Set while an answer (or Review & submit) is on its way to the server. Options are
+	 * locked meanwhile, so a second tap cannot race the first one's redirect.
 	 */
-	// eslint-disable-next-line svelte/prefer-writable-derived
-	let optionsDisabled = $state(untrack(() => gatingAudio !== null || !data.question.canAnswer));
+	let saving = $state(false);
 
-	$effect(() => {
-		optionsDisabled = gatingAudio !== null || !data.question.canAnswer;
-	});
+	/**
+	 * The gating audio that has reported it can play, keyed by URL rather than toggled by
+	 * an effect: resetting a boolean whenever `data` changed shut the gate again after
+	 * every save and every move between questions sharing one clip, while the already
+	 * loaded `<audio>` never fired `canplay` a second time to reopen it.
+	 *
+	 * Listening choices start disabled in SSR as well as in the browser, so slow and broken
+	 * audio cannot be skipped by submitting the server-rendered form before hydration.
+	 */
+	let readyAudioUrl = $state<string | null>(null);
+	const audioGateOpen = $derived(gatingAudio === null || readyAudioUrl === gatingAudio.url);
+	const optionsDisabled = $derived(!data.question.canAnswer || !audioGateOpen || saving);
 
-	function onaudioready() {
-		if (data.question.canAnswer) optionsDisabled = false;
+	function onaudioready(url: string | null) {
+		if (url !== null) readyAudioUrl = url;
 	}
 
 	/**
 	 * One tap answers: choosing an option saves it and moves on to the next question (or,
 	 * on the last one, saves in place). The pause lets the selected highlight register
 	 * before the page changes; a second pick inside it simply replaces the first.
+	 *
+	 * The pending pick remembers which question it belongs to. The page component is not
+	 * remounted between questions, so a timer that outlived its question used to submit
+	 * the NEXT question's form — saving a stale or empty choice there.
 	 */
 	const ADVANCE_DELAY_MS = 250;
 	let answerFormEl: HTMLFormElement | undefined = $state();
 	let nextQuestionEl: HTMLInputElement | undefined = $state();
 	let advanceTimer: ReturnType<typeof setTimeout> | undefined;
-	let saving = false;
-	let pendingSave = false;
+	let pendingQuestion: number | null = null;
 
-	function saveAnswer() {
-		if (saving) {
-			pendingSave = true;
-			return;
-		}
+	function cancelPendingAnswer() {
+		clearTimeout(advanceTimer);
+		pendingQuestion = null;
+	}
+
+	function flushPendingAnswer() {
+		const question = pendingQuestion;
+		cancelPendingAnswer();
+		if (question === null || question !== data.question.number || saving) return;
 		answerFormEl?.requestSubmit();
 	}
 
@@ -63,31 +79,60 @@
 		const target = event.target as HTMLInputElement;
 		if (target.name !== 'selectedOptionNumber' || optionsDisabled) return;
 
+		playSfx('swish');
+
 		const { number, links } = data.question;
 		if (nextQuestionEl) nextQuestionEl.value = String(links.next ? number + 1 : number);
 
-		clearTimeout(advanceTimer);
+		cancelPendingAnswer();
+		pendingQuestion = number;
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		advanceTimer = setTimeout(saveAnswer, reduceMotion ? 0 : ADVANCE_DELAY_MS);
+		advanceTimer = setTimeout(flushPendingAnswer, reduceMotion ? 0 : ADVANCE_DELAY_MS);
 	}
 
-	const enhanceAnswer: SubmitFunction = ({ submitter }) => {
-		// Review & submit carries its own intent; only the automatic save is serialized.
-		if (!submitter) saving = true;
-		clearTimeout(advanceTimer);
+	beforeNavigate((navigation) => {
+		// Only the learner's own navigations; the redirect after a save arrives as `goto`.
+		if (navigation.type !== 'link' && navigation.type !== 'popstate') return;
+
+		const target = navigation.to?.url;
+		const withinAttempt = target?.pathname === navigation.from?.url.pathname;
+
+		if (withinAttempt && saving) {
+			// Let the in-flight save land first; it redirects on its own.
+			navigation.cancel();
+			return;
+		}
+
+		if (pendingQuestion === null) return;
+
+		if (withinAttempt && navigation.type === 'link' && target && nextQuestionEl) {
+			// A navigator click inside the pause: save the pick now and go where they clicked,
+			// instead of dropping it or letting it fire later against another question.
+			navigation.cancel();
+			nextQuestionEl.value = target.searchParams.get('q') ?? String(data.question.number);
+			flushPendingAnswer();
+			return;
+		}
+
+		cancelPendingAnswer();
+	});
+
+	const enhanceAnswer: SubmitFunction = ({ formData }) => {
+		cancelPendingAnswer();
+		if (formData.get('finish') === 'true') playSfx('strike');
+		saving = true;
 
 		return async ({ update }) => {
-			// Keep the just-checked radio: a form reset would clear it before the reload lands.
-			await update({ reset: false });
-			saving = false;
-			if (pendingSave) {
-				pendingSave = false;
-				saveAnswer();
+			try {
+				// Keep the just-checked radio: a form reset would clear it before the reload lands.
+				await update({ reset: false });
+			} finally {
+				saving = false;
 			}
 		};
 	};
 
-	$effect(() => () => clearTimeout(advanceTimer));
+	$effect(() => cancelPendingAnswer);
 
 	let submitFormEl: HTMLFormElement | undefined = $state();
 	let advanceFormEl: HTMLFormElement | undefined = $state();
@@ -103,6 +148,7 @@
 		if (data.deadlineKind === 'section') {
 			advanceFormEl?.requestSubmit();
 		} else {
+			playSfx('strike');
 			submitFormEl?.requestSubmit();
 		}
 	}
@@ -179,9 +225,17 @@
 		</div>
 
 		<div class="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
+			<span class="text-xs font-bold text-stone-500" role="status" aria-live="polite">
+				{saving ? 'Saving…' : ''}
+			</span>
 			{#if data.deadline}
-				<Countdown deadline={new Date(data.deadline)} {onexpire} />
+				<Countdown
+					deadline={new Date(data.deadline)}
+					{onexpire}
+					onlowtime={() => playSfx('drum')}
+				/>
 			{/if}
+			<SoundToggle />
 			<ConfirmSubmit
 				label="Exit quiz"
 				title="Exit this quiz?"
@@ -205,51 +259,59 @@
 		</form>
 	{/if}
 
-	{#snippet answerForm(audioReady?: () => void)}
-		<form
-			id="active-answer-form"
-			method="POST"
-			action="?/answer"
-			bind:this={answerFormEl}
-			use:enhance={enhanceAnswer}
-			onchange={onanswerchange}
-			class="flex flex-col gap-6"
-		>
-			<input type="hidden" name="questionNumber" value={data.question.number} />
-			<input
-				type="hidden"
-				name="nextQuestion"
-				value={String(data.question.number)}
-				bind:this={nextQuestionEl}
-			/>
+	{#snippet answerForm()}
+		<!--
+			Keyed by question so every question mounts fresh radios. Reused inputs kept the
+			DOM `checked` state from the previous question whenever the server's selection
+			did not change (unanswered → unanswered), showing a pick that was never made.
+		-->
+		{#key data.question.number}
+			<form
+				id="active-answer-form"
+				method="POST"
+				action="?/answer"
+				bind:this={answerFormEl}
+				use:enhance={enhanceAnswer}
+				onchange={onanswerchange}
+				aria-busy={saving}
+				class="flex flex-col gap-6"
+			>
+				<input type="hidden" name="questionNumber" value={data.question.number} />
+				<input
+					type="hidden"
+					name="nextQuestion"
+					value={String(data.question.number)}
+					bind:this={nextQuestionEl}
+				/>
 
-			<QuestionBody
-				question={data.question}
-				revealStudyAids={true}
-				name="selectedOptionNumber"
-				selectedOptionId={data.question.selectedOptionNumber}
-				disabled={optionsDisabled}
-				showSectionBadge={false}
-				onaudioready={audioReady}
-			/>
+				<QuestionBody
+					question={data.question}
+					revealStudyAids={true}
+					name="selectedOptionNumber"
+					selectedOptionId={data.question.selectedOptionNumber}
+					disabled={optionsDisabled}
+					showSectionBadge={false}
+					{onaudioready}
+				/>
 
-			{#if !data.question.links.next}
-				<div class="flex items-center justify-end border-t border-line pt-4">
-					<ConfirmSubmit
-						label="Review & submit"
-						title="Submit this attempt?"
-						message={data.question.progress.answered < data.question.progress.total
-							? 'Any questions left blank are scored as unanswered. You can review saved answers before confirming.'
-							: 'You can review your answers on the result page afterwards, but this attempt closes once submitted.'}
-						confirmLabel="Submit attempt"
-						formaction="?/answer"
-						name="finish"
-						value="true"
-						disabled={optionsDisabled}
-					/>
-				</div>
-			{/if}
-		</form>
+				{#if !data.question.links.next}
+					<div class="flex items-center justify-end border-t border-line pt-4">
+						<ConfirmSubmit
+							label="Review & submit"
+							title="Submit this attempt?"
+							message={data.question.progress.answered < data.question.progress.total
+								? 'Any questions left blank are scored as unanswered. You can review saved answers before confirming.'
+								: 'You can review your answers on the result page afterwards, but this attempt closes once submitted.'}
+							confirmLabel="Submit attempt"
+							formaction="?/answer"
+							name="finish"
+							value="true"
+							disabled={optionsDisabled}
+						/>
+					</div>
+				{/if}
+			</form>
+		{/key}
 	{/snippet}
 
 	<Card raised>
@@ -272,7 +334,7 @@
 			</div>
 		{:else}
 			<div class="p-5 lg:p-6">
-				{@render answerForm(onaudioready)}
+				{@render answerForm()}
 			</div>
 		{/if}
 	</Card>

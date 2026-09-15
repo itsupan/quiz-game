@@ -18,7 +18,8 @@
 	}: {
 		group: Stimulus;
 		revealStudyAids: boolean;
-		onaudioready?: () => void;
+		/** Called with the audio URL once it can play, or `null` when there is no audio. */
+		onaudioready?: (url: string | null) => void;
 	} = $props();
 
 	const formatLabels = {
