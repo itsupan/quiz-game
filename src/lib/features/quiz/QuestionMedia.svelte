@@ -25,7 +25,7 @@
 		image: ImageMedia | null;
 		audio: AudioMedia | null;
 		revealTranscript?: boolean;
-		onaudioready?: () => void;
+		onaudioready?: (url: string | null) => void;
 	} = $props();
 
 	let audioEl: HTMLAudioElement | undefined = $state();
@@ -49,7 +49,7 @@
 
 	function oncanplay() {
 		broken = false;
-		onaudioready?.();
+		if (audio) onaudioready?.(audio.url);
 	}
 
 	function retry() {
@@ -83,7 +83,17 @@
 		// Nothing to wait for: an image-only question, or one with no media at all, opens
 		// straight away.
 		if (!audio) {
-			onaudioready?.();
+			onaudioready?.(null);
+		}
+	});
+
+	$effect(() => {
+		// `canplay` fires once per load. When the page moves to another question that reuses
+		// this element — shared listening audio, or the same question reloaded after a save —
+		// it never fires again, and the caller's gate would stay shut. Report an element that
+		// is already playable straight away.
+		if (audio && audioEl && audioEl.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+			onaudioready?.(audio.url);
 		}
 	});
 </script>

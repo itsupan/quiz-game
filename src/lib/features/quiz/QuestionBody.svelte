@@ -32,7 +32,8 @@
 		correctOptionNumber?: number | null;
 		disabled?: boolean;
 		showSectionBadge?: boolean;
-		onaudioready?: () => void;
+		/** Called with the audio URL once it can play, or `null` when there is no audio. */
+		onaudioready?: (url: string | null) => void;
 	} = $props();
 
 	/** Withheld for KANJI_READING: the reading is exactly what the options are testing. */
