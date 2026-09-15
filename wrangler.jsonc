@@ -68,6 +68,9 @@
 	"env": {
 		"staging": {
 			"name": "quiz-game-staging",
+			// Run the Worker near D1 instead of at the visitor's edge: a page makes several
+			// sequential queries, and each one otherwise pays the full edge-to-database RTT.
+			"placement": { "mode": "smart" },
 			"workers_dev": true,
 			"preview_urls": true,
 			"d1_databases": [
@@ -87,6 +90,8 @@
 		},
 		"production": {
 			"name": "quiz-game",
+			// See env.staging.placement.
+			"placement": { "mode": "smart" },
 			"workers_dev": false,
 			"preview_urls": false,
 			"routes": [

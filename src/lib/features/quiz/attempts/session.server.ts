@@ -11,15 +11,11 @@ import {
 	quizzes
 } from '$lib/server/db/schema';
 import { isExpired, sectionDeadlines, sectionOpen } from '../timing';
-import { loadFrozenOptions } from './questions.server';
+import { frozenOptionsQuery, groupFrozenOptions } from './questions.server';
 import type { AttemptView } from './types.server';
 
-async function loadAttemptGroups(
-	db: Database,
-	attemptId: number,
-	showStudyAidsDuringAttempt: boolean
-) {
-	const rows = await db
+function attemptGroupsQuery(db: Database, attemptId: number) {
+	return db
 		.select({
 			publicId: attemptQuestionGroups.publicId,
 			format: attemptQuestionGroups.format,
@@ -41,7 +37,12 @@ async function loadAttemptGroups(
 		})
 		.from(attemptQuestionGroups)
 		.where(eq(attemptQuestionGroups.attemptId, attemptId));
+}
 
+function mapAttemptGroups(
+	rows: Awaited<ReturnType<typeof attemptGroupsQuery>>,
+	showStudyAidsDuringAttempt: boolean
+) {
 	return new Map(
 		rows
 			.filter((entry) => showStudyAidsDuringAttempt || entry.format !== 'CONCEPT_REVIEW')
@@ -105,49 +106,55 @@ export async function loadAttempt(
 
 	if (!row) return null;
 
-	// Frozen at start time: what this attempt's sections actually looked like then, not
-	// whatever `quiz_sections` says now.
-	const sections = await db
-		.select({
-			section: attemptSections.section,
-			position: attemptSections.position,
-			timeLimitSeconds: attemptSections.timeLimitSeconds
-		})
-		.from(attemptSections)
-		.where(eq(attemptSections.attemptId, row.attemptId));
+	// One round trip for everything hanging off the attempt row. D1 is a network hop away
+	// from the Worker, and this runs on every question view and every answer, so four
+	// sequential awaits here were a large share of a tap's latency.
+	const [sections, served, optionRows, groupRows] = await db.batch([
+		// Frozen at start time: what this attempt's sections actually looked like then, not
+		// whatever `quiz_sections` says now.
+		db
+			.select({
+				section: attemptSections.section,
+				position: attemptSections.position,
+				timeLimitSeconds: attemptSections.timeLimitSeconds
+			})
+			.from(attemptSections)
+			.where(eq(attemptSections.attemptId, row.attemptId)),
+		db
+			.select({
+				attemptQuestionId: attemptQuestions.id,
+				questionId: attemptQuestions.questionId,
+				section: attemptQuestions.section,
+				groupPublicId: attemptQuestions.groupPublicId,
+				position: attemptQuestions.position,
+				points: attemptQuestions.points,
+				format: attemptQuestions.format,
+				stem: attemptQuestions.stem,
+				promptTranslation: attemptQuestions.promptTranslation,
+				focusText: attemptQuestions.focusText,
+				focusReading: attemptQuestions.focusReading,
+				contextText: attemptQuestions.contextText,
+				contextTransliteration: attemptQuestions.contextTransliteration,
+				imagePublicId: attemptQuestions.imagePublicId,
+				imageMimeType: attemptQuestions.imageMimeType,
+				imageWidth: attemptQuestions.imageWidth,
+				imageHeight: attemptQuestions.imageHeight,
+				imageAltText: attemptQuestions.imageAltText,
+				audioPublicId: attemptQuestions.audioPublicId,
+				audioMimeType: attemptQuestions.audioMimeType,
+				audioDurationMs: attemptQuestions.audioDurationMs,
+				selectedOptionId: attemptAnswers.selectedOptionId
+			})
+			.from(attemptQuestions)
+			.leftJoin(attemptAnswers, eq(attemptAnswers.attemptQuestionId, attemptQuestions.id))
+			.where(eq(attemptQuestions.attemptId, row.attemptId))
+			.orderBy(attemptQuestions.position),
+		frozenOptionsQuery(db, row.attemptId),
+		attemptGroupsQuery(db, row.attemptId)
+	]);
 
-	const served = await db
-		.select({
-			attemptQuestionId: attemptQuestions.id,
-			questionId: attemptQuestions.questionId,
-			section: attemptQuestions.section,
-			groupPublicId: attemptQuestions.groupPublicId,
-			position: attemptQuestions.position,
-			points: attemptQuestions.points,
-			format: attemptQuestions.format,
-			stem: attemptQuestions.stem,
-			promptTranslation: attemptQuestions.promptTranslation,
-			focusText: attemptQuestions.focusText,
-			focusReading: attemptQuestions.focusReading,
-			contextText: attemptQuestions.contextText,
-			contextTransliteration: attemptQuestions.contextTransliteration,
-			imagePublicId: attemptQuestions.imagePublicId,
-			imageMimeType: attemptQuestions.imageMimeType,
-			imageWidth: attemptQuestions.imageWidth,
-			imageHeight: attemptQuestions.imageHeight,
-			imageAltText: attemptQuestions.imageAltText,
-			audioPublicId: attemptQuestions.audioPublicId,
-			audioMimeType: attemptQuestions.audioMimeType,
-			audioDurationMs: attemptQuestions.audioDurationMs,
-			selectedOptionId: attemptAnswers.selectedOptionId
-		})
-		.from(attemptQuestions)
-		.leftJoin(attemptAnswers, eq(attemptAnswers.attemptQuestionId, attemptQuestions.id))
-		.where(eq(attemptQuestions.attemptId, row.attemptId))
-		.orderBy(attemptQuestions.position);
-
-	const options = await loadFrozenOptions(db, row.attemptId);
-	const groups = await loadAttemptGroups(db, row.attemptId, row.showStudyAidsDuringAttempt);
+	const options = groupFrozenOptions(optionRows);
+	const groups = mapAttemptGroups(groupRows, row.showStudyAidsDuringAttempt);
 
 	return {
 		attempt: {
