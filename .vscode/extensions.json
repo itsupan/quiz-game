@@ -3,6 +3,8 @@
 		"svelte.svelte-vscode",
 		"dbaeumer.vscode-eslint",
 		"esbenp.prettier-vscode",
-		"bradlc.vscode-tailwindcss"
+		"bradlc.vscode-tailwindcss",
+		"streetsidesoftware.code-spell-checker",
+		"SonarSource.sonarlint-vscode"
 	]
 }
