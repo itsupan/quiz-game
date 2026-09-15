@@ -23,3 +23,16 @@ contains no Japanese copy requiring linguistic approval.
 
 Portraits use a single body image over the two shared artwork layers. Lightweight native motion keeps
 the page responsive without waiting for a separate animation library before content can appear.
+
+## Audio
+
+Sound files live in `src/lib/assets/sound/` (bundled by Vite with hashed URLs) and are supplied separately — confirm the licence for each
+before release:
+
+- `dojo-theme.mp3` — Our Team background loop; starts on the visitor's first interaction;
+- `katana-swish.mp3` — quiz attempt, an answer is picked;
+- `katana-strike.mp3` — quiz attempt, submitted (manually or on timer expiry);
+- `war-drum.mp3` — quiz attempt, the countdown drops under a minute.
+
+One mute preference (`src/lib/features/sound/sound.svelte.ts`) covers music and effects and is
+remembered in `localStorage`. A missing file simply stays silent.
