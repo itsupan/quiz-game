@@ -1,4 +1,8 @@
+import { JLPT_LEVELS } from '$lib/domain/enums';
 import type { JlptLevel, QuizIcon, QuizMode, Section } from '$lib/domain/enums';
+
+/** The catalog filter's catch-all option; always rendered alongside the dataset's levels. */
+export const ALL_LEVELS = 'ALL LEVELS';
 
 export type DashboardQuiz = {
 	publicId: string;
@@ -44,11 +48,20 @@ export function toQuizCards(quizzes: DashboardQuiz[]): QuizCardItem[] {
 	});
 }
 
+/**
+ * The JLPT levels actually present in `quizzes`, deduplicated and in canonical
+ * `JLPT_LEVELS` order (N5 → N1), so the filter never offers a level with no sets.
+ */
+export function availableLevels(quizzes: Pick<DashboardQuiz, 'level'>[]): JlptLevel[] {
+	const present = new Set(quizzes.map((quiz) => quiz.level));
+	return JLPT_LEVELS.filter((level) => present.has(level));
+}
+
 export function filterQuizCards(cards: QuizCardItem[], level: string, search: string) {
 	const query = search.trim().toLowerCase();
 
 	return cards.filter((card) => {
-		const matchesLevel = level === 'ALL LEVELS' || card.level === level;
+		const matchesLevel = level === ALL_LEVELS || card.level === level;
 		const matchesSearch =
 			query === '' ||
 			[card.title, card.description, card.category, card.level].some((value) =>

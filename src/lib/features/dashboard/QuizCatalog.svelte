@@ -1,15 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import type { DashboardQuiz } from './dashboard';
-	import { filterQuizCards, toQuizCards } from './dashboard';
+	import { ALL_LEVELS, availableLevels, filterQuizCards, toQuizCards } from './dashboard';
 	import QuizCard from './QuizCard.svelte';
 
 	let { quizzes }: { quizzes: DashboardQuiz[] } = $props();
-	let selectedLevel = $state('ALL LEVELS');
+	let selectedLevel = $state(ALL_LEVELS);
 	let searchQuery = $state(page.url.searchParams.get('q') ?? '');
-	const levels = ['ALL LEVELS', 'N5', 'N4', 'N3', 'N2', 'N1'];
+	/** Only levels the loaded quizzes actually contain — see `availableLevels`. */
+	const levels = $derived(availableLevels(quizzes));
+	/** A pick that no longer exists in the dataset falls back to every level. */
+	const activeLevel = $derived(
+		(levels as string[]).includes(selectedLevel) ? selectedLevel : ALL_LEVELS
+	);
 	const cards = $derived(toQuizCards(quizzes));
-	const filteredCards = $derived(filterQuizCards(cards, selectedLevel, searchQuery));
+	const filteredCards = $derived(filterQuizCards(cards, activeLevel, searchQuery));
 </script>
 
 <section aria-label="Filter quizzes by JLPT level" class="pt-4">
@@ -20,16 +25,22 @@
 		<div class="flex-1 border-b border-stone-300" aria-hidden="true"></div>
 	</div>
 	<div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
-		{#each levels as level (level)}
+		{#each [ALL_LEVELS, ...levels] as level (level)}
 			<button
 				type="button"
 				onclick={() => (selectedLevel = level)}
-				class="px-4 py-1.5 text-xs font-black tracking-widest uppercase transition-colors {selectedLevel ===
+				disabled={levels.length === 0}
+				class="px-4 py-1.5 text-xs font-black tracking-widest uppercase transition-colors disabled:cursor-not-allowed disabled:border-stone-300 disabled:bg-stone-100 disabled:text-stone-400 {activeLevel ===
 				level
 					? 'border-2 border-brand-red bg-brand-red text-white'
 					: 'border-2 border-ink bg-white text-ink hover:bg-stone-100'}">{level}</button
 			>
 		{/each}
+		{#if levels.length === 0}
+			<span class="text-xs font-bold tracking-widest text-stone-500 uppercase">
+				No levels found
+			</span>
+		{/if}
 	</div>
 </section>
 
@@ -64,13 +75,13 @@
 	{:else}
 		<div class="space-y-3 border-2 border-ink bg-white p-10 text-center">
 			<p class="text-lg font-black tracking-tight text-ink uppercase">
-				No quiz sets found for level {selectedLevel}
+				No quiz sets found for level {activeLevel}
 			</p>
 			<p class="text-xs font-medium tracking-wider text-stone-500 uppercase">
 				Try selecting <button
 					type="button"
-					onclick={() => (selectedLevel = 'ALL LEVELS')}
-					class="font-bold text-brand-red underline">ALL LEVELS</button
+					onclick={() => (selectedLevel = ALL_LEVELS)}
+					class="font-bold text-brand-red underline">{ALL_LEVELS}</button
 				> or adjusting your search query.
 			</p>
 		</div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateStreakDays } from '$lib/features/dashboard/dashboard';
+import { availableLevels, calculateStreakDays } from '$lib/features/dashboard/dashboard';
 
 const now = new Date('2026-09-12T18:00:00.000Z');
 
@@ -25,5 +25,18 @@ describe('calculateStreakDays', () => {
 
 	it('returns zero when the streak has gone stale', () => {
 		expect(calculateStreakDays([new Date('2026-09-10T09:00:00.000Z')], now)).toBe(0);
+	});
+});
+
+describe('availableLevels', () => {
+	it('deduplicates levels and returns them in canonical N5 to N1 order', () => {
+		expect(availableLevels([{ level: 'N3' }, { level: 'N4' }, { level: 'N3' }])).toEqual([
+			'N4',
+			'N3'
+		]);
+	});
+
+	it('returns no levels for an empty dataset', () => {
+		expect(availableLevels([])).toEqual([]);
 	});
 });

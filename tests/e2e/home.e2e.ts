@@ -98,9 +98,13 @@ test.describe('learner home page (authenticated)', () => {
 		// Default is N4 in mockup: the seeded N4 exam is visible
 		await expect(page.getByRole('heading', { name: 'JLPT N4 模擬本試験' })).toBeVisible();
 
-		// Click N2, a level nothing is seeded at
-		await filterBar.getByRole('button', { name: 'N2' }).click();
-		await expect(page.getByText(/No quiz sets found for level N2/i)).toBeVisible();
+		// Levels with no published sets are not offered at all
+		await expect(filterBar.getByRole('button', { name: 'N2' })).toHaveCount(0);
+		await expect(filterBar.getByRole('button', { name: 'N1' })).toHaveCount(0);
+
+		// Narrow to N3: the N4 exam is filtered out
+		await filterBar.getByRole('button', { name: 'N3' }).click();
+		await expect(page.getByRole('heading', { name: 'JLPT N4 模擬本試験' })).toHaveCount(0);
 
 		// Click ALL LEVELS in the filter bar: the N4 exam reappears
 		await filterBar.getByRole('button', { name: 'ALL LEVELS' }).click();
