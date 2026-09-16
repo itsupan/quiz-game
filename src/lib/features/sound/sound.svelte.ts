@@ -47,6 +47,7 @@ export const SFX_URLS = {
 export type SfxName = keyof typeof SFX_URLS;
 
 export const MUSIC_URL = soundUrl('dojo-theme');
+export const LEADERBOARD_AUDIO_URL = soundUrl('yooooo');
 
 function readMuted(): boolean {
 	if (!browser) return false;

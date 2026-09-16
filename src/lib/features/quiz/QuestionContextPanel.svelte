@@ -14,10 +14,12 @@
 	let {
 		group,
 		revealStudyAids,
+		autoplay = false,
 		onaudioready
 	}: {
 		group: Stimulus;
 		revealStudyAids: boolean;
+		autoplay?: boolean;
 		/** Called with the audio URL once it can play, or `null` when there is no audio. */
 		onaudioready?: (url: string | null) => void;
 	} = $props();
@@ -45,6 +47,7 @@
 		image={group.image}
 		audio={group.audio}
 		revealTranscript={revealStudyAids}
+		{autoplay}
 		{onaudioready}
 	/>
 

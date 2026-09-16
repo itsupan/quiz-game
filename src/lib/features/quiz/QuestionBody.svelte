@@ -20,6 +20,7 @@
 		selectedOptionId,
 		correctOptionNumber,
 		disabled = false,
+		autoplay = false,
 		/** Off on the attempt page — its own sticky status bar already names the section. */
 		showSectionBadge = true,
 		onaudioready
@@ -31,6 +32,7 @@
 		/** Only passed by the result review list — see `OptionList` for what it switches on. */
 		correctOptionNumber?: number | null;
 		disabled?: boolean;
+		autoplay?: boolean;
 		showSectionBadge?: boolean;
 		/** Called with the audio URL once it can play, or `null` when there is no audio. */
 		onaudioready?: (url: string | null) => void;
@@ -95,6 +97,7 @@
 			image={question.image}
 			audio={question.audio}
 			revealTranscript={revealStudyAids}
+			{autoplay}
 			{onaudioready}
 		/>
 	{/if}

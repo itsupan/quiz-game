@@ -20,11 +20,13 @@
 		image,
 		audio,
 		revealTranscript = false,
+		autoplay = false,
 		onaudioready
 	}: {
 		image: ImageMedia | null;
 		audio: AudioMedia | null;
 		revealTranscript?: boolean;
+		autoplay?: boolean;
 		onaudioready?: (url: string | null) => void;
 	} = $props();
 
@@ -85,6 +87,11 @@
 		if (!audio) {
 			onaudioready?.(null);
 		}
+	});
+
+	$effect(() => {
+		if (!autoplay || !audio || !audioEl || broken) return;
+		audioEl.play().catch(() => {});
 	});
 
 	$effect(() => {
@@ -170,6 +177,7 @@
 			bind:duration
 			bind:paused
 			preload="metadata"
+			autoplay={autoplay}
 			src={audio.url}
 			{oncanplay}
 			{onerror}
