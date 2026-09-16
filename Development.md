@@ -62,3 +62,89 @@ On `/quiz/attempt/[publicId]`, picking an option saves it and moves to the next 
 - The answer form listens for `change` on the `selectedOptionNumber` radios. It fills a hidden `nextQuestion` input with the next question's number, or the current number on the last question. After a short pause, so the highlight is visible, it calls `requestSubmit()`. This pause is skipped when the user prefers reduced motion. A newer pick during the pause replaces the pending one.
 - The existing `?/answer` action does the work: it saves the answer, then redirects when `nextQuestion` differs from the current `q`.
 - To go back, use the numbered question navigator. It is built from `attempt.questions`, and answered questions are filled in. On the last question, **Review & submit** is the only button.
+
+## Practice mode game feel ("Dojo Run")
+
+`JLPT_PRACTICE` sittings reveal each answer, keep a streak, and pay a speed bonus.
+`MOCK_TEST` and `FULL_EXAM` behave exactly as they did before any of that existed. That
+split is the point: exam fidelity is what makes this credible prep, so the game layer sits
+beside the JLPT score and never inside it.
+
+### The gate
+
+One predicate, `isPracticeMode()` in `src/lib/features/quiz/modes.ts`. `mode` used to be
+display-only — a `<Badge>` and nothing more — so this is the first behaviour in the codebase
+that branches on it. Read that function to know what practice changes, rather than grepping
+for the string.
+
+`saveAnswer` branches early and literally: exam mode falls through to the original
+two-statement batch. Sharing one path behind a flag would make an exam regression a one-line
+accident.
+
+### Instant verdict
+
+`?/answer` returns `{ verdict, next }` instead of redirecting, and the client drives the
+advance. The branch is on the server-produced verdict, never on a form field, so a crafted
+post cannot talk an exam sitting out of its redirect.
+
+`OptionList` needed no changes. Its `.is-correct`/`.is-wrong`/`review-mode` CSS already
+existed for the result page, and `QuestionBody` already forwarded `correctOptionNumber` — the
+attempt page simply starts passing a prop it used to leave undefined.
+
+The answer key is never on a load-path type. `AttemptQuestion` still omits it;
+`frozenOptionsQuery` still selects no `is_correct`. A verdict is produced only by the action,
+only in practice, only after a successful write.
+
+**Practice questions lock once answered** (`saveAnswer`, and `canAnswer` in `dto.ts`). Without
+this, a learner could answer wrong, read the revealed key, walk back through the navigator and
+fix it — inflating `raw_score` and the `xp_awarded` that feeds the public leaderboard. "Run it
+back" on the result screen is the retry.
+
+### Combo
+
+`attempts.current_combo` / `best_combo`, advanced by a self-referencing `UPDATE` so the
+read-modify-write happens inside SQLite rather than across two round trips. Because a practice
+question locks, every write that reaches it is a first answer — no anti-farm guard needed.
+
+### Speed bonus
+
+`attempt_answers.elapsed_ms` is **client-reported and server-clamped** (`clampElapsedMs` in
+`game-feel.ts`). The browser is the only place that knows when a question became answerable —
+when it painted, or when a listening clip's gate opened. A server-side `served_at` would mean
+a mutating GET plus a round trip on every question view, and would be wrong on revisit.
+
+The clamp caps a claim at wall-clock time actually elapsed, so a slow answer cannot be passed
+off as fast. The middle stays spoofable, deliberately: the worst case is inflated bonus XP on
+a friendly leaderboard, and no value from `game-feel.ts` ever reaches `scoreAttempt`.
+
+Bonus is computed at finalize from stored per-answer times, not accumulated during play —
+`finalizeAttempt` retries itself when it loses the revision race, and a running counter would
+double where a recomputation lands on the same number.
+
+### The firewall
+
+`src/lib/features/quiz/game-feel.ts` holds every game rule. `scoring.ts` imports nothing from
+it. `raw_score`, `scaled_total`, `passed` and the band tables are identical in every mode; the
+bonus touches `xp_awarded` (and its `bonus_xp_awarded` audit column) and nothing else. If a
+term from `game-feel.ts` ever needs to appear in `scoring.ts`, that is the moment the product
+stops being able to claim its scores approximate a real sitting.
+
+### Sound
+
+`SFX_URLS` is resolved by `import.meta.glob`, not static imports. A static import makes a
+missing file a **build failure**; the glob makes it `undefined`, and `playSfx` returns early.
+`correct`, `incorrect`, `combo` and `levelup` have no files yet and are silent until
+licence-checked audio is added to `src/lib/assets/sound/`.
+
+### Migrations 0009 / 0010
+
+Generated normally. The two files numbered `0008` are harmless: `meta/0008_snapshot.json`
+already contains both `users.jlpt_level` and `quizzes.icon`, so drizzle-kit's diff base is
+correct. **Do not** rename `0008_sturdy_mandroid.sql` or "repair" `_journal.json` — Wrangler
+tracks applied migrations in `d1_migrations` by exact filename and never reads the journal, so
+a rename re-runs an applied `ALTER TABLE` and fails the deploy.
+
+One hand-edit was needed in each: drizzle-kit emitted the `desc` index expressions as quoted
+identifiers (`` `"raw_score" desc` ``), which SQLite reads as a column name and rejects. The
+originals in `0001_schema.sql` are unquoted. Check this after any future `db:generate` that
+rebuilds `attempts`.

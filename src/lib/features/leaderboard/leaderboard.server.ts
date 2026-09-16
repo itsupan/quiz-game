@@ -103,3 +103,22 @@ export async function listLeaderboard(db: Database, filters: LeaderboardFilters,
 				: null
 	};
 }
+
+/**
+ * One learner's lifetime XP: the same figure the leaderboard ranks on, for one row.
+ *
+ * Used by the result screen to work out whether a sitting crossed a level boundary. Deriving
+ * it from the attempts it already sums means there is no second XP total to drift — there is
+ * no `users.xp` column, by design.
+ *
+ * SQLite's `sum()` arrives as a string through the driver despite the `sql<number>` hint, and
+ * is null when a learner has no submitted attempts, so both are normalised here.
+ */
+export async function loadLifetimeXp(db: Database, userId: number): Promise<number> {
+	const [row] = await db
+		.select({ totalXp: sql<number>`sum(${attempts.xpAwarded})` })
+		.from(attempts)
+		.where(and(eq(attempts.userId, userId), eq(attempts.status, 'SUBMITTED')));
+
+	return Number(row?.totalXp ?? 0);
+}

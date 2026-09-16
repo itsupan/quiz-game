@@ -9,6 +9,7 @@ import type {
 	ResultView,
 	ReviewAudioRef
 } from '../attempts/types.server';
+import { isPracticeMode } from '../modes';
 import { sectionOpen } from '../timing';
 import { apiProblem } from './http.server';
 
@@ -119,6 +120,12 @@ export function toAttemptDto(view: AttemptView, now: Date) {
 			answered: view.questions.filter((question) => question.selectedOptionId !== null).length,
 			total: view.questions.length
 		},
+		/*
+		 * Carried on the attempt so the streak survives the navigation between questions.
+		 * Always zero outside practice, where nothing ever advances it.
+		 */
+		combo: view.attempt.currentCombo,
+		bestCombo: view.attempt.bestCombo,
 		sections: view.sectionDeadlines.map((entry) => ({
 			name: entry.section,
 			expiresAt: entry.deadline?.toISOString() ?? null,
@@ -171,9 +178,15 @@ export function toQuestionDto(view: AttemptView, questionNumber: number, now: Da
 			total: view.questions.length,
 			answered: view.questions.filter((entry) => entry.selectedOptionId !== null).length
 		},
+		/*
+		 * A practice question is spent once answered — it has already revealed its key, so
+		 * re-answering it would just be reading the answer back. `saveAnswer` enforces this
+		 * too; this flag is what stops the UI offering an action the server will refuse.
+		 */
 		canAnswer:
 			view.attempt.status === 'IN_PROGRESS' &&
-			sectionOpen(now, view.sectionDeadlines, question.section),
+			sectionOpen(now, view.sectionDeadlines, question.section) &&
+			!(isPracticeMode(view.quiz.mode) && question.selectedOptionId !== null),
 		links: {
 			attempt: `/api/v1/attempts/${view.attempt.publicId}`,
 			answer: `/api/v1/attempts/${view.attempt.publicId}/answers/${question.position}`,
@@ -213,13 +226,18 @@ export function toResultDto(result: ResultView) {
 			passed: result.attempt.passed
 		},
 		quiz: { id: quizId, ...quiz },
-		reward: { xpAwarded: result.attempt.xpAwarded },
+		reward: {
+			xpAwarded: result.attempt.xpAwarded,
+			// The speed share of the XP above, not an addition to it.
+			bonusXp: result.attempt.bonusXpAwarded
+		},
 		summary: {
 			accuracyPercent: questionCount === 0 ? 0 : Math.round((correctCount / questionCount) * 100),
 			correctCount,
 			incorrectCount,
 			unansweredCount,
-			durationMs: result.attempt.durationMs
+			durationMs: result.attempt.durationMs,
+			bestCombo: result.attempt.bestCombo
 		},
 		bandScores: result.bandScores,
 		questions: result.questions.map((question) => ({

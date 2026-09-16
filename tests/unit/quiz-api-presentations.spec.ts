@@ -90,7 +90,9 @@ function view(format: QuestionFormat): AttemptView {
 			status: 'IN_PROGRESS',
 			startedAt: NOW,
 			expiresAt: null,
-			showStudyAidsDuringAttempt: true
+			showStudyAidsDuringAttempt: true,
+			currentCombo: 0,
+			bestCombo: 0
 		},
 		quiz: {
 			id: 1,

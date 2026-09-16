@@ -5,11 +5,14 @@ import type { Database } from '$lib/server/db';
 import {
 	attemptAnswers,
 	attemptQuestionGroups,
+	attemptQuestionOptions,
 	attemptQuestions,
 	attempts,
 	attemptSections,
 	quizzes
 } from '$lib/server/db/schema';
+import type { AnswerVerdict } from '../api/types';
+import { isPracticeMode } from '../modes';
 import { isExpired, sectionDeadlines, sectionOpen } from '../timing';
 import { frozenOptionsQuery, groupFrozenOptions } from './questions.server';
 import type { AttemptView } from './types.server';
@@ -93,6 +96,8 @@ export async function loadAttempt(
 			startedAt: attempts.startedAt,
 			expiresAt: attempts.expiresAt,
 			showStudyAidsDuringAttempt: attempts.showStudyAidsDuringAttempt,
+			currentCombo: attempts.currentCombo,
+			bestCombo: attempts.bestCombo,
 			quizId: quizzes.id,
 			quizPublicId: quizzes.publicId,
 			title: quizzes.title,
@@ -164,7 +169,9 @@ export async function loadAttempt(
 			status: row.status,
 			startedAt: row.startedAt,
 			expiresAt: row.expiresAt,
-			showStudyAidsDuringAttempt: row.showStudyAidsDuringAttempt
+			showStudyAidsDuringAttempt: row.showStudyAidsDuringAttempt,
+			currentCombo: row.currentCombo,
+			bestCombo: row.bestCombo
 		},
 		quiz: {
 			id: row.quizId,
@@ -211,13 +218,23 @@ export async function loadAttempt(
 	};
 }
 
+/**
+ * Saves one answer, and in practice mode reports whether it was right.
+ *
+ * The two modes take deliberately separate paths below rather than sharing one path behind a
+ * flag. An exam sitting must keep saving silently and stay re-answerable exactly as it did
+ * before practice mode existed, and that guarantee is easier to hold — and to review — when
+ * breaking it would mean editing the exam branch by name.
+ */
 export async function saveAnswer(
 	db: Database,
 	view: AttemptView,
 	attemptQuestionId: number,
 	selectedOptionId: number | null,
-	now: Date
-): Promise<WriteResult<void>> {
+	now: Date,
+	/** Already clamped by the caller against what the server can vouch for. */
+	elapsedMs: number | null = null
+): Promise<WriteResult<AnswerVerdict | null>> {
 	if (view.attempt.status !== 'IN_PROGRESS') {
 		return { ok: false, message: 'This attempt is no longer open.' };
 	}
@@ -239,6 +256,18 @@ export async function saveAnswer(
 		return { ok: false, message: 'That is not one of this question’s options.' };
 	}
 
+	/*
+	 * Practice answers are final, and the rule is enforced here rather than only in the DTO's
+	 * `canAnswer`. Practice reveals the correct option the moment an answer lands, so without
+	 * this a learner could answer wrong, read the key, walk back through the question
+	 * navigator and fix it — inflating `raw_score`, and with it the `xp_awarded` that feeds
+	 * the public leaderboard. An exam sitting reveals nothing mid-attempt, so it keeps the
+	 * free re-answering a real JLPT paper allows.
+	 */
+	if (isPracticeMode(view.quiz.mode) && served.selectedOptionId !== null) {
+		return { ok: false, message: 'You have already answered this question.' };
+	}
+
 	const attemptStillOpen = and(
 		eq(attempts.id, view.attempt.id),
 		eq(attempts.status, 'IN_PROGRESS'),
@@ -253,6 +282,7 @@ export async function saveAnswer(
 			selectedOptionId: sql<number | null>`${selectedOptionId}`.as('selected_option_id'),
 			isCorrect: sql<boolean | null>`null`.as('is_correct'),
 			pointsEarned: sql<number | null>`null`.as('points_earned'),
+			elapsedMs: sql<number | null>`${elapsedMs}`.as('elapsed_ms'),
 			answeredAt: sql<Date>`${Math.floor(now.getTime() / 1000)}`.as('answered_at'),
 			createdAt: sql<Date>`(unixepoch())`.as('created_at'),
 			updatedAt: sql<Date>`(unixepoch())`.as('updated_at')
@@ -271,13 +301,106 @@ export async function saveAnswer(
 		.update(attempts)
 		.set({ revision: sql`${attempts.revision} + 1` })
 		.where(attemptStillOpen);
-	const [written] = await db.batch([answerWrite, bumpRevision]);
+
+	if (!isPracticeMode(view.quiz.mode)) {
+		const [written] = await db.batch([answerWrite, bumpRevision]);
+
+		if (written.length === 0) {
+			return { ok: false, message: 'This attempt is no longer open.' };
+		}
+
+		return { ok: true, value: null };
+	}
+
+	/*
+	 * The answer key is not in `view`: `frozenOptionsQuery` omits `is_correct` by
+	 * construction, so that no payload built from an attempt load can leak it. Reading it
+	 * here costs no extra network hop — D1 runs a batch as one transaction over one round
+	 * trip, and a later statement sees the earlier ones' writes.
+	 *
+	 * `is_correct`/`points_earned` are still left NULL on the row. `finalizeAttempt` selects
+	 * only `selected_option_id` and re-derives correctness from the frozen key, so writing
+	 * them early would buy nothing and add a second place for the two to disagree.
+	 */
+	const wasCorrect =
+		selectedOptionId === null
+			? sql<number>`0`
+			: sql<number>`coalesce((select ${attemptQuestionOptions.isCorrect}
+					from ${attemptQuestionOptions}
+					where ${attemptQuestionOptions.id} = ${selectedOptionId}), 0)`;
+
+	/*
+	 * The combo is advanced by SQLite, not by the application.
+	 *
+	 * Reading it, adding one and writing it back from here would let two taps that land
+	 * together both read the same value and both write the same successor. Expressing it as
+	 * a self-referencing UPDATE keeps the read-modify-write inside the one statement, where
+	 * the batch's transaction covers it. A practice question is locked once answered, so
+	 * every write that reaches here is a first answer and nothing needs to guard against
+	 * re-answering inflating the streak.
+	 */
+	const advanceCombo = db
+		.update(attempts)
+		.set({
+			revision: sql`${attempts.revision} + 1`,
+			currentCombo: sql`case when ${wasCorrect} = 1 then ${attempts.currentCombo} + 1 else 0 end`,
+			bestCombo: sql`max(${attempts.bestCombo}, case when ${wasCorrect} = 1 then ${attempts.currentCombo} + 1 else 0 end)`
+		})
+		.where(attemptStillOpen);
+
+	const verdictQuery = db
+		.select({
+			correctPosition: attemptQuestionOptions.position,
+			explanation: attemptQuestions.explanation
+		})
+		.from(attemptQuestions)
+		.innerJoin(
+			attemptQuestionOptions,
+			and(
+				eq(attemptQuestionOptions.attemptId, attemptQuestions.attemptId),
+				eq(attemptQuestionOptions.questionPosition, attemptQuestions.position),
+				eq(attemptQuestionOptions.isCorrect, true)
+			)
+		)
+		.where(eq(attemptQuestions.id, attemptQuestionId));
+
+	// Read the streak back rather than recomputing it here, so one place owns the arithmetic.
+	const comboQuery = db
+		.select({ currentCombo: attempts.currentCombo, bestCombo: attempts.bestCombo })
+		.from(attempts)
+		.where(eq(attempts.id, view.attempt.id));
+
+	const [written, , verdictRows, comboRows] = await db.batch([
+		answerWrite,
+		advanceCombo,
+		verdictQuery,
+		comboQuery
+	]);
 
 	if (written.length === 0) {
 		return { ok: false, message: 'This attempt is no longer open.' };
 	}
 
-	return { ok: true, value: undefined };
+	const [key] = verdictRows;
+	if (!key) {
+		// Publishing refuses a question with no key, so this is the belt to that braces.
+		return { ok: true, value: null };
+	}
+
+	const selectedPosition =
+		served.options.find((option) => option.id === selectedOptionId)?.position ?? null;
+
+	return {
+		ok: true,
+		value: {
+			questionNumber: served.position,
+			isCorrect: selectedPosition !== null && selectedPosition === key.correctPosition,
+			correctOptionNumber: key.correctPosition,
+			explanation: key.explanation,
+			combo: comboRows[0]?.currentCombo ?? 0,
+			bestCombo: comboRows[0]?.bestCombo ?? 0
+		}
+	};
 }
 
 /**

@@ -6,6 +6,10 @@
 	import Notice from '$lib/components/Notice.svelte';
 	import QuestionBody from '$lib/features/quiz/QuestionBody.svelte';
 	import QuestionContextPanel from '$lib/features/quiz/QuestionContextPanel.svelte';
+	import CelebrationOverlay from '$lib/features/quiz/result/CelebrationOverlay.svelte';
+	import ScoreCountUp from '$lib/features/quiz/result/ScoreCountUp.svelte';
+	import { isPracticeMode } from '$lib/features/quiz/modes';
+	import { computeLevel } from '$lib/features/leaderboard/leaderboard';
 	import { stimulusFor, type ResultQuestion } from '$lib/features/quiz/api/types';
 	import type { PageProps } from './$types';
 
@@ -17,6 +21,29 @@
 	const bandScores = $derived(result.bandScores);
 	const questions = $derived(result.questions);
 	const incorrectCount = $derived(questions.filter((question) => !question.isCorrect).length);
+
+	const isPractice = $derived(isPracticeMode(quiz.mode));
+	const summary = $derived(result.summary);
+	const reward = $derived(result.reward);
+
+	/**
+	 * Whether this sitting crossed a level boundary.
+	 *
+	 * Derived from lifetime XP rather than stored: subtracting what this attempt awarded gives
+	 * the total before it, so the answer is the same whenever the page is opened.
+	 */
+	const levelAfter = $derived(computeLevel(data.lifetimeXp));
+	const levelBefore = $derived(computeLevel(data.lifetimeXp - reward.xpAwarded));
+	const leveledUp = $derived(levelAfter > levelBefore);
+
+	const celebrating = $derived(isPractice && attempt.status === 'SUBMITTED');
+
+	function formatDuration(ms: number | null): string {
+		if (ms === null) return '—';
+
+		const totalSeconds = Math.round(ms / 1000);
+		return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
+	}
 
 	let filter = $state<'all' | 'incorrect'>('all');
 	const visibleQuestions = $derived(
@@ -119,7 +146,13 @@
 			<div>
 				<p class="text-[10px] font-bold tracking-widest text-stone-500 uppercase">Score</p>
 				<p class="mt-1 flex items-baseline gap-2">
-					<span class="text-5xl font-black text-ink">{attempt.rawScore}</span>
+					<span class="text-5xl font-black text-ink">
+						{#if isPractice && attempt.rawScore !== null}
+							<ScoreCountUp value={attempt.rawScore} />
+						{:else}
+							{attempt.rawScore}
+						{/if}
+					</span>
 					<span class="text-lg font-bold text-stone-400">/ {attempt.rawMax}</span>
 				</p>
 				<p class="mt-1 text-sm text-stone-500">
@@ -143,6 +176,46 @@
 				</div>
 			{/if}
 		</div>
+
+		<!--
+			Accuracy, time and XP were already in the result payload and simply never rendered.
+			They are neutral facts, so every mode gets them; only the streak and the speed
+			bonus are practice-only, because only practice has them.
+		-->
+		<dl class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+			{#snippet stat(label: string, value: string, accent = false)}
+				<div class="border-2 border-ink bg-white p-3 shadow-hard">
+					<dt class="text-[10px] font-bold tracking-widest text-stone-500 uppercase">{label}</dt>
+					<dd class="mt-1 font-mono text-xl font-black {accent ? 'text-brand-red' : 'text-ink'}">
+						{value}
+					</dd>
+				</div>
+			{/snippet}
+
+			{@render stat('Accuracy', `${summary.accuracyPercent}%`)}
+			{@render stat('Time', formatDuration(summary.durationMs))}
+			{@render stat('XP earned', `+${reward.xpAwarded}`, reward.xpAwarded > 0)}
+			{#if isPractice}
+				{@render stat('Best streak', String(summary.bestCombo), summary.bestCombo >= 3)}
+			{:else}
+				{@render stat('Unanswered', String(summary.unansweredCount))}
+			{/if}
+		</dl>
+
+		{#if isPractice && reward.bonusXp > 0}
+			<p class="mt-3 text-xs font-bold tracking-wider text-stone-500 uppercase">
+				Includes +{reward.bonusXp} speed bonus — practice only, and never part of your scaled score.
+			</p>
+		{/if}
+
+		{#if celebrating && leveledUp}
+			<p
+				class="mt-6 inline-flex items-center gap-2 border-2 border-brand-red bg-brand-red px-4 py-2 text-sm font-black tracking-widest text-white uppercase shadow-hard"
+			>
+				<i class="fi fi-rs-trophy" aria-hidden="true"></i>
+				Level {levelAfter} reached
+			</p>
+		{/if}
 
 		{#if bandScores.length > 0}
 			<div class="mt-8 overflow-x-auto border-2 border-ink bg-white">
@@ -274,5 +347,21 @@
 		<Notice tone="success">Every question was answered correctly.</Notice>
 	{/if}
 
-	<Button href={resolve('/home')}>Back to Dashboard</Button>
+	<!--
+		A finished run used to be a dead end. The retry goes to the quiz brief, which owns the
+		start action and its idempotency key, rather than re-posting one from here.
+	-->
+	<div class="flex flex-wrap items-center gap-3">
+		{#if isPractice}
+			<Button href={resolve(`/quiz/${quiz.id}`)}>Run it back</Button>
+			<Button href={resolve('/leaderboard')} variant="secondary">See leaderboard</Button>
+			<Button href={resolve('/home')} variant="ghost">Back to Dashboard</Button>
+		{:else}
+			<Button href={resolve('/home')}>Back to Dashboard</Button>
+		{/if}
+	</div>
 </div>
+
+{#if celebrating}
+	<CelebrationOverlay />
+{/if}

@@ -12,9 +12,11 @@ import {
 	startPublishedAttempt
 } from '../attempts.server';
 import type { AttemptView } from '../attempts/types.server';
+import { clampElapsedMs } from '../game-feel';
 import { sectionOpen } from '../timing';
 import { apiProblem } from './http.server';
 import { toAttemptDto, toQuestionDto, toResultDto } from './dto';
+import type { AnswerVerdict } from './types';
 
 async function findIdempotentAttempt(db: Database, userId: number, key: string) {
 	const [existing] = await db
@@ -185,8 +187,10 @@ export async function writeOwnedAnswer(
 	questionNumber: number,
 	selectedOptionNumber: number | null,
 	userId: number,
-	now: Date
-): Promise<AttemptView> {
+	now: Date,
+	/** What the browser says the answer took. Untrusted; clamped below. */
+	elapsedMsClaim: unknown = null
+): Promise<{ view: AttemptView; verdict: AnswerVerdict | null }> {
 	const view = await loadOwnedSettledAttempt(db, attemptId, userId, now);
 	if (view.attempt.status !== 'IN_PROGRESS') {
 		apiProblem(409, 'attempt_closed', 'Attempt closed', `The attempt is ${view.attempt.status}.`);
@@ -217,18 +221,30 @@ export async function writeOwnedAnswer(
 		);
 	}
 
+	/*
+	 * The ceiling is the part the server can actually vouch for: an answer cannot have taken
+	 * longer than the attempt has been open. `clampElapsedMs` also floors it at zero and caps
+	 * it where the bonus reaches nothing anyway, so neither tail is worth lying about. The
+	 * middle stays spoofable by design — see that function for why that is acceptable here.
+	 */
+	const elapsedMs = clampElapsedMs(
+		elapsedMsClaim,
+		now.getTime() - view.attempt.startedAt.getTime()
+	);
+
 	const written = await saveAnswer(
 		db,
 		view,
 		question.attemptQuestionId,
 		selectedOption?.id ?? null,
-		now
+		now,
+		elapsedMs
 	);
 	if (!written.ok) {
 		apiProblem(409, 'attempt_closed', 'Answer rejected', written.message);
 	}
 
-	return view;
+	return { view, verdict: written.value };
 }
 
 export async function putAttemptAnswer(

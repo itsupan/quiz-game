@@ -21,6 +21,7 @@ import {
 	type SavedAnswer,
 	type ServedQuestion
 } from '../scoring';
+import { BONUS_XP_CAP_RATIO, speedBonusXp } from '../game-feel';
 import { isExpired } from '../timing';
 import { loadFrozenOptions } from './questions.server';
 import type { AttemptView, ResultView } from './types.server';
@@ -97,7 +98,9 @@ export async function finalizeAttempt(
 			revision: attempts.revision,
 			scaledTotalMax: attempts.scaledTotalMax,
 			passMarkTotal: attempts.passMarkTotal,
-			xpReward: attempts.xpReward
+			xpReward: attempts.xpReward,
+			// Frozen at start, so scoring never joins back to a quiz row an admin may have edited.
+			mode: attempts.mode
 		})
 		.from(attempts)
 		.where(and(eq(attempts.id, attemptId), eq(attempts.status, 'IN_PROGRESS')));
@@ -121,7 +124,8 @@ export async function finalizeAttempt(
 	const answers = await db
 		.select({
 			attemptQuestionId: attemptAnswers.attemptQuestionId,
-			selectedOptionId: attemptAnswers.selectedOptionId
+			selectedOptionId: attemptAnswers.selectedOptionId,
+			elapsedMs: attemptAnswers.elapsedMs
 		})
 		.from(attemptAnswers)
 		.where(eq(attemptAnswers.attemptId, attemptId));
@@ -144,6 +148,39 @@ export async function finalizeAttempt(
 		scaledTotalMax: claimable.scaledTotalMax,
 		passMarkTotal: claimable.passMarkTotal
 	});
+	/*
+	 * The practice speed bonus.
+	 *
+	 * Computed here, from the per-answer times already stored, rather than accumulated during
+	 * play — `finalizeAttempt` retries itself when it loses the revision race, and a running
+	 * counter would double on the second pass where a recomputation simply lands on the same
+	 * number. Capped as a share of the quiz's own reward so a long quiz cannot turn a
+	 * motivational bonus into the bulk of the XP.
+	 *
+	 * Nothing here touches `scored`. `rawScore`, `scaledTotal`, the band tables and `passed`
+	 * are whatever `scoreAttempt` said, in every mode.
+	 */
+	const elapsedByQuestion = new Map(
+		answers.map((answer) => [answer.attemptQuestionId, answer.elapsedMs])
+	);
+	const pointsByQuestion = new Map(served.map((entry) => [entry.attemptQuestionId, entry.points]));
+
+	let bonusXp = 0;
+	if (status === 'SUBMITTED' && claimable.mode === 'JLPT_PRACTICE') {
+		let streak = 0;
+		for (const answer of scored.answers) {
+			streak = answer.isCorrect ? streak + 1 : 0;
+			if (!answer.isCorrect) continue;
+
+			bonusXp += speedBonusXp(
+				elapsedByQuestion.get(answer.attemptQuestionId) ?? null,
+				pointsByQuestion.get(answer.attemptQuestionId) ?? 0,
+				streak
+			);
+		}
+		bonusXp = Math.min(bonusXp, Math.round(claimable.xpReward * BONUS_XP_CAP_RATIO));
+	}
+
 	const attemptIsUnchanged = and(
 		eq(attempts.id, attemptId),
 		eq(attempts.status, 'IN_PROGRESS'),
@@ -246,7 +283,10 @@ export async function finalizeAttempt(
 				// Prorated by how much of the raw score was actually earned, not a flat
 				// full-or-nothing reward — see `scale`'s doc comment.
 				xpAwarded:
-					status === 'SUBMITTED' ? scale(scored.rawScore, scored.rawMax, claimable.xpReward) : 0
+					status === 'SUBMITTED'
+						? scale(scored.rawScore, scored.rawMax, claimable.xpReward) + bonusXp
+						: 0,
+				bonusXpAwarded: bonusXp
 			})
 			.where(attemptIsUnchanged)
 	];
@@ -295,6 +335,10 @@ export async function loadResult(
 			scaledTotal: attempts.scaledTotal,
 			passed: attempts.passed,
 			xpAwarded: attempts.xpAwarded,
+			bonusXpAwarded: attempts.bonusXpAwarded,
+			bestCombo: attempts.bestCombo,
+			// Distinct from the quiz's live mode below: this is the one frozen at start.
+			attemptMode: attempts.mode,
 			scaledTotalMax: attempts.scaledTotalMax,
 			passMarkTotal: attempts.passMarkTotal,
 			quizPublicId: quizzes.publicId,
@@ -411,7 +455,11 @@ export async function loadResult(
 			questionCount: row.questionCount,
 			scaledTotal: row.scaledTotal,
 			passed: row.passed,
-			xpAwarded: row.xpAwarded
+			xpAwarded: row.xpAwarded,
+			bonusXpAwarded: row.bonusXpAwarded,
+			bestCombo: row.bestCombo,
+			// Falls back to the quiz for sittings that predate the frozen column.
+			mode: row.attemptMode ?? row.mode
 		},
 		quiz: {
 			publicId: row.quizPublicId,

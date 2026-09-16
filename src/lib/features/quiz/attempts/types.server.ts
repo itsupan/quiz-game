@@ -76,6 +76,8 @@ export type AttemptView = {
 		| 'startedAt'
 		| 'expiresAt'
 		| 'showStudyAidsDuringAttempt'
+		| 'currentCombo'
+		| 'bestCombo'
 	>;
 	quiz: Pick<Quiz, 'id' | 'publicId' | 'title' | 'mode' | 'level' | 'timeLimitSeconds'>;
 	sectionDeadlines: SectionDeadline[];
@@ -106,6 +108,9 @@ export type ResultView = {
 		| 'scaledTotal'
 		| 'passed'
 		| 'xpAwarded'
+		| 'bonusXpAwarded'
+		| 'bestCombo'
+		| 'mode'
 	>;
 	quiz: Pick<Quiz, 'publicId' | 'title' | 'mode' | 'level' | 'scaledTotalMax' | 'passMarkTotal'>;
 	bandScores: {
