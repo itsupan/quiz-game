@@ -177,7 +177,7 @@
 			bind:duration
 			bind:paused
 			preload="metadata"
-			autoplay={autoplay}
+			{autoplay}
 			src={audio.url}
 			{oncanplay}
 			{onerror}

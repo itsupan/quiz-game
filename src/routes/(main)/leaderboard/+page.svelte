@@ -9,7 +9,7 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	let audioEl: HTMLAudioElement;
+	let audioEl: HTMLAudioElement | undefined = $state();
 
 	$effect(() => {
 		if (!audioEl || !LEADERBOARD_AUDIO_URL) return;
@@ -119,134 +119,8 @@
 							</div>
 						</div>
 
-						<style>
-							.leaderboard-page {
-								position: relative;
-								isolation: isolate;
-								overflow: hidden;
-							}
 
-							.leaderboard-content {
-								position: relative;
-								z-index: 1;
-							}
 
-							.samurai-atmosphere {
-								position: absolute;
-								inset: 0;
-								z-index: -1;
-								overflow: hidden;
-								pointer-events: none;
-							}
-
-							.rising-sun {
-								position: absolute;
-								top: 2rem;
-								right: -4rem;
-								width: clamp(12rem, 30vw, 22rem);
-								aspect-ratio: 1;
-								border-radius: 50%;
-								background: var(--color-brand-red);
-								opacity: 0.12;
-								animation: sun-breathe 8s ease-in-out infinite;
-							}
-
-							.ink-brush {
-								position: absolute;
-								width: 45vw;
-								height: 1.5rem;
-								background: var(--color-ink);
-								opacity: 0.08;
-								filter: blur(0.4px);
-								transform: rotate(-12deg);
-							}
-
-							.ink-brush-one {
-								top: 10rem;
-								left: -12rem;
-							}
-
-							.ink-brush-two {
-								top: 18rem;
-								right: -14rem;
-								transform: rotate(18deg);
-							}
-
-							.katana-slash {
-								position: absolute;
-								top: 8rem;
-								left: -15%;
-								width: 130%;
-								height: 2px;
-								background: linear-gradient(90deg, transparent, var(--color-brand-red), transparent);
-								opacity: 0;
-								transform: rotate(-7deg);
-								animation: katana-sweep 7s ease-in-out 1s infinite;
-							}
-
-							.rank-card {
-								animation: card-rise 650ms ease-out both;
-							}
-
-							.rank-card-champion {
-								animation-delay: 120ms;
-							}
-
-							@media (prefers-reduced-motion: no-preference) {
-								.rank-card:nth-child(2) {
-									animation-delay: 240ms;
-								}
-
-								.rank-card:nth-child(3) {
-									animation-delay: 360ms;
-								}
-
-								@keyframes card-rise {
-									from {
-										opacity: 0;
-										transform: translateY(1rem);
-									}
-									to {
-										opacity: 1;
-										transform: translateY(0);
-									}
-								}
-
-								@keyframes sun-breathe {
-									0%,
-									100% {
-										transform: scale(1);
-									}
-									50% {
-										transform: scale(1.06);
-									}
-								}
-
-								@keyframes katana-sweep {
-									0%,
-									65%,
-									100% {
-										opacity: 0;
-										transform: translateX(-15%) rotate(-7deg);
-									}
-									72% {
-										opacity: 0.7;
-									}
-									82% {
-										opacity: 0;
-										transform: translateX(15%) rotate(-7deg);
-									}
-								}
-							}
-
-							@media (prefers-reduced-motion: reduce) {
-								.rank-card,
-								.rising-sun,
-								.katana-slash {
-									animation: none;
-								}
-							}
-						</style>
 						<div class="mb-6 w-full border-b border-line"></div>
 
 						<!-- Avatar & Info -->
@@ -387,3 +261,132 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.leaderboard-page {
+		position: relative;
+		isolation: isolate;
+		overflow: hidden;
+	}
+
+	.leaderboard-content {
+		position: relative;
+		z-index: 1;
+	}
+
+	.samurai-atmosphere {
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		overflow: hidden;
+		pointer-events: none;
+	}
+
+	.rising-sun {
+		position: absolute;
+		top: 2rem;
+		right: -4rem;
+		width: clamp(12rem, 30vw, 22rem);
+		aspect-ratio: 1;
+		border-radius: 50%;
+		background: var(--color-brand-red);
+		opacity: 0.12;
+		animation: sun-breathe 8s ease-in-out infinite;
+	}
+
+	.ink-brush {
+		position: absolute;
+		width: 45vw;
+		height: 1.5rem;
+		background: var(--color-ink);
+		opacity: 0.08;
+		filter: blur(0.4px);
+		transform: rotate(-12deg);
+	}
+
+	.ink-brush-one {
+		top: 10rem;
+		left: -12rem;
+	}
+
+	.ink-brush-two {
+		top: 18rem;
+		right: -14rem;
+		transform: rotate(18deg);
+	}
+
+	.katana-slash {
+		position: absolute;
+		top: 8rem;
+		left: -15%;
+		width: 130%;
+		height: 2px;
+		background: linear-gradient(90deg, transparent, var(--color-brand-red), transparent);
+		opacity: 0;
+		transform: rotate(-7deg);
+		animation: katana-sweep 7s ease-in-out 1s infinite;
+	}
+
+	.rank-card {
+		animation: card-rise 650ms ease-out both;
+	}
+
+	.rank-card-champion {
+		animation-delay: 120ms;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.rank-card:nth-child(2) {
+			animation-delay: 240ms;
+		}
+
+		.rank-card:nth-child(3) {
+			animation-delay: 360ms;
+		}
+
+		@keyframes card-rise {
+			from {
+				opacity: 0;
+				transform: translateY(1rem);
+			}
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		@keyframes sun-breathe {
+			0%,
+			100% {
+				transform: scale(1);
+			}
+			50% {
+				transform: scale(1.06);
+			}
+		}
+
+		@keyframes katana-sweep {
+			0%,
+			65%,
+			100% {
+				opacity: 0;
+				transform: translateX(-15%) rotate(-7deg);
+			}
+			72% {
+				opacity: 0.7;
+			}
+			82% {
+				opacity: 0;
+				transform: translateX(15%) rotate(-7deg);
+			}
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.rank-card,
+		.rising-sun,
+		.katana-slash {
+			animation: none;
+		}
+	}
+</style>
