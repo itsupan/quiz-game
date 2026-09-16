@@ -253,7 +253,7 @@ type StartableQuiz = Pick<
 	Quiz,
 	'id' | 'level' | 'selectionMode' | 'timeLimitSeconds' | 'scaledTotalMax' | 'passMarkTotal'
 > &
-	Partial<Pick<Quiz, 'showStudyAidsDuringAttempt' | 'xpReward'>>;
+	Partial<Pick<Quiz, 'showStudyAidsDuringAttempt' | 'xpReward' | 'mode'>>;
 
 export async function startAttempt(
 	db: Database,
@@ -374,7 +374,9 @@ export async function startAttempt(
 			scaledTotalMax: quiz.scaledTotalMax,
 			passMarkTotal: quiz.passMarkTotal,
 			showStudyAidsDuringAttempt: quiz.showStudyAidsDuringAttempt ?? false,
-			xpReward: quiz.xpReward ?? 0
+			xpReward: quiz.xpReward ?? 0,
+			// Frozen alongside the other policy, so finalization never re-reads a live quiz row.
+			mode: quiz.mode ?? null
 		}),
 		...(sections.length === 0
 			? []

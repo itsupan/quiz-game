@@ -64,6 +64,20 @@
       "when": 1789241476129,
       "tag": "0008_quiz_icon",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789545719881,
+      "tag": "0009_wakeful_lethal_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1789546150667,
+      "tag": "0010_bored_weapon_omega",
+      "breakpoints": true
     }
   ]
 }

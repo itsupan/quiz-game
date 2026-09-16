@@ -1,5 +1,5 @@
 /** Every 1,000 lifetime XP earns one level, capped at LEVEL_CAP ("50 MAX" on the card). */
-const XP_PER_LEVEL = 1000;
+export const XP_PER_LEVEL = 1000;
 export const LEVEL_CAP = 50;
 
 export function computeLevel(totalXp: number): number {

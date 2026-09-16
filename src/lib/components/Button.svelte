@@ -18,6 +18,8 @@
 		ariaLabel?: string;
 		onclick?: () => void;
 		class?: string;
+		/** The rendered element, for callers that need to move focus to it. */
+		ref?: HTMLElement | null;
 	};
 
 	let {
@@ -33,7 +35,8 @@
 		value,
 		ariaLabel,
 		onclick,
-		class: className = ''
+		class: className = '',
+		ref = $bindable(null)
 	}: Props = $props();
 
 	// Square and hard-shadowed; the depth cue is the offset, never a radius.
@@ -59,11 +62,12 @@
 
 {#if href}
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-	<a class={classes} {href} aria-label={ariaLabel} aria-disabled={disabled}>
+	<a bind:this={ref} class={classes} {href} aria-label={ariaLabel} aria-disabled={disabled}>
 		<span class="inline-flex items-center justify-center gap-3">{@render children()}</span>
 	</a>
 {:else}
 	<button
+		bind:this={ref}
 		class={classes}
 		{type}
 		{disabled}

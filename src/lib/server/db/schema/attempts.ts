@@ -12,7 +12,14 @@ import {
 import { users } from './auth';
 import { checkIn, createdAt, publicId, updatedAt } from './columns';
 import { questionGroups, questions, quizzes } from './content';
-import { ATTEMPT_STATUS, GROUP_FORMATS, QUESTION_FORMATS, SCORING_BANDS, SECTIONS } from './enums';
+import {
+	ATTEMPT_STATUS,
+	GROUP_FORMATS,
+	QUESTION_FORMATS,
+	QUIZ_MODES,
+	SCORING_BANDS,
+	SECTIONS
+} from './enums';
 
 /**
  * One sitting of a quiz.
@@ -67,13 +74,38 @@ export const attempts = sqliteTable(
 		/** Frozen reward configuration and the amount actually granted at completion. */
 		xpReward: integer('xp_reward').notNull().default(0),
 		xpAwarded: integer('xp_awarded').notNull().default(0),
+		/**
+		 * Frozen quiz mode, and the practice-run state that hangs off it.
+		 *
+		 * `mode` is snapshotted for the same reason every other policy field here is: scoring
+		 * and finalization must never join back to a live `quizzes` row an admin could be
+		 * mid-edit on. It is nullable only because historical rows predate it and span all
+		 * three modes, so there is no honest `DEFAULT` — the migration backfills them.
+		 *
+		 * The combo counters are only ever moved by a `JLPT_PRACTICE` sitting; an exam leaves
+		 * them at zero. They live in the database rather than the browser so that a refresh
+		 * cannot restart a broken run.
+		 */
+		mode: text('mode', { enum: QUIZ_MODES }),
+		currentCombo: integer('current_combo').notNull().default(0),
+		bestCombo: integer('best_combo').notNull().default(0),
+		/**
+		 * The speed bonus this sitting earned, included in `xpAwarded` rather than instead of
+		 * it. Kept separately so the result screen can show the split, and so the bonus stays
+		 * auditable after the fact. Always zero outside practice.
+		 */
+		bonusXpAwarded: integer('bonus_xp_awarded').notNull().default(0),
 		createdAt: createdAt(),
 		updatedAt: updatedAt()
 	},
 	(table) => [
 		check('attempts_status_check', checkIn(table.status, ATTEMPT_STATUS)),
+		check('attempts_mode_check', checkIn(table.mode, QUIZ_MODES)),
 		check('attempts_xp_reward_check', sql`${table.xpReward} >= 0`),
 		check('attempts_xp_awarded_check', sql`${table.xpAwarded} >= 0`),
+		check('attempts_current_combo_check', sql`${table.currentCombo} >= 0`),
+		check('attempts_best_combo_check', sql`${table.bestCombo} >= 0`),
+		check('attempts_bonus_xp_check', sql`${table.bonusXpAwarded} >= 0`),
 		/**
 		 * The leaderboard index. Its column order *is* the documented tie-breaker chain —
 		 * highest score, then shortest time, then earliest completion — and the partial
@@ -320,6 +352,15 @@ export const attemptAnswers = sqliteTable(
 		selectedOptionId: integer('selected_option_id'),
 		isCorrect: integer('is_correct', { mode: 'boolean' }),
 		pointsEarned: integer('points_earned'),
+		/**
+		 * How long this answer took, in milliseconds, or null when nothing measured it.
+		 *
+		 * Practice only — an exam sitting never records it, and nothing derived from it ever
+		 * reaches `scoreAttempt`. Deliberately without a CHECK: the sane range is a product
+		 * decision that will move, and SQLite cannot drop a constraint without rebuilding the
+		 * table. `clampElapsedMs` is where the bounds live.
+		 */
+		elapsedMs: integer('elapsed_ms'),
 		answeredAt: integer('answered_at', { mode: 'timestamp' }).notNull(),
 		createdAt: createdAt(),
 		updatedAt: updatedAt()

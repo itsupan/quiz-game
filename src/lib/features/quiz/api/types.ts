@@ -57,6 +57,9 @@ export type AttemptState = {
 	sectionExpiresAt: string | null;
 	quiz: Pick<QuizSummary, 'id' | 'title' | 'mode' | 'level'>;
 	progress: { answered: number; total: number };
+	/** The practice streak. Always zero for `MOCK_TEST` and `FULL_EXAM`. */
+	combo: number;
+	bestCombo: number;
 	sections: { name: Section; expiresAt: string | null; open: boolean }[];
 	questions: { number: number; section: Section; answered: boolean; href: string }[];
 	links: {
@@ -146,6 +149,27 @@ export type AttemptQuestion = {
 	};
 };
 
+/**
+ * What a practice answer reveals, the instant it is saved.
+ *
+ * Deliberately NOT part of `AttemptQuestion`. Every load-path type stays free of the answer
+ * key, so no `GET` can leak it however the client is coaxed. A verdict is produced only by
+ * the `?/answer` action, only for `JLPT_PRACTICE`, only after a write succeeds, and only for
+ * the question that was just answered — and a practice question locks once answered, so the
+ * key can never be traded for a second attempt at the same question.
+ *
+ * `MOCK_TEST` and `FULL_EXAM` never produce one.
+ */
+export type AnswerVerdict = {
+	questionNumber: number;
+	isCorrect: boolean;
+	correctOptionNumber: number;
+	explanation: string | null;
+	/** The streak after this answer, and the best this sitting has reached. */
+	combo: number;
+	bestCombo: number;
+};
+
 export type ResultQuestion = Omit<
 	AttemptQuestion,
 	'attemptId' | 'attemptStatus' | 'serverTime' | 'progress' | 'canAnswer' | 'links'
@@ -178,13 +202,15 @@ export type QuizResult = {
 		scaledTotalMax: number | null;
 		passMarkTotal: number | null;
 	};
-	reward: { xpAwarded: number };
+	/** `bonusXp` is the speed share already included in `xpAwarded`, not an extra on top. */
+	reward: { xpAwarded: number; bonusXp: number };
 	summary: {
 		accuracyPercent: number;
 		correctCount: number;
 		incorrectCount: number;
 		unansweredCount: number;
 		durationMs: number | null;
+		bestCombo: number;
 	};
 	bandScores: {
 		bandCode: ScoringBand;
