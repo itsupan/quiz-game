@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "dc256c77-1fe3-459a-b2fe-eb46cd7a752f",
+  "id": "4088456b-083d-47f3-bb57-6ac0c6646477",
   "prevId": "751f9716-cddf-40bd-bf53-407365ae83ad",
   "tables": {
     "oauth_accounts": {
@@ -1728,6 +1728,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "elapsed_ms": {
+          "name": "elapsed_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "answered_at": {
           "name": "answered_at",
           "type": "integer",
@@ -2986,6 +2993,14 @@
           "autoincrement": false,
           "default": 0
         },
+        "bonus_xp_awarded": {
+          "name": "bonus_xp_awarded",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -3092,10 +3107,6 @@
           "name": "attempts_status_check",
           "value": "\"attempts\".\"status\" in ('IN_PROGRESS', 'SUBMITTED', 'EXPIRED', 'ABANDONED')"
         },
-        "attempts_mode_check": {
-          "name": "attempts_mode_check",
-          "value": "\"attempts\".\"mode\" in ('JLPT_PRACTICE', 'MOCK_TEST', 'FULL_EXAM')"
-        },
         "attempts_xp_reward_check": {
           "name": "attempts_xp_reward_check",
           "value": "\"attempts\".\"xp_reward\" >= 0"
@@ -3103,14 +3114,6 @@
         "attempts_xp_awarded_check": {
           "name": "attempts_xp_awarded_check",
           "value": "\"attempts\".\"xp_awarded\" >= 0"
-        },
-        "attempts_current_combo_check": {
-          "name": "attempts_current_combo_check",
-          "value": "\"attempts\".\"current_combo\" >= 0"
-        },
-        "attempts_best_combo_check": {
-          "name": "attempts_best_combo_check",
-          "value": "\"attempts\".\"best_combo\" >= 0"
         }
       }
     },

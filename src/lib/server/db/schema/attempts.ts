@@ -85,6 +85,15 @@ export const attempts = sqliteTable(
 		 * The combo counters are only ever moved by a `JLPT_PRACTICE` sitting; an exam leaves
 		 * them at zero. They live in the database rather than the browser so that a refresh
 		 * cannot restart a broken run.
+		 *
+		 * None of these carry a CHECK, unlike `xpReward` above, and that is deliberate.
+		 * SQLite cannot add a constrained column in place, so drizzle-kit answers a CHECK here
+		 * by rebuilding the whole table — and `attempts` is the parent of every snapshot table,
+		 * each joined to it with ON DELETE cascade. The rebuild's `DROP TABLE attempts` would
+		 * therefore delete every attempt_questions, attempt_answers and attempt_sections row.
+		 * The generated `PRAGMA foreign_keys=OFF` does not save it: that pragma is a no-op
+		 * inside a transaction, and migrations run in one. These invariants are enforced in
+		 * code instead, which costs nothing and cannot cost the table.
 		 */
 		mode: text('mode', { enum: QUIZ_MODES }),
 		currentCombo: integer('current_combo').notNull().default(0),
@@ -100,12 +109,8 @@ export const attempts = sqliteTable(
 	},
 	(table) => [
 		check('attempts_status_check', checkIn(table.status, ATTEMPT_STATUS)),
-		check('attempts_mode_check', checkIn(table.mode, QUIZ_MODES)),
 		check('attempts_xp_reward_check', sql`${table.xpReward} >= 0`),
 		check('attempts_xp_awarded_check', sql`${table.xpAwarded} >= 0`),
-		check('attempts_current_combo_check', sql`${table.currentCombo} >= 0`),
-		check('attempts_best_combo_check', sql`${table.bestCombo} >= 0`),
-		check('attempts_bonus_xp_check', sql`${table.bonusXpAwarded} >= 0`),
 		/**
 		 * The leaderboard index. Its column order *is* the documented tie-breaker chain —
 		 * highest score, then shortest time, then earliest completion — and the partial

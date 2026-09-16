@@ -136,15 +136,34 @@ missing file a **build failure**; the glob makes it `undefined`, and `playSfx` r
 `correct`, `incorrect`, `combo` and `levelup` have no files yet and are silent until
 licence-checked audio is added to `src/lib/assets/sound/`.
 
-### Migrations 0009 / 0010
+### Migration 0009, and why it adds no CHECK constraints
 
-Generated normally. The two files numbered `0008` are harmless: `meta/0008_snapshot.json`
-already contains both `users.jlpt_level` and `quizzes.icon`, so drizzle-kit's diff base is
-correct. **Do not** rename `0008_sturdy_mandroid.sql` or "repair" `_journal.json` — Wrangler
-tracks applied migrations in `d1_migrations` by exact filename and never reads the journal, so
-a rename re-runs an applied `ALTER TABLE` and fails the deploy.
+`0009_practice_run.sql` is five `ALTER TABLE ADD COLUMN` statements and one backfill. It
+deliberately adds no CHECK constraint, because SQLite cannot add a constrained column in
+place: drizzle-kit answers a CHECK by rebuilding the whole table, and `attempts` is the
+parent of every snapshot table, each joined to it with `ON DELETE cascade`.
 
-One hand-edit was needed in each: drizzle-kit emitted the `desc` index expressions as quoted
-identifiers (`` `"raw_score" desc` ``), which SQLite reads as a column name and rejects. The
-originals in `0001_schema.sql` are unquoted. Check this after any future `db:generate` that
-rebuilds `attempts`.
+That rebuild is not survivable. Its `DROP TABLE attempts` runs an implicit delete, which
+cascades and takes every `attempt_questions`, `attempt_answers` and `attempt_sections` row
+with it. The `PRAGMA foreign_keys=OFF` drizzle-kit emits does not help — that pragma is a
+**no-op inside a transaction**, and migrations run in one. An earlier draft of this work
+shipped exactly that migration; `tests/unit/migrations.spec.ts` caught it by asserting that
+a pre-existing attempt survives an upgrade.
+
+So: **never let a migration rebuild `attempts`.** Non-negativity and the mode enum are
+enforced in code instead. If drizzle-kit ever emits a `__new_attempts` block again, that is
+the signal a constraint crept into the schema.
+
+Two other things to check in any generated migration that touches `attempts`:
+
+- **`desc` index expressions** come out backtick-quoted (`` `"raw_score" desc` ``), which
+  SQLite reads as a column name and rejects. The originals in `0001_schema.sql` are
+  unquoted.
+- **A rebuild's `INSERT ... SELECT` reads the new columns from the old table**, which does
+  not have them yet, and fails with `no such column`.
+
+The two files numbered `0008` are harmless: `meta/0008_snapshot.json` already contains both
+`users.jlpt_level` and `quizzes.icon`, so drizzle-kit's diff base is correct. **Do not**
+rename `0008_sturdy_mandroid.sql` or "repair" `_journal.json` — Wrangler tracks applied
+migrations in `d1_migrations` by exact filename and never reads the journal, so a rename
+re-runs an applied migration and fails the deploy.

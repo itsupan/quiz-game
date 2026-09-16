@@ -1,6 +1,6 @@
 import { and, eq, exists, inArray, sql } from 'drizzle-orm';
 
-import type { ScoringBand, Section } from '$lib/domain/enums';
+import type { QuizMode, ScoringBand, Section } from '$lib/domain/enums';
 import type { Database } from '$lib/server/db';
 import {
 	attemptAnswers,
@@ -19,6 +19,7 @@ import {
 	scoreAttempt,
 	type BandConfig,
 	type SavedAnswer,
+	type ScoredAnswer,
 	type ServedQuestion
 } from '../scoring';
 import { BONUS_XP_CAP_RATIO, speedBonusXp } from '../game-feel';
@@ -83,6 +84,49 @@ async function loadCorrectOptionByPosition(
 		);
 
 	return new Map(rows.map((row) => [row.questionPosition, row.id]));
+}
+
+function calculateBonusXp(
+	status: 'SUBMITTED' | 'EXPIRED',
+	mode: QuizMode | null,
+	xpReward: number,
+	answers: ScoredAnswer[],
+	elapsedByQuestion: Map<number, number | null>,
+	pointsByQuestion: Map<number, number>
+): number {
+	if (status !== 'SUBMITTED' || mode !== 'JLPT_PRACTICE') return 0;
+
+	let bonusXp = 0;
+	let streak = 0;
+	for (const answer of answers) {
+		streak = answer.isCorrect ? streak + 1 : 0;
+		if (!answer.isCorrect) continue;
+
+		bonusXp += speedBonusXp(
+			elapsedByQuestion.get(answer.attemptQuestionId) ?? null,
+			pointsByQuestion.get(answer.attemptQuestionId) ?? 0,
+			streak
+		);
+	}
+
+	return Math.min(bonusXp, Math.round(xpReward * BONUS_XP_CAP_RATIO));
+}
+
+function groupScoredAnswers(
+	answers: ScoredAnswer[]
+): Map<string, { isCorrect: boolean; pointsEarned: number; ids: number[] }> {
+	const groups = new Map<string, { isCorrect: boolean; pointsEarned: number; ids: number[] }>();
+	for (const answer of answers) {
+		const key = `${answer.isCorrect}:${answer.pointsEarned}`;
+		const group = groups.get(key) ?? {
+			isCorrect: answer.isCorrect,
+			pointsEarned: answer.pointsEarned,
+			ids: []
+		};
+		group.ids.push(answer.attemptQuestionId);
+		groups.set(key, group);
+	}
+	return groups;
 }
 
 export async function finalizeAttempt(
@@ -165,21 +209,14 @@ export async function finalizeAttempt(
 	);
 	const pointsByQuestion = new Map(served.map((entry) => [entry.attemptQuestionId, entry.points]));
 
-	let bonusXp = 0;
-	if (status === 'SUBMITTED' && claimable.mode === 'JLPT_PRACTICE') {
-		let streak = 0;
-		for (const answer of scored.answers) {
-			streak = answer.isCorrect ? streak + 1 : 0;
-			if (!answer.isCorrect) continue;
-
-			bonusXp += speedBonusXp(
-				elapsedByQuestion.get(answer.attemptQuestionId) ?? null,
-				pointsByQuestion.get(answer.attemptQuestionId) ?? 0,
-				streak
-			);
-		}
-		bonusXp = Math.min(bonusXp, Math.round(claimable.xpReward * BONUS_XP_CAP_RATIO));
-	}
+	const bonusXp = calculateBonusXp(
+		status,
+		claimable.mode,
+		claimable.xpReward,
+		scored.answers,
+		elapsedByQuestion,
+		pointsByQuestion
+	);
 
 	const attemptIsUnchanged = and(
 		eq(attempts.id, attemptId),
@@ -193,17 +230,7 @@ export async function finalizeAttempt(
 			.where(attemptIsUnchanged)
 	);
 
-	const groups = new Map<string, { isCorrect: boolean; pointsEarned: number; ids: number[] }>();
-	for (const answer of scored.answers) {
-		const key = `${answer.isCorrect}:${answer.pointsEarned}`;
-		const group = groups.get(key) ?? {
-			isCorrect: answer.isCorrect,
-			pointsEarned: answer.pointsEarned,
-			ids: []
-		};
-		group.ids.push(answer.attemptQuestionId);
-		groups.set(key, group);
-	}
+	const groups = groupScoredAnswers(scored.answers);
 
 	const statements = [
 		...groups.values().map((group) =>
