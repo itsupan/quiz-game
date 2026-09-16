@@ -118,9 +118,6 @@
 								>
 							</div>
 						</div>
-
-
-
 						<div class="mb-6 w-full border-b border-line"></div>
 
 						<!-- Avatar & Info -->
@@ -227,17 +224,19 @@
 								{#if scorer.avatarUrl}
 									<img src={scorer.avatarUrl} alt="" class="h-full w-full object-cover" />
 								{:else}
-									<span class="text-xs font-black text-stone-400">{initials(scorer.displayName)}</span>
+									<span class="text-xs font-black text-stone-400"
+										>{initials(scorer.displayName)}</span
+									>
 								{/if}
 							</div>
 							<div>
 								<h3 class="mb-1 text-lg font-black text-ink uppercase">{scorer.displayName}</h3>
-							<div class="flex items-center gap-1.5">
-								<span class="h-2 w-2 bg-brand-red"></span>
-								<span class="text-[10px] font-bold tracking-widest text-stone-500 uppercase">
-									{scorer.streak} Day Streak
-								</span>
-							</div>
+								<div class="flex items-center gap-1.5">
+									<span class="h-2 w-2 bg-brand-red"></span>
+									<span class="text-[10px] font-bold tracking-widest text-stone-500 uppercase">
+										{scorer.streak} Day Streak
+									</span>
+								</div>
 							</div>
 						</div>
 						<div class="text-right">
