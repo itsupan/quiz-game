@@ -1,0 +1,31 @@
+workflows:
+  sveltekit-ci:
+    name: SvelteKit CI/CD
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      node: 22
+    scripts:
+      - name: Install pnpm
+        script: npm install -g pnpm@11
+      - name: Install dependencies
+        script: pnpm install --frozen-lockfile
+      - name: Check formatting
+        script: pnpm run format:check
+      - name: Lint
+        script: pnpm run lint
+      - name: Typecheck
+        script: pnpm run check
+      - name: Spell Check
+        script: pnpm run spellcheck
+      - name: Install Playwright browser
+        script: pnpm exec playwright install --with-deps chromium
+      - name: Unit and component tests
+        script: pnpm run test:unit --run
+      - name: Build
+        script: pnpm run build
+      - name: End-to-end tests
+        script: pnpm run test:e2e
+    artifacts:
+      - playwright-report/**
+      - test-results/**
