@@ -340,11 +340,10 @@
 	</div>
 
 	<!--
-		Docked below both rows of AppShell's mobile header, then below its single desktop
-		row from md upward, so long passage and media questions never hide their status.
+		Docked below AppShell's sticky header, so long passage and media questions never hide their status.
 	-->
 	<div
-		class="sticky top-[6.25rem] z-20 flex flex-col gap-2 border-2 border-ink bg-white px-4 py-2 shadow-hard sm:flex-row sm:items-center md:top-16"
+		class="sticky top-16 z-20 flex flex-col gap-2 border-2 border-ink bg-white px-4 py-2 shadow-hard sm:flex-row sm:items-center"
 	>
 		<div class="min-w-0 flex-1 space-y-1.5">
 			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
