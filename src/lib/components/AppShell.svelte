@@ -3,8 +3,9 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import NavLink from './NavLink.svelte';
+	import BottomNav from './BottomNav.svelte';
 
-	export type ShellNavLink = { href: string; label: string };
+	export type ShellNavLink = { href: string; label: string; icon?: string };
 
 	type Props = {
 		children: Snippet;
@@ -197,28 +198,14 @@
 				</div>
 			</div>
 		</div>
-
-		<div
-			class="flex gap-4 overflow-x-auto border-t border-stone-200 bg-stone-50 px-4 py-2 md:hidden"
-		>
-			{#each navLinks as link, i (link.href)}
-				<NavLink
-					href={link.href}
-					current={isCurrent(link.href, i)}
-					class="text-[11px] font-bold tracking-wider whitespace-nowrap uppercase {isCurrent(
-						link.href,
-						i
-					)
-						? 'text-brand-red underline'
-						: 'text-stone-600'}"
-				>
-					{link.label}
-				</NavLink>
-			{/each}
-		</div>
 	</header>
 
-	<div class="mx-auto w-full max-w-[1536px] flex-1 px-4 py-8 sm:px-6 lg:px-10">
+	<main
+		class="mx-auto w-full max-w-[1536px] flex-1 px-4 pt-6 pb-24 sm:px-6 md:py-8 lg:px-10"
+		style="padding-bottom: max(6rem, calc(5rem + env(safe-area-inset-bottom, 0px)));"
+	>
 		{@render children()}
-	</div>
+	</main>
+
+	<BottomNav items={navLinks} {isCurrent} ariaLabel={navLabel} />
 </div>

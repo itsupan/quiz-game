@@ -6,10 +6,10 @@
 	let { data, children }: LayoutProps = $props();
 
 	const navLinks = [
-		{ href: resolve('/home'), label: 'DASHBOARD' },
-		{ href: resolve('/leaderboard'), label: 'LEADERBOARD' },
-		{ href: resolve('/analytics'), label: 'ANALYTICS' },
-		{ href: resolve('/our-team'), label: 'OUR TEAM' }
+		{ href: resolve('/home'), label: 'DASHBOARD', icon: 'home' },
+		{ href: resolve('/leaderboard'), label: 'LEADERBOARD', icon: 'trophy' },
+		{ href: resolve('/analytics'), label: 'ANALYTICS', icon: 'stats' },
+		{ href: resolve('/our-team'), label: 'OUR TEAM', icon: 'users' }
 	];
 </script>
 

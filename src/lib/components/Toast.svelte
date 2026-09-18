@@ -57,7 +57,7 @@
 </script>
 
 <div
-	class="pointer-events-none fixed inset-x-0 bottom-0 z-100 flex flex-col items-stretch gap-2 p-4 sm:inset-x-auto sm:right-0 sm:items-end"
+	class="pointer-events-none fixed inset-x-0 bottom-16 z-100 flex flex-col items-stretch gap-2 p-4 sm:inset-x-auto sm:right-0 sm:bottom-0 sm:items-end"
 	aria-live="polite"
 >
 	{#each toast.items as item, i (item.id)}
