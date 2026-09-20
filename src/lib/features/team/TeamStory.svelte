@@ -1,10 +1,10 @@
 <script lang="ts">
+	import { MUSIC_URL } from '$lib/features/sound/sound.svelte';
 	import { onMount } from 'svelte';
 	import LayeredPortrait from './LayeredPortrait.svelte';
 	import MemberProfile from './MemberProfile.svelte';
 	import TeamCrest from './TeamCrest.svelte';
 	import type { TeamMember } from './team';
-	import { MUSIC_URL } from '$lib/features/sound/sound.svelte';
 
 	type Props = {
 		members: readonly TeamMember[];
@@ -614,30 +614,50 @@
 	}
 
 	@media (max-width: 900px) {
+		/*
+		 * The five figures are stepped 16.5% apart, so each one needs 34% of the row
+		 * to land flush inside it. Portraits are 2:3, which makes the row exactly
+		 * 34% * 1.5 = 51% of its own width tall and keeps every face in frame.
+		 */
+		.hero,
+		.formation {
+			--team-row-height: 51vw;
+		}
+
 		.hero {
 			height: auto;
-			min-height: 52rem;
+			min-height: 0;
 		}
 
 		.hero-copy {
 			width: 100%;
-			padding-bottom: 27rem;
+			padding-bottom: calc(var(--team-row-height) + 2rem);
 		}
 
 		.hero h1 {
 			font-size: clamp(3rem, 13vw, 6rem);
 		}
 
-		.hero-team {
-			right: -5rem;
-			bottom: -5rem;
-			width: 110%;
-			height: 32rem;
+		.hero-team,
+		.formation-team {
+			right: 0;
+			left: 0;
+			bottom: 0;
+			width: 100%;
+			height: var(--team-row-height);
+			transform: none;
 		}
 
 		.hero-person,
 		.formation-person {
-			width: 32%;
+			width: 34%;
+		}
+
+		/* Keep the small print clear of the figures now that they fill the row. */
+		.hero-coordinate,
+		.formation-signature {
+			right: 1.5rem;
+			bottom: calc(var(--team-row-height) + 1rem);
 		}
 
 		.story-layout {
@@ -652,28 +672,19 @@
 		}
 
 		.formation {
-			min-height: 61rem;
-		}
-
-		.formation-team {
-			right: -6rem;
-			bottom: -7rem;
-			width: 115%;
-			height: 35rem;
+			min-height: 0;
+			padding-bottom: calc(var(--team-row-height) + 4rem);
 		}
 	}
 
 	@media (max-width: 700px) {
 		.team-page {
-			margin-bottom: -2rem;
-		}
-
-		.hero {
-			min-height: 47rem;
+			margin-bottom: 0;
+			padding-bottom: clamp(4rem, 12vw, 6rem);
 		}
 
 		.hero-copy {
-			padding: 4.5rem 1.25rem 23rem;
+			padding: 4.5rem 1.25rem calc(var(--team-row-height) + 1.75rem);
 		}
 
 		.hero-crest {
@@ -685,12 +696,6 @@
 		.hero-lede {
 			max-width: 21rem;
 			font-size: 0.95rem;
-		}
-
-		.hero-team {
-			right: -3.5rem;
-			bottom: -3rem;
-			height: 25rem;
 		}
 
 		.hero-coordinate {
@@ -713,17 +718,11 @@
 		}
 
 		.formation {
-			min-height: 56rem;
-			padding: 5rem 1.5rem;
+			padding: 5rem 1.5rem calc(var(--team-row-height) + 3rem);
 		}
 
 		.formation h2 {
 			font-size: clamp(2.8rem, 15vw, 4.5rem);
-		}
-
-		.formation-team {
-			right: -5rem;
-			height: 29rem;
 		}
 	}
 

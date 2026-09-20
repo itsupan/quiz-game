@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
-	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import NavLink from './NavLink.svelte';
+	import { page } from '$app/state';
+	import type { Snippet } from 'svelte';
 	import BottomNav from './BottomNav.svelte';
+	import NavLink from './NavLink.svelte';
 
 	export type ShellNavLink = { href: string; label: string; icon?: string };
 
@@ -201,8 +201,8 @@
 	</header>
 
 	<main
-		class="mx-auto w-full max-w-[1536px] flex-1 px-4 pt-6 pb-24 sm:px-6 md:py-8 lg:px-10"
-		style="padding-bottom: max(6rem, calc(5rem + env(safe-area-inset-bottom, 0px)));"
+		class="mx-auto w-full max-w-[1536px] flex-1 px-4 pt-6 pb-28 sm:px-6 sm:pb-24 md:py-8 lg:px-10"
+		style="padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px) + 2rem);"
 	>
 		{@render children()}
 	</main>
