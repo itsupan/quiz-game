@@ -309,7 +309,7 @@
 					{#if stimulus}
 						<div class="grid grid-cols-1 lg:grid-cols-2">
 							<div class="border-b border-line bg-stone-50 p-6 lg:border-r lg:border-b-0">
-								<QuestionContextPanel group={stimulus} revealStudyAids={true} autoplay />
+								<QuestionContextPanel group={stimulus} revealStudyAids={true} />
 							</div>
 							<div class="p-6">
 								<QuestionBody
@@ -318,7 +318,6 @@
 									name="reviewOption-{question.number}"
 									selectedOptionId={question.selectedOptionNumber}
 									correctOptionNumber={question.correctOptionNumber}
-									autoplay
 									disabled
 								/>
 								<div class="mt-4">
@@ -334,7 +333,6 @@
 								name="reviewOption-{question.number}"
 								selectedOptionId={question.selectedOptionNumber}
 								correctOptionNumber={question.correctOptionNumber}
-								autoplay
 								disabled
 							/>
 							<div class="mt-4">
