@@ -49,7 +49,7 @@
 
 		<h2 class="mt-6 text-sm font-bold tracking-widest uppercase">Sections</h2>
 		<div class="mt-2 overflow-x-auto border-2 border-ink bg-white">
-			<table class="w-full min-w-[420px] text-left">
+			<table class="w-full text-left">
 				<thead class="bg-stone-50">
 					<tr>
 						<th
